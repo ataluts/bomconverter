@@ -1,0 +1,60 @@
+\documentclass{export_pe3_pdf}
+
+\usepackage{polyglossia}
+\setdefaultlanguage{russian}
+\setotherlanguage{english}
+\defaultfontfeatures{Mapping=tex-text}
+\setmainfont[AutoFakeSlant=0.25,AutoFakeBold=0.2,Scale=0.8]{opengosta.otf}
+
+\usepackage{datatool}
+
+\begin{document}
+
+	\newcommand{\tbfile}{export_pe3_pdf-tb.csv}
+	
+	\DTLloadrawdb[keys={Document name,Document type,Document designator,Letter (left),Letter (middle),Letter (right),Sheet index,Sheets total,Organization,Extra activity type,Designer name,Checker name,Technical supervisor name,Extra activity name,Normative supervisor name,Approver name,Designer signature date,Checker signature date,Technical supervisor signature date,Extra activity signature date,Normative supervisor signature date,Approver signature date,Original inventory number,Replaced original inventory number,Duplicate inventory number,Base document designator,First reference document designator}]{titleBlock}{\tbfile}
+
+	\DTLforeach{titleBlock}{\documentName=Document name, \documentType=Document type, \documentDesignator=Document designator, \letterLeft=Letter (left), \letterMiddle=Letter (middle), \letterRight=Letter (right), \sheetIndex=Sheet index, \sheetsTotal=Sheets total, \organization=Organization, \extraActivityType=Extra activity type, \designerName=Designer name, \checkerName=Checker name, \techicalSupervisorName=Technical supervisor name, \extraActivityName=Extra activity name, \normativeSupervisorName=Normative supervisor name, \approverName=Approver name, \designerSignatureDate=Designer signature date, \checkerSignatureDate=Checker signature date, \technicalSupervisorSignatureDate=Technical supervisor signature date, \extraActivitySignatureDate=Extra activity signature date, \normativeSupervisorSignatureDate=Normative supervisor signature date, \approverSignatureDate=Approver signature date, \originalInventoryNumber=Original inventory number, \replacedOriginalInventoryNumber=Replaced original inventory number, \duplicateInventoryNumber=Duplicate inventory number, \baseDocumentDesignator=Base document designator, \firstReferenceDocumentDesignator=First reference document designator}{%
+		\XeselDocumentName{\documentName} %если будет пустое то в xesel вылетить из-за объединения полей - нужен фикс
+		\XeselDocumentType{\documentType} %
+		\XeselDocumentDesignator{\documentDesignator} %
+		\XeselLetterLeft{\letterLeft} %
+		\XeselLetterMiddle{\letterMiddle} %
+		\XeselLetterRight{\letterRight} %
+		\XeselSheetIndex{\sheetIndex} %
+		\XeselSheetsTotal{\sheetsTotal} %
+		\XeselOrganization{\organization} %
+		\XeselExtraActivityType{\extraActivityType} %
+		\XeselDesignerName{\designerName} %
+		\XeselCheckerName{\checkerName} %
+		\XeselExtraActivityName{\extraActivityName} %
+		\XeselNormativeSupervisorName{\normativeSupervisorName} %
+		\XeselApproverName{\approverName} %
+		\XeselDesignerSignatureDate{\designerSignatureDate} %
+		\XeselCheckerSignatureDate{\checkerSignatureDate} %
+		\XeselTechnicalSupervisorSignatureDate{\technicalSupervisorSignatureDate} %
+		\XeselExtraActivitySignatureDate{\extraActivitySignatureDate} %
+		\XeselNormativeSupervisorSignatureDate{\normativeSupervisorSignatureDate} %
+		\XeselApproverSignatureDate{\approverSignatureDate} %
+		\XeselOriginalInventoryNumber{\originalInventoryNumber} %
+		\XeselReplacedOriginalInventoryNumber{\replacedOriginalInventoryNumber} %
+		\XeselDuplicateInventoryNumber{\duplicateInventoryNumber} %
+		\XeselBaseDocumentDesignator{\baseDocumentDesignator} %
+		\XeselFirstReferenceDocumentDesignator{\firstReferenceDocumentDesignator} %
+	}
+
+	\newcommand{\pefile}{export_pe3_pdf-data.csv}
+	
+	\DTLloadrawdb[keys={Designator,Label,Quantity,Annotation}]{perow}{\pefile}
+	
+	\begin{xesel}
+		\DTLforeach{perow}{\Designator=Designator, \Label=Label, \Quantity=Quantity, \Annotation=Annotation}{%
+			\ifthenelse{\equal{\Quantity}{}}{%
+				\XeselHeader{\Label}
+				}{%
+				\XeselEntry{\Designator}{\Label}{\Quantity}{\Annotation}
+				}
+		}
+	\end{xesel}
+
+\end{document}
