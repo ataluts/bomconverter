@@ -1,5 +1,6 @@
 import os
 import copy
+import enum
 import dict_locale as lcl
 from typedef_components import Components_typeDef                   #класс базы данных компонентов
 
@@ -73,6 +74,30 @@ class eskdFormat():
         self.substValueEnclosure      = substValueEnclosure         #заключение номинала замены
         self.substMfrEnclosure        = substMfrEnclosure           #заключение производителя замены
         self.substNoteEnclosure       = substNoteEnclosure          #заключение примечания замены
+
+#Метрические множители
+class MetricMultiplier(float, enum.Enum):
+    YOCTO = 1e-24
+    ZEPTO = 1e-21
+    ATTO  = 1e-18
+    FEMTO = 1e-15
+    PICO  = 1e-12
+    NANO  = 1e-9
+    MICRO = 1e-6
+    MILLI = 1e-3
+    CENTI = 1e-2
+    DECI  = 1e-1
+    NONE  = 1e0
+    DECA  = 1e1
+    HECTO = 1e2
+    KILO  = 1e3
+    MEGA  = 1e6
+    GIGA  = 1e9
+    TERA  = 1e12
+    PETA  = 1e15
+    EXA   = 1e18
+    ZETTA = 1e21
+    YOTTA = 1e24
 
 # ----------------------------------------------------------- Generic functions -------------------------------------------------
 
@@ -201,26 +226,20 @@ def assemble(data, **kwargs):
         
         #мощность
         if component.RES_power is not None:
-            description += _floatToString(component.RES_power, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.WATT.value[locale_index]
+            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.RES_power, lcl.Units.WATT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
         
         #напряжение
         if component.RES_voltage is not None:
-            description += _floatToString(component.RES_voltage, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.VOLT.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.RES_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #сопротивление + допуск
         if component.RES_resistance is not None:
-            if component.RES_resistance >= 1e6:
-                multiplier = 1e-6
-                unit_prefix = lcl.MetricPrefix.MEGA.value[locale_index]
-            elif component.RES_resistance >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.RES_resistance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.OHM.value[locale_index]
+            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+            description += _assemble_param_value(component.RES_resistance, lcl.Units.OHM, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.RES_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.RES_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
@@ -279,21 +298,14 @@ def assemble(data, **kwargs):
 
         #напряжение
         if component.CAP_voltage is not None:
-            description += _floatToString(component.CAP_voltage, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.VOLT.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.CAP_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #ёмкость + допуск
         if component.CAP_capacitance is not None:
-            if component.CAP_capacitance < 10e-9:
-                multiplier = 1e12
-                unit_prefix = lcl.MetricPrefix.PICO.value[locale_index]
-            elif component.CAP_capacitance < 10e-3:
-                multiplier = 1e6
-                unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.CAP_capacitance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.FARAD.value[locale_index]  
+            ranges = ((1e-12, MetricMultiplier.PICO), (10e-9, MetricMultiplier.MICRO), (0.1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.CAP_capacitance, lcl.Units.FARAD, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.CAP_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.CAP_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
@@ -307,32 +319,16 @@ def assemble(data, **kwargs):
     elif type(component) is component.types.Inductor:
         #индуктивность + допуск
         if component.IND_inductance is not None:
-            if component.IND_inductance < 1e-6:
-                multiplier = 1e9
-                unit_prefix = lcl.MetricPrefix.NANO.value[locale_index]
-            elif component.IND_inductance < 1e-3:
-                multiplier = 1e6
-                unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-            elif component.IND_inductance < 1e-0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.IND_inductance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.HENRY.value[locale_index]  
+            ranges = ((1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.IND_inductance, lcl.Units.HENRY, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.IND_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.IND_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #ток
         if component.IND_current is not None:
-            if component.IND_current < 1e-0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.IND_current * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.IND_current, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #низкая ёмкость
@@ -349,47 +345,28 @@ def assemble(data, **kwargs):
 
         #обратное напряжение
         if component.DIODE_reverseVoltage is not None:
-            if component.DIODE_reverseVoltage < 1e3:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            else:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            description += _floatToString(component.DIODE_reverseVoltage * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.VOLT.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.DIODE_reverseVoltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.DIODE_reverseVoltage_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.DIODE_reverseVoltage_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #прямой ток
         if component.DIODE_forwardCurrent is not None:
-            if component.DIODE_forwardCurrent < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.DIODE_forwardCurrent * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.DIODE_forwardCurrent, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #максимальная мощность
         if component.DIODE_power is not None:
-            if component.DIODE_power < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            elif component.DIODE_power >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.DIODE_power * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.WATT.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.DIODE_power, lcl.Units.WATT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #ёмкость + допуск + условия
         if component.DIODE_capacitance is not None:
-            multiplier = 1e12
-            unit_prefix = lcl.MetricPrefix.PICO.value[locale_index]
-            description += _floatToString(component.DIODE_capacitance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.FARAD.value[locale_index] 
+            ranges = ((1e-12, MetricMultiplier.PICO), )
+            description += _assemble_param_value(component.DIODE_capacitance, lcl.Units.FARAD, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             #допуск
             if component.DIODE_capacitance_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.DIODE_capacitance_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
@@ -398,29 +375,13 @@ def assemble(data, **kwargs):
                 description += fmt.conditionsEnclosure[0]
                 #напряжение
                 if component.DIODE_capacitance_voltage is not None:
-                    if component.DIODE_capacitance_voltage >= 1e3:
-                        multiplier = 1e-3
-                        unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-                    else:
-                        multiplier = 1e0
-                        unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                    description += _floatToString(component.DIODE_capacitance_voltage * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.VOLT.value[locale_index] 
+                    ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                    description += _assemble_param_value(component.DIODE_capacitance_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                     description += fmt.conditionsValueDelimiter
                 #частота
                 if component.DIODE_capacitance_frequency is not None:
-                    if component.DIODE_capacitance_frequency >= 1e9:
-                        multiplier = 1e-9
-                        unit_prefix = lcl.MetricPrefix.GIGA.value[locale_index]
-                    elif component.DIODE_capacitance_frequency >= 1e6:
-                        multiplier = 1e-6
-                        unit_prefix = lcl.MetricPrefix.MEGA.value[locale_index]
-                    elif component.DIODE_capacitance_frequency >= 1e3:
-                        multiplier = 1e-3
-                        unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-                    else:
-                        multiplier = 1e0
-                        unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                    description += _floatToString(component.DIODE_capacitance_frequency * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.HERTZ.value[locale_index] 
+                    ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+                    description += _assemble_param_value(component.DIODE_capacitance_frequency, lcl.Units.HERTZ, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                     description += fmt.conditionsValueDelimiter
                 description = string_strip_word(description, fmt.conditionsValueDelimiter)
                 description += fmt.conditionsEnclosure[1]
@@ -448,19 +409,14 @@ def assemble(data, **kwargs):
 
             #максимальное рабочее напряжение
             if component.TVS_standoff_voltage is not None:
-                description += _floatToString(component.TVS_standoff_voltage, fmt.decimalPoint)
-                description += fmt.valueToUnitDelimiter + lcl.Units.VOLT.value[locale_index] 
+                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                description += _assemble_param_value(component.TVS_standoff_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 description += fmt.descrParamsDelimiter
 
             #мощность + тип тестового импульса
             if component.TVS_power is not None:
-                if component.TVS_power >= 1e3:
-                    multiplier = 1e-3
-                    unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-                else:
-                    multiplier = 1e0
-                    unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                description += _floatToString(component.TVS_power * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.WATT.value[locale_index] 
+                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                description += _assemble_param_value(component.TVS_power, lcl.Units.WATT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 if component.TVS_testPulse is not None:
                     description += fmt.conditionsEnclosure[0]
                     if component.TVS_testPulse == component.TestPulse.US_8_20:
@@ -491,22 +447,14 @@ def assemble(data, **kwargs):
             
             #максимальное рабочее напряжение
             if component.TVS_standoff_voltage is not None:
-                description += _floatToString(component.TVS_standoff_voltage, fmt.decimalPoint)
-                description += fmt.valueToUnitDelimiter + lcl.Units.VOLT.value[locale_index] 
+                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                description += _assemble_param_value(component.TVS_standoff_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 description += fmt.descrParamsDelimiter
             
             #энергия + тип тестового импульса
             if component.TVS_energy is not None:
-                if component.TVS_energy >= 1e3:
-                    multiplier = 1e-3
-                    unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-                elif component.TVS_energy >= 1e0:
-                    multiplier = 1e0
-                    unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                else:
-                    multiplier = 1e3
-                    unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-                description += _floatToString(component.TVS_energy * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.JOULE.value[locale_index] 
+                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                description += _assemble_param_value(component.TVS_energy, lcl.Units.JOULE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 if component.TVS_testPulse is not None:
                     description += fmt.conditionsEnclosure[0]
                     if component.TVS_testPulse == component.TestPulse.US_8_20:
@@ -541,113 +489,51 @@ def assemble(data, **kwargs):
 
         #импеданс + допуск + частота
         if component.EMIF_impedance is not None:
-            if component.EMIF_impedance >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.EMIF_impedance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.OHM.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.EMIF_impedance, lcl.Units.OHM, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.EMIF_impedance_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.EMIF_impedance_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             if component.EMIF_impedance_frequency is not None:
                 description += fmt.conditionsEnclosure[0]
-                if component.EMIF_impedance_frequency >= 1e9:
-                    multiplier = 1e-9
-                    unit_prefix = lcl.MetricPrefix.GIGA.value[locale_index]
-                elif component.EMIF_impedance_frequency >= 1e6:
-                    multiplier = 1e-6
-                    unit_prefix = lcl.MetricPrefix.MEGA.value[locale_index]
-                elif component.EMIF_impedance_frequency >= 1e3:
-                    multiplier = 1e-3
-                    unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-                else:
-                    multiplier = 1e0
-                    unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                description += _floatToString(component.EMIF_impedance_frequency * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.HERTZ.value[locale_index] 
+                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+                description += _assemble_param_value(component.EMIF_impedance_frequency, lcl.Units.HERTZ, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 description += fmt.conditionsEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #индуктивность + допуск
         if component.EMIF_inductance is not None:
-            if component.EMIF_inductance < 1e-6:
-                multiplier = 1e9
-                unit_prefix = lcl.MetricPrefix.NANO.value[locale_index]
-            elif component.EMIF_inductance < 1e-3:
-                multiplier = 1e6
-                unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-            elif component.EMIF_inductance < 1e-0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.EMIF_inductance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.HENRY.value[locale_index] 
+            ranges = ((1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.EMIF_inductance, lcl.Units.HENRY, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.EMIF_inductance_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.EMIF_inductance_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #ёмкость + допуск
         if component.EMIF_capacitance is not None:
-            if component.EMIF_capacitance < 1e-9:
-                multiplier = 1e12
-                unit_prefix = lcl.MetricPrefix.PICO.value[locale_index]
-            elif component.EMIF_capacitance < 1e-6:
-                multiplier = 1e9
-                unit_prefix = lcl.MetricPrefix.NANO.value[locale_index]
-            elif component.EMIF_capacitance < 1e-3:
-                multiplier = 1e6
-                unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-            elif component.EMIF_capacitance < 1e-0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.EMIF_capacitance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.FARAD.value[locale_index] 
+            ranges = ((1e-12, MetricMultiplier.PICO), (1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (0.1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.EMIF_capacitance, lcl.Units.FARAD, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.EMIF_capacitance_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.EMIF_capacitance_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #сопротивление + допуск
         if component.EMIF_resistance is not None:
-            if component.EMIF_resistance < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            elif component.EMIF_resistance >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.EMIF_resistance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.OHM.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.EMIF_resistance, lcl.Units.OHM, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.EMIF_resistance_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.EMIF_resistance_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #номинальный ток
         if component.EMIF_current is not None:
-            if component.EMIF_current < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            elif component.EMIF_current >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.EMIF_current * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.EMIF_current, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #максимальное напряжение
         if component.EMIF_voltage is not None:
-            if component.EMIF_voltage >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.EMIF_voltage * multiplier, fmt.decimalPoint) * fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.VOLT.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.EMIF_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
     #--- --- Предохранитель
@@ -671,61 +557,33 @@ def assemble(data, **kwargs):
 
         #номинальный ток
         if component.CBRK_current_rating is not None:
-            if component.CBRK_current_rating < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            elif component.CBRK_current_rating >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.CBRK_current_rating * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.CBRK_current_rating, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #точка плавления
         if component.CBRK_meltingPoint is not None:
-            description += _floatToString(component.CBRK_meltingPoint, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.AMPERE.value[locale_index]  + '²' + lcl.Units.SECOND.value[locale_index]  
+            ranges = ((1e0, MetricMultiplier.NONE), )
+            description += _assemble_param_value(component.CBRK_meltingPoint, lcl.Units.AMPERE.value[locale_index]  + '²' + lcl.Units.SECOND.value[locale_index], fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #максимальное напряжение
         if component.CBRK_voltage is not None:
-            if component.CBRK_voltage >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.CBRK_voltage * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.VOLT.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.CBRK_voltage, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.CBRK_voltage_ac: description += '\xa0' + lcl.Labels.VOLTAGE_AC.value[locale_index]
             description += fmt.descrParamsDelimiter
 
         #сопротивление
         if component.CBRK_resistance is not None:
-            if component.CBRK_resistance < 1e-3:
-                multiplier = 1e6
-                unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-            elif component.CBRK_current_rating < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.CBRK_resistance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.OHM.value[locale_index] 
+            ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.CBRK_resistance, lcl.Units.OHM, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #максимальная мощность
         if component.CBRK_power is not None:
-            if component.CBRK_power < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            elif component.CBRK_power >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.CBRK_power * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.WATT.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.CBRK_power, lcl.Units.WATT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #классификация скорости срабатывания
@@ -747,16 +605,8 @@ def assemble(data, **kwargs):
 
         #частота + допуск
         if component.OSC_frequency is not None:
-            if component.OSC_frequency >= 1e6:
-                multiplier = 1e-6
-                unit_prefix = lcl.MetricPrefix.MEGA.value[locale_index]
-            elif component.OSC_frequency >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.OSC_frequency * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.HERTZ.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+            description += _assemble_param_value(component.OSC_frequency, lcl.Units.HERTZ, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.OSC_tolerance is not None:
                 description += fmt.toleranceEnclosure[0] + _assemble_param_tolerance(component.OSC_tolerance, None, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.signToToleranceDelimiter, fmt.rangeSymbol, locale_index) + fmt.toleranceEnclosure[1]
             description += fmt.descrParamsDelimiter
@@ -776,34 +626,20 @@ def assemble(data, **kwargs):
 
         #ёмкость нагрузки
         if component.OSC_loadCapacitance is not None:
-            multiplier = 1e12
-            unit_prefix = lcl.MetricPrefix.PICO.value[locale_index]
-            description += _floatToString(component.OSC_loadCapacitance * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.FARAD.value[locale_index] 
+            ranges = ((1e-12, MetricMultiplier.PICO), )
+            description += _assemble_param_value(component.OSC_loadCapacitance, lcl.Units.FARAD, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #эквивалентное последовательное сопротивление
         if component.OSC_ESR is not None:
-            if component.OSC_ESR >= 1e3:
-                multiplier = 1e-3
-                unit_prefix = lcl.MetricPrefix.KILO.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.OSC_ESR * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.OHM.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+            description += _assemble_param_value(component.OSC_ESR, lcl.Units.OHM, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #уровень возбуждения
         if component.OSC_driveLevel is not None:
-            if component.OSC_driveLevel < 1e-3:
-                multiplier = 1e6
-                unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-            elif component.OSC_driveLevel < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.OSC_driveLevel * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.WATT.value[locale_index] 
+            ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.OSC_driveLevel, lcl.Units.WATT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #диапазон рабочих температур
@@ -858,12 +694,10 @@ def assemble(data, **kwargs):
             
         #длина волны
         if component.LED_wavelength_peak is not None:
-            multiplier = 1e9
-            unit_prefix = lcl.MetricPrefix.NANO.value[locale_index]
-            description += _floatToString(component.LED_wavelength_peak * multiplier, fmt.decimalPoint)
-            if component.LED_wavelength_dominant is not None:
-                description += fmt.multivalueDelimiter + _floatToString(component.LED_wavelength_dominant * multiplier, fmt.decimalPoint)
-            description += fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.METRE.value[locale_index] 
+            value = [component.LED_wavelength_peak]
+            if component.LED_wavelength_dominant is not None: value.append(component.LED_wavelength_dominant)
+            ranges = ((1e-9, MetricMultiplier.NANO), )
+            description += _assemble_param_value(value, lcl.Units.METRE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #индекс цветопередачи
@@ -873,68 +707,44 @@ def assemble(data, **kwargs):
 
         #сила света
         if component.LED_luminous_intensity is not None:
-            if component.LED_luminous_intensity < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.LED_luminous_intensity * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.CANDELA.value[locale_index] 
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(component.LED_luminous_intensity, lcl.Units.CANDELA, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.LED_luminous_intensity_current is not None:
                 description += fmt.conditionsEnclosure[0]
-                if component.LED_luminous_intensity_current < 1e-3:
-                    multiplier = 1e6
-                    unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-                elif component.LED_luminous_intensity_current < 1e0:
-                    multiplier = 1e3
-                    unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-                else:
-                    multiplier = 1e0
-                    unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                description += _floatToString(component.LED_luminous_intensity_current * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index] 
+                ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                description += _assemble_param_value(component.LED_luminous_intensity_current, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 description += fmt.conditionsEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #световой поток
         if component.LED_luminous_flux is not None:
-            description += _floatToString(component.LED_luminous_flux, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.LUMEN.value[locale_index] 
+            ranges = ((1e0, MetricMultiplier.NONE), )
+            description += _assemble_param_value(component.LED_luminous_flux, lcl.Units.LUMEN, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             if component.LED_luminous_flux_current is not None:
                 description += fmt.conditionsEnclosure[0]
-                if component.LED_luminous_flux_current < 1e-3:
-                    multiplier = 1e6
-                    unit_prefix = lcl.MetricPrefix.MICRO.value[locale_index]
-                elif component.LED_luminous_flux_current < 1e0:
-                    multiplier = 1e3
-                    unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-                else:
-                    multiplier = 1e0
-                    unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-                description += _floatToString(component.LED_luminous_flux_current * multiplier, fmt.decimalPoint) + fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index] 
+                ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                description += _assemble_param_value(component.LED_luminous_flux_current, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
                 description += fmt.conditionsEnclosure[1]
             description += fmt.descrParamsDelimiter
 
         #угол обзора
         if component.LED_viewingAngle is not None:
-            description += _floatToString(component.LED_viewingAngle, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.DEGREE.value[locale_index]
+            ranges = ((1e0, MetricMultiplier.NONE), )
+            description += _assemble_param_value(component.LED_viewingAngle, lcl.Units.DEGREE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #прямой ток
         if component.LED_current_nominal is not None:
-            if component.LED_current_nominal < 1e0:
-                multiplier = 1e3
-                unit_prefix = lcl.MetricPrefix.MILLI.value[locale_index]
-            else:
-                multiplier = 1e0
-                unit_prefix = lcl.MetricPrefix.NONE.value[locale_index]
-            description += _floatToString(component.LED_current_nominal * multiplier, fmt.decimalPoint)
-            if component.LED_current_maximum is not None:
-                description += fmt.multivalueDelimiter + _floatToString(component.LED_current_maximum * multiplier, fmt.decimalPoint)
-            description += fmt.valueToUnitDelimiter + unit_prefix + lcl.Units.AMPERE.value[locale_index]
+            value = [component.LED_current_nominal]
+            if component.LED_current_maximum is not None: value.append(component.LED_current_maximum)
+            ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+            description += _assemble_param_value(value, lcl.Units.AMPERE, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #прямое падение напряжения
         if component.LED_voltage_forward is not None:
-            description += _floatToString(component.LED_voltage_forward, fmt.decimalPoint) + fmt.valueToUnitDelimiter + lcl.Units.VOLT.value[locale_index]
+            ranges = ((1e0, MetricMultiplier.NONE), )
+            description += _assemble_param_value(component.LED_voltage_forward, lcl.Units.VOLT, fmt.decimalPoint, fmt.valueToUnitDelimiter, fmt.multivalueDelimiter, locale_index, ranges)
             description += fmt.descrParamsDelimiter
 
         #сборка
@@ -976,6 +786,65 @@ def assemble(data, **kwargs):
 
     return result
 
+#сборка параметра: значение
+def _assemble_param_value(param, unit = None, decimalPoint = '.', valueToUnitDelimiter = '', multivalueDelimiter = '/', locale_index = 0, ranges = None):
+    if isinstance(param, (int, float)): param = [param]         #если числовое значение, а не массив то делаем его массивом
+    if not isinstance(param, (list, tuple)): return '<ERROR>'
+
+    #если единицы измерения не заданы то приставку добавлять некуда
+    if unit is None:
+        unit_str = ''
+        prefix = ''
+        multiplier = MetricMultiplier.NONE
+    else:
+        #определяем единицы измерения
+        if isinstance(unit, lcl.Units):
+            unit_str = unit.value[locale_index]
+        else:
+            unit_str = str(unit)
+
+        #задаём диапазоны
+        if ranges is None:
+            #список диапазонов должен быть отсортирован по возрастанию
+            ranges = ((0,     MetricMultiplier.NONE),
+                      (1e-12, MetricMultiplier.PICO),
+                      (1e-9,  MetricMultiplier.NANO),
+                      (1e-6,  MetricMultiplier.MICRO),
+                      (1e-3,  MetricMultiplier.MILLI),
+                      (1e0,   MetricMultiplier.NONE),
+                      (1e3,   MetricMultiplier.KILO),
+                      (1e6,   MetricMultiplier.MEGA),
+                      (1e9,   MetricMultiplier.GIGA))
+
+        #определяем среднее значение исключая нули
+        scope = 0; i = 0
+        for p in param:
+            if p != 0: scope += abs(p); i += 1
+        if i > 0: scope = scope / i
+
+        #определяем множитель
+        if scope == 0:
+            #обрабатываем частный случай когда значение равно 0
+            multiplier = ranges[0][1]
+        else:
+            i = 1
+            if ranges[0][0] == 0: i += 1
+            while i < len(ranges):
+                multiplier = ranges[i - 1][1]
+                if scope < ranges[i][0]: break
+                i += 1
+            else:
+                multiplier = ranges[-1][1]
+
+        #получаем префикс
+        for entry in lcl.MetricPrefix:
+            if entry.name == multiplier.name: prefix = entry.value[locale_index]
+
+    #получаем строковое значение
+    for i in range(len(param)):
+        param[i] = _floatToString(param[i] / multiplier.value, decimalPoint)
+
+    return multivalueDelimiter.join(param) + valueToUnitDelimiter + prefix + unit_str
 
 #сборка параметра: допуск
 def _assemble_param_tolerance(param, unit = None, decimalPoint = '.', valueToUnitDelimiter = '', signToToleranceDelimiter = '', rangeSymbol = '\u2026', locale_index = 0):
