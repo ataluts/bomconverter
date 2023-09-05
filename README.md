@@ -31,6 +31,17 @@ EN: Creating components database from Altium Designer project, schematics and Bo
 - *'pe3-pdf'* - перечень элементов (ПЭ3) в формате PDF (должен быть установлен MiKTeX);
 - *'sp-csv'* - файл для импорта данных (с полями заполненными как для ПЭ3) в *"КОМПАС-3D"* через прикладную библиотеку *"Конвертор eCAD-КОМПАС (текст)"* (для создания перечня или спецификации в Компасе).
 
+### Зависимости
+**_import_adproject.py_**
+- [olefile](https://pypi.org/project/olefile) - `pip install olefile`
+
+**_export_cl_xlsx.py_**
+- [XlsxWriter](https://xlsxwriter.readthedocs.io/) - `pip install xlsxwriter`
+
+**_export-pe3_docx.py_**
+- [python-docx](https://python-docx.readthedocs.io) - `pip install python-docx`
+- [Pillow](https://pillow.readthedocs.io) - `pip install Pillow`
+
 ## Отладочный проект
 В папке *"debug/AD project"* лежит тестовый проект Altium Designer сделанный для работы с моим парсером (его адрес добавлен в *"_starter.py"*). На схеме представлены различные элементы с примерами заполнения полей. В папку *"debug/AD project/project outputs/Bill of Materials"* изначально экспортируются BoM-файлы из проекта. Туда же записывыаются и выходные файлы самой программы. Все эти файлы доступны там в качестве примера получаемого результата.
 
