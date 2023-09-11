@@ -1,0 +1,54 @@
+import os
+import sys
+from typedef_components import Components_typeDef                   #класс базы данных компонентов
+
+script_dirName  = os.path.dirname(__file__)                                                          #адрес папки со скриптом
+script_baseName = os.path.splitext(os.path.basename(__file__))[0]                                    #базовое имя модуля
+dict_mfrNames_defaultAddress = os.path.join(script_dirName, script_baseName.replace('optimize', 'dict') + os.extsep + 'py')  #адрес словаря с именами производителей
+
+#Оптимизирует имена производителей
+def optimize(data, **kwargs):
+    print('INFO >> Manufacturer names optimizer module running.')
+
+    #адрес словаря имён производителей
+    dict_mfrNames_address = kwargs.pop('groupsDict', dict_mfrNames_defaultAddress)
+    print(' ' * 12 + 'dictionary: ' +  os.path.basename(dict_mfrNames_address))
+
+    #импортируем словарь с именами прозводителей
+    print('INFO >> Importing dictionary', end ="... ", flush = True)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("dict_mfrNames", dict_mfrNames_address)
+    dict_mfrNames = importlib.util.module_from_spec(spec)
+    sys.modules["dict_mfrNames"] = dict_mfrNames
+    spec.loader.exec_module(dict_mfrNames)
+    print('done.')
+
+    #разворачиваем данные
+    components = data
+
+    print('INFO >> Translating names', end ="... ", flush = True)
+    for component in components.entries:
+        if component.GENERIC_manufacturer is not None:
+            entryFound = False
+            for entry in dict_mfrNames.data:
+                for word in dict_mfrNames.data[entry]:
+                    if word.casefold() == component.GENERIC_manufacturer.casefold():
+                        component.GENERIC_manufacturer = entry
+                        entryFound = True
+                        break
+                if entryFound: break
+        if component.GENERIC_substitute is not None:
+            for substitute in component.GENERIC_substitute:
+                if substitute.manufacturer is not None:
+                    entryFound = False
+                    for entry in dict_mfrNames.data:
+                        for word in dict_mfrNames.data[entry]:
+                            if word.casefold() == substitute.manufacturer.casefold():
+                                substitute.manufacturer = entry
+                                entryFound = True
+                                break
+                        if entryFound: break
+    print('done.')
+
+    print("INFO >> Manufacturers names optimization completed.") 
+    return True
