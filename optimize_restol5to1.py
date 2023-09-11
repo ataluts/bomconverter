@@ -93,13 +93,3 @@ def optimize(data, **kwargs):
     print("INFO >> Resistors tolerances otimization completed (" + str(initial_res5_size - len(res5)) + ' resistors optimized).') 
 
     return True
-
-
-
-
-
-
-    print('done.')
-
-    print("INFO >> Resistors tolerance optimization completed.") 
-    return True

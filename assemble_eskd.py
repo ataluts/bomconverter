@@ -138,14 +138,14 @@ def string_strip_word(string, words, direction = 0, count = 0):
                         break
     return string
 
-#========================================================== END Generic functions =================================================
-
 #Convert float number to string
 def _floatToString(value, decimalPoint = '.'):
     result = '{0:.10f}'.format(value)
     result = result.rstrip('0').rstrip('.')
     result = result.replace('.', decimalPoint)
     return result
+
+#========================================================== END Generic functions =================================================
 
 #Собирает значения полей компонента по ЕСКД из параметров компонента (сборка строк из параметров)
 def assemble(data, **kwargs):

@@ -276,17 +276,17 @@ def parse_components(components, BoM, **kwargs):
                 for j in range(len(descriptionParams)):
                     #тип резистора
                     if component.RES_type is None:
-                        if string_equal(descriptionParams[0], ('тонкоплёночный', ), False):
+                        if string_equal(descriptionParams[0], ('тонкоплёночный', 'тонкоплён.'), False):
                             component.RES_type = component.Type.THIN_FILM
-                        elif string_equal(descriptionParams[0], ('толстоплёночный', ), False):
+                        elif string_equal(descriptionParams[0], ('толстоплёночный', 'толстоплён.'), False):
                             component.RES_type = component.Type.THICK_FILM
-                        elif string_equal(descriptionParams[0], ('металло-плёночный', ), False):
+                        elif string_equal(descriptionParams[0], ('металло-плёночный', 'мет-плён.'), False):
                             component.RES_type = component.Type.METAL_FILM
-                        elif string_equal(descriptionParams[0], ('углеродистый', ), False):
+                        elif string_equal(descriptionParams[0], ('углеродистый', 'углерод.'), False):
                             component.RES_type = component.Type.CARBON_FILM
-                        elif string_equal(descriptionParams[0], ('проволочный', ), False):
+                        elif string_equal(descriptionParams[0], ('проволочный', 'провол.'), False):
                             component.RES_type = component.Type.WIREWOUND
-                        elif string_equal(descriptionParams[0], ('керамический', ), False):
+                        elif string_equal(descriptionParams[0], ('керамический', 'керам.'), False):
                             component.RES_type = component.Type.CERAMIC
                         #завершаем обработку если нашли нужный параметр
                         if component.RES_type is not None:   
@@ -344,8 +344,9 @@ def parse_components(components, BoM, **kwargs):
                                 continue
 
                     #сборка
-                    if string_equal(descriptionParams[j], ('assembly', 'сборка'), False):
-                        component.GENERIC_assembly = True
+                    parsing_result = parse_param_assembly(descriptionParams[j])
+                    if parsing_result is not None:
+                        component.GENERIC_assembly = parsing_result
                         descriptionParams[j] = '' #clear parsed parameter
                         continue
 
@@ -467,8 +468,9 @@ def parse_components(components, BoM, **kwargs):
                         continue
 
                     #сборка
-                    if string_equal(descriptionParams[j], ("assembly", "сборка"), False):
-                        component.GENERIC_assembly = True
+                    parsing_result = parse_param_assembly(descriptionParams[j])
+                    if parsing_result is not None:
+                        component.GENERIC_assembly = parsing_result
                         descriptionParams[j] = '' #clear parsed parameter
                         continue
 
@@ -719,8 +721,9 @@ def parse_components(components, BoM, **kwargs):
                         pass
 
                     #сборка
-                    if string_equal(descriptionParams[j], ("assembly", "сборка"), False):
-                        component.GENERIC_assembly = True
+                    parsing_result = parse_param_assembly(descriptionParams[j])
+                    if parsing_result is not None:
+                        component.GENERIC_assembly = parsing_result
                         descriptionParams[j] = '' #clear parsed parameter
                         continue
 
@@ -1445,6 +1448,50 @@ def parse_param_temperatureRange(param, decimalPoint = '.'):
                     return [value[0], value[1]]                             #-…+
     return None
 
+#разбор параметра: сборка
+def parse_param_assembly(param):
+    if string_startswith(param, ("assembly", "сборка"), False):
+        asm_blocks = 0
+        asm_elements = 0
+        asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.UNKNOWN
+        
+        param = param.split(' ')
+        if len(param) > 1:
+            #тип
+            asm_formula = param[1]
+            asm_type = ''
+            pos = len(asm_formula) - 1
+            while pos >= 0:
+                char = asm_formula[pos]
+                if char.isdecimal(): break
+                asm_type = char + asm_type
+                pos -= 1
+            asm_formula = asm_formula[0:len(asm_formula) - len(asm_type)]
+            if   string_equal(asm_type, ('I', 'IND'), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.INDEPENDENT
+            elif string_equal(asm_type, ('A', 'CA' ), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.COMMON_ANODE
+            elif string_equal(asm_type, ('C', 'CC' ), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.COMMON_CATHODE
+            elif string_equal(asm_type, ('S', 'SER'), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.SERIES
+            else:                                            asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.UNKNOWN
+
+            #количество элементов
+            asm_formula = asm_formula.replace('.', 'x')
+            asm_formula = asm_formula.split('x')
+            if len(asm_formula) == 2:
+                try:
+                    asm_blocks = int(asm_formula[0])
+                    asm_elements = int(asm_formula[1])
+                except ValueError:
+                    return None
+            else:
+                try:
+                    asm_elements = int(asm_formula[0])
+                except ValueError:
+                    return None
+                if asm_elements > 0:
+                    asm_blocks = 1
+
+        return [asm_blocks, asm_elements, asm_type]    
+    return None
 
 #Проверка базы данных компонентов
 def designer_check(components):
@@ -1497,51 +1544,6 @@ def designer_check(components):
         print("ok.")  
     else:
         print('\n' + ' ' * 12 + 'completed: ' + str(errors) + ' errors, ' +  str(warnings) + ' warnings.')
-
-#разбор параметра: сборка
-def parse_param_assembly(param):
-    if string_startswith(param, ("assembly", "сборка"), False):
-        asm_blocks = 0
-        asm_elements = 0
-        asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.UNKNOWN
-        
-        param = param.split(' ')
-        if len(param) > 1:
-            #тип
-            asm_formula = param[1]
-            asm_type = ''
-            pos = len(asm_formula) - 1
-            while pos >= 0:
-                char = asm_formula[pos]
-                if char.isdecimal(): break
-                asm_type = char + asm_type
-                pos -= 1
-            asm_formula = asm_formula[0:len(asm_formula) - len(asm_type)]
-            if   string_equal(asm_type, ('I', 'IND'), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.INDEPENDENT
-            elif string_equal(asm_type, ('A', 'CA' ), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.COMMON_ANODE
-            elif string_equal(asm_type, ('C', 'CC' ), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.COMMON_CATHODE
-            elif string_equal(asm_type, ('S', 'SER'), True): asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.SERIES
-            else:                                            asm_type = Components_typeDef.ComponentTypes.Generic.AssemblyType.UNKNOWN
-
-            #количество элементов
-            asm_formula = asm_formula.replace('.', 'x')
-            asm_formula = asm_formula.split('x')
-            if len(asm_formula) == 2:
-                try:
-                    asm_blocks = int(asm_formula[0])
-                    asm_elements = int(asm_formula[1])
-                except ValueError:
-                    return None
-            else:
-                try:
-                    asm_elements = int(asm_formula[0])
-                except ValueError:
-                    return None
-                if asm_elements > 0:
-                    asm_blocks = 1
-
-        return [asm_blocks, asm_elements, asm_type]    
-    return None
 
 #========================================================== END Designer functions =================================================
 

@@ -130,4 +130,5 @@ dmypy.json
 .pyre/
 
 # User-defined
-_starter.py
+_launcher_taluts.py
+debug/

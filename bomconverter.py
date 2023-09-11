@@ -13,6 +13,8 @@ import typedef_titleBlock               #класс основной надпи�
 import import_adproject                 #импорт данных проекта Altium Designer
 import import_bom_csv as import_bom     #импорт данных из Bill of Materials
 import parse_taluts as parse            #анализ данных под конкретного разработчика
+import optimize_mfrNames                #оптимизация имён производителей
+import optimize_restol5to1              #оптимизация номиналов резисторов по точности (5%->1%)
 import build_cl                         #сборка списка компонентов
 import build_pe3                        #сборка перечня элементов
 import build_sp                         #сборка спецификации
@@ -20,12 +22,11 @@ import export_cl_xlsx                   #экспорт списка компо�
 import export_pe3_docx                  #экспорт перечня элементов в Word
 import export_pe3_pdf                   #экспорт перечня элементов в PDF
 import export_sp_csv                    #экспорт спецификации в CSV
-import dict_manufacturers               #словарь с производителями
 from dict_locale import LocaleIndex     #словарь с локализациями
 
 script_dirName = os.path.dirname(__file__)                     #адрес папки со скриптом
-script_version = '3.1'
-script_date    = datetime.datetime(2022, 10, 7)
+script_version = '3.2'
+script_date    = datetime.datetime(2023, 9, 11)
 
 #todo: пересмотреть логику группировки компонентов в одну запись во всех сборщиках, например добавлены данные о заменах и это надо учитывать
 #todo: CL - в допустимых заменах работа с флагами толком не реализована
@@ -47,6 +48,13 @@ class OutputID(enum.Enum):
     PE3_DOCX = 'pe3-docx'
     PE3_PDF  = 'pe3-pdf'
     SP_CSV   = 'sp-csv'
+    NONE     = 'none'
+
+class OptimizationID(enum.Enum):
+    ALL        = 'all'
+    MFRNAMES   = 'mfrnames'
+    RESTOL5TO1 = 'restol5to1'
+    NONE       = 'none'
 
 #====================================================== END Class definitions =======================================================
 
@@ -110,22 +118,30 @@ def process_adproject(address, output_directory = None, **kwargs):
 #обрабатываем BoM файлы
 def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
     if titleBlock is None: titleBlock = typedef_titleBlock.TitleBlock_typeDef()
-    make_cl_xlsx  = False
-    make_pe3_docx = False
-    make_pe3_pdf  = False
-    make_sp_csv   = False
+    make_cl_xlsx     = False
+    make_pe3_docx    = False
+    make_pe3_pdf     = False
+    make_sp_csv      = False
+    optmz_mfrnames   = False
+    optmz_restol5to1 = False
 
     #параметры
     output_name_enclosure = kwargs.get('output_name_enclosure', [' ', ' '])
     output_name_prefix    = kwargs.get('output_name_prefix', '')
     output_name_postfix   = kwargs.get('output_name_postfix', '')
-    output    = kwargs.get('output', OutputID.ALL.value)   #какие документы создавать
-    if output == OutputID.ALL.value: output = [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value]
+    output    = kwargs.get('output', [OutputID.ALL.value])   #какие документы создавать
+    if OutputID.ALL.value      in output: output = [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value]
+    if OutputID.NONE.value     in output: output = []
     if OutputID.CL_XLSX.value  in output: make_cl_xlsx  = True
     if OutputID.PE3_DOCX.value in output: make_pe3_docx = True
     if OutputID.PE3_PDF.value  in output: make_pe3_pdf  = True
     if OutputID.SP_CSV.value   in output: make_sp_csv   = True
-    
+    optimize  = kwargs.get('optimize', OptimizationID.NONE.value)   #какие оптимизации выполнять
+    if OptimizationID.ALL.value        in optimize: optimize = [OptimizationID.MFRNAMES.value, OptimizationID.RESTOL5TO1.value]
+    if OptimizationID.NONE.value       in optimize: optimize = []
+    if OptimizationID.MFRNAMES.value   in optimize: optmz_mfrnames   = True
+    if OptimizationID.RESTOL5TO1.value in optimize: optmz_restol5to1 = True
+
     make_cl  = make_cl_xlsx
     make_pe3 = make_pe3_docx or make_pe3_pdf
     make_sp  = make_sp_csv
@@ -149,29 +165,14 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
     components.sort()                                                       #сортируем элементы базы данных
 
     #заменяем имена производителей
-    print("INFO >> Translating manufacturers names.")
-    for component in components.entries:
-        if component.GENERIC_manufacturer is not None:
-            entryFound = False
-            for entry in dict_manufacturers.dict_manufacturers:
-                for word in dict_manufacturers.dict_manufacturers[entry]:
-                    if word.casefold() == component.GENERIC_manufacturer.casefold():
-                        component.GENERIC_manufacturer = entry
-                        entryFound = True
-                        break
-                if entryFound: break
-        if component.GENERIC_substitute is not None:
-            for substitute in component.GENERIC_substitute:
-                if substitute.manufacturer is not None:
-                    entryFound = False
-                    for entry in dict_manufacturers.dict_manufacturers:
-                        for word in dict_manufacturers.dict_manufacturers[entry]:
-                            if word.casefold() == substitute.manufacturer.casefold():
-                                substitute.manufacturer = entry
-                                entryFound = True
-                                break
-                        if entryFound: break
-
+    if optmz_mfrnames:
+        print("INFO >> Optimizing manufacturers names:")
+        optimize_mfrNames.optimize(components)
+    
+    #оптимизируем номиналы резисторов по точности
+    if optmz_restol5to1:
+        print("INFO >> Optimizing resistors tolerances:")
+        optimize_restol5to1.optimize(components)
 
     #создание списка компонентов
     if make_cl:
@@ -398,6 +399,7 @@ if __name__ == "__main__":
             #sys.argv.extend(input_files)
             #sys.argv.append('--adproject')
             #sys.argv.extend(['--output', 'pe3-docx'])
+            #sys.argv.extend(['--optimize', 'all'])
             #sys.argv.append('--noquestions')
             #sys.argv.append('--nohalt')
         #<-DEBUG
@@ -408,7 +410,8 @@ if __name__ == "__main__":
         parser.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
         parser.add_argument('--titleblock',         type=str,                 metavar='file',         help='file with title block data')
         parser.add_argument('--output-dir',                                   metavar='path',         help='output directory')
-        parser.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',  choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value])
+        parser.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',  choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value, OutputID.ALL.value, OutputID.NONE.value])
+        parser.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[OptimizationID.MFRNAMES.value, OptimizationID.RESTOL5TO1.value, OptimizationID.ALL.value, OptimizationID.NONE.value])
         parser.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
         parser.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
         args = parser.parse_args()
@@ -417,6 +420,7 @@ if __name__ == "__main__":
         inputfiles = args.inputfiles
         if args.output_dir is not None: output_directory = args.output_dir
         if args.output is not None: params['output'] = args.output
+        if args.optimize is not None: params['optimize'] = args.optimize
         params['noquestions'] = args.noquestions
  
         #process data
