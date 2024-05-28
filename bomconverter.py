@@ -25,8 +25,8 @@ import export_sp_csv                    #экспорт спецификации
 from dict_locale import LocaleIndex     #словарь с локализациями
 
 script_dirName = os.path.dirname(__file__)                     #адрес папки со скриптом
-script_version = '3.2'
-script_date    = datetime.datetime(2023, 9, 11)
+script_version = '3.3'
+script_date    = datetime.datetime(2024, 9, 28)
 
 #todo: пересмотреть логику группировки компонентов в одну запись во всех сборщиках, например добавлены данные о заменах и это надо учитывать
 #todo: CL - в допустимых заменах работа с флагами толком не реализована
@@ -162,7 +162,7 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
     components = typedef_components.Components_typeDef()                    #создаём объект базы
     parse.parse_components(components, bom)                                 #отдаём разработчику BoM чтобы он заполнил базу данных
     print("INFO >> Sorting components database.")
-    components.sort()                                                       #сортируем элементы базы данных
+    components.sort()                                                       #сортируем элементы базы данных (методом по-умолчанию)
 
     #заменяем имена производителей
     if optmz_mfrnames:
@@ -178,14 +178,36 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
     if make_cl:
         print('')
         print("INFO >> Building cl:")
-        cl = build_cl.build(components)
-
+        cl = build_cl.build(components,
+                                locale_index                            = LocaleIndex.RU.value,
+                                #title_book                             = 'Список компонентов', 
+                                #title_list_components                  = 'Список компонентов',
+                                #title_list_substitutes                 = 'Допустимые замены',
+                                sorting_method                          = 'params',
+                                sorting_reverse                         = False,
+                                assemble_kind                           = False, #пересобирать тип элемента
+                                format_kind_capitalize                  = True,  #типы элементов с заглавной буквы
+                                assemble_description                    = False, #пересобирать описание (все аргументы ниже относятся к этому сборщику)
+                                content_param_basic                     = True,
+                                content_param_misc                      = True,
+                                format_param_enclosure                  = ['', ''],
+                                format_param_decimalPoint               = '.',
+                                format_param_rangeSymbol                = '\u2026',
+                                format_param_delimiter                  = ', ',
+                                format_param_unit_enclosure             = ['', ''],
+                                format_param_multivalue_delimiter       = '/',
+                                format_param_tolerance_enclosure        = ['\xa0', ''],
+                                format_param_tolerance_signDelimiter    = '',
+                                format_param_conditions_enclosure       = ['\xa0[', ']'],
+                                format_param_conditions_delimiter       = '; ',
+                                format_param_temperature_positiveSign   = True)
     #экспорт СК в xlsx
     if make_cl_xlsx:
         print('')
         print("INFO >> Exporting cl as xlsx:")
         file_name = (bom.prefix + output_name_enclosure[0] + 'СК' + output_name_enclosure[1] + bom.postfix).strip() + os.extsep + 'xlsx'
-        export_cl_xlsx.export([cl], os.path.join(output_directory, file_name))
+        export_cl_xlsx.export([cl], os.path.join(output_directory, file_name),
+                              locale_index = LocaleIndex.RU.value)
 
     #создание спецификации
     if make_sp:
@@ -222,33 +244,37 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building sp:")
         sp = build_sp.build([components, sp_titleBlock],
-                                locale_index                     = LocaleIndex.RU.value,
-                                content_value                    = True,
-                                content_manufacturer             = True,
-                                content_description              = True,
-                                content_description_miscParams   = True,
-                                content_substitutes              = True,
-                                content_substitutes_value        = True,
-                                content_substitutes_manufacturer = True,
-                                content_substitutes_note         = True,
-                                content_force_explicit           = False,
-                                format_decimalPoint              = ',',
-                                format_descrParamsDelimiter      = ' \u2013 ',
-                                format_valueToUnitDelimiter      = '\xa0',
-                                format_signToToleranceDelimiter  = '\xa0',
-                                format_multivalueDelimiter       = '\xa0/\xa0',
-                                format_conditionsValueDelimiter  = '; ',
-                                format_rangeSymbol               = '\xa0\u2026\xa0',
-                                format_toleranceEnclosure        = ['\xa0', ''],
-                                format_conditionsEnclosure       = ['\xa0(', ')'],
-                                format_valueEnclosure            = ['', ''],
-                                format_descrEnclosure            = [' (', ')'],
-                                format_mfrEnclosure              = [' ф.\xa0', ''],
-                                format_substSectionEnclosure     = ['', ''],
-                                format_substEntryEnclosure       = ['доп.\xa0замена ', ''],
-                                format_substValueEnclosure       = ['', ''],
-                                format_substMfrEnclosure         = [' ф.\xa0', ''],
-                                format_substNoteEnclosure        = [' (', ')'])
+                                locale_index                            = LocaleIndex.RU.value,
+                                content_value                           = True,
+                                content_value_value                     = True,
+                                content_value_explicit                  = False,
+                                content_mfr                             = True,
+                                content_mfr_value                       = True,
+                                content_param                           = True,
+                                content_param_basic                     = True,
+                                content_param_misc                      = True,
+                                content_subst                           = True,
+                                content_subst_value                     = True,
+                                content_subst_manufacturer              = True,
+                                content_subst_note                      = True,
+                                format_value_enclosure                  = ['', ''],
+                                format_mfr_enclosure                    = [' ф.\xa0', ''],
+                                format_param_enclosure                  = [' (', ')'],
+                                format_param_decimalPoint               = ',',
+                                format_param_rangeSymbol                = '\xa0\u2026\xa0',
+                                format_param_delimiter                  = ' \u2013 ',
+                                format_param_unit_enclosure             = ['\xa0', ''],
+                                format_param_multivalue_delimiter       = '\xa0/\xa0',
+                                format_param_tolerance_enclosure        = ['\xa0', ''],
+                                format_param_tolerance_signDelimiter    = '\xa0',
+                                format_param_conditions_enclosure       = ['\xa0(', ')'],
+                                format_param_conditions_delimiter       = '; ',
+                                format_param_temperature_positiveSign   = True,
+                                format_subst_enclosure                  = ['', ''],
+                                format_subst_entry_enclosure            = ['доп.\xa0замена ', ''],
+                                format_subst_value_enclosure            = ['', ''],
+                                format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],
+                                format_subst_note_enclosure             = [' (', ')'])
 
     #экспорт спецификации в CSV
     if make_sp_csv:
@@ -295,33 +321,37 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building pe3:")
         pe3 = build_pe3.build([components, pe3_titleBlock],
-                                locale_index                     = LocaleIndex.RU.value,
-                                content_value                    = True,
-                                content_manufacturer             = True,
-                                content_description              = True,
-                                content_description_miscParams   = True,
-                                content_substitutes              = True,
-                                content_substitutes_value        = True,
-                                content_substitutes_manufacturer = True,
-                                content_substitutes_note         = True,
-                                content_force_explicit           = False,
-                                format_decimalPoint              = ',',
-                                format_descrParamsDelimiter      = ' \u2013 ',
-                                format_valueToUnitDelimiter      = '\xa0',
-                                format_signToToleranceDelimiter  = '\xa0',
-                                format_multivalueDelimiter       = '\xa0/\xa0',
-                                format_conditionsValueDelimiter  = '; ',
-                                format_rangeSymbol               = '\xa0\u2026\xa0',
-                                format_toleranceEnclosure        = ['\xa0', ''],
-                                format_conditionsEnclosure       = ['\xa0(', ')'],
-                                format_valueEnclosure            = ['', ''],
-                                format_descrEnclosure            = [' (', ')'],
-                                format_mfrEnclosure              = [' ф.\xa0', ''],
-                                format_substSectionEnclosure     = ['', ''],
-                                format_substEntryEnclosure       = ['\nдоп.\xa0замена ', ''],
-                                format_substValueEnclosure       = ['', ''],
-                                format_substMfrEnclosure         = [' ф.\xa0', ''],
-                                format_substNoteEnclosure        = [' (', ')'])
+                                locale_index                            = LocaleIndex.RU.value,
+                                content_value                           = True,
+                                content_value_value                     = True,
+                                content_value_explicit                  = False,
+                                content_mfr                             = True,
+                                content_mfr_value                       = True,
+                                content_param                           = True,
+                                content_param_basic                     = True,
+                                content_param_misc                      = True,
+                                content_subst                           = True,
+                                content_subst_value                     = True,
+                                content_subst_manufacturer              = True,
+                                content_subst_note                      = True,
+                                format_value_enclosure                  = ['', ''],
+                                format_mfr_enclosure                    = [' ф.\xa0', ''],
+                                format_param_enclosure                  = [' (', ')'],
+                                format_param_decimalPoint               = ',',
+                                format_param_rangeSymbol                = '\xa0\u2026\xa0',
+                                format_param_delimiter                  = ' \u2013 ',
+                                format_param_unit_enclosure             = ['\xa0', ''],
+                                format_param_multivalue_delimiter       = '\xa0/\xa0',
+                                format_param_tolerance_enclosure        = ['\xa0', ''],
+                                format_param_tolerance_signDelimiter    = '\xa0',
+                                format_param_conditions_enclosure       = ['\xa0(', ')'],
+                                format_param_conditions_delimiter       = '; ',
+                                format_param_temperature_positiveSign   = True,
+                                format_subst_enclosure                  = ['', ''],
+                                format_subst_entry_enclosure            = ['доп.\xa0замена ', ''],
+                                format_subst_value_enclosure            = ['', ''],
+                                format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],
+                                format_subst_note_enclosure             = [' (', ')'])
         #экспорт
         print('')
         print("INFO >> Exporting pe3 as docx:")
@@ -334,33 +364,37 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building pe3:")
         pe3 = build_pe3.build([components, pe3_titleBlock],
-                                locale_index                     = LocaleIndex.RU.value,
-                                content_value                    = True,
-                                content_manufacturer             = True,
-                                content_description              = True,
-                                content_description_miscParams   = True,
-                                content_substitutes              = True,
-                                content_substitutes_value        = True,
-                                content_substitutes_manufacturer = True,
-                                content_substitutes_note         = True,
-                                content_force_explicit           = False,
-                                format_decimalPoint              = '.',
-                                format_descrParamsDelimiter      = ', ',
-                                format_valueToUnitDelimiter      = '',
-                                format_signToToleranceDelimiter  = '',
-                                format_multivalueDelimiter       = '/',
-                                format_conditionsValueDelimiter  = '; ',
-                                format_rangeSymbol               = '\u2026',
-                                format_toleranceEnclosure        = ['\xa0', ''],
-                                format_conditionsEnclosure       = ['\xa0[', ']'],
-                                format_valueEnclosure            = ['', ''],
-                                format_descrEnclosure            = [' (', ')'],
-                                format_mfrEnclosure              = [' ф.\xa0', ''],
-                                format_substSectionEnclosure     = ['', ''],
-                                format_substEntryEnclosure       = ['\nдоп.\xa0замена ', ''],
-                                format_substValueEnclosure       = ['', ''],
-                                format_substMfrEnclosure         = [' ф.\xa0', ''],
-                                format_substNoteEnclosure        = [' (', ')'])
+                                locale_index                            = LocaleIndex.RU.value,
+                                content_value                           = True,
+                                content_value_value                     = True,
+                                content_value_explicit                  = False,
+                                content_mfr                             = True,
+                                content_mfr_value                       = True,
+                                content_param                           = True,
+                                content_param_basic                     = True,
+                                content_param_misc                      = True,
+                                content_subst                           = True,
+                                content_subst_value                     = True,
+                                content_subst_manufacturer              = True,
+                                content_subst_note                      = True,
+                                format_value_enclosure                  = ['', ''],
+                                format_mfr_enclosure                    = [' ф.\xa0', ''],
+                                format_param_enclosure                  = [' (', ')'],
+                                format_param_decimalPoint               = '.',
+                                format_param_rangeSymbol                = '\u2026',
+                                format_param_delimiter                  = ', ',
+                                format_param_unit_enclosure             = ['', ''],
+                                format_param_multivalue_delimiter       = '/',
+                                format_param_tolerance_enclosure        = ['\xa0', ''],
+                                format_param_tolerance_signDelimiter    = '',
+                                format_param_conditions_enclosure       = ['\xa0[', ']'],
+                                format_param_conditions_delimiter       = '; ',
+                                format_param_temperature_positiveSign   = True,
+                                format_subst_enclosure                  = ['', ''],
+                                format_subst_entry_enclosure            = ['\nдоп.\xa0замена ', ''],
+                                format_subst_value_enclosure            = ['', ''],
+                                format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],
+                                format_subst_note_enclosure             = [' (', ')'])
         #экспорт
         print('')
         print("INFO >> Exporting pe3 as PDF:")

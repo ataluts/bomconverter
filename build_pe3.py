@@ -4,7 +4,7 @@ from copy import deepcopy
 
 from typedef_components import Components_typeDef                   #класс базы данных компонентов
 from typedef_pe3 import PE3_typeDef                                 #класс перечня элементов
-import assemble_eskd                                                #сборка ЕСКД значений
+import assemble                                                     #сборка ЕСКД значений
 
 script_dirName  = os.path.dirname(__file__)                                                          #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                                    #базовое имя модуля
@@ -59,7 +59,7 @@ def build(data, **kwargs):
         #создание записей перечня
         #группируем одинаковые последовательные позиции в одну запись
         for component in components.entries:
-            value = assemble_eskd.assemble(component, **kwargs) #собираем поля перечня из параметров компонента
+            value = assemble.assemble_eskd(component, **kwargs) #собираем поля перечня из параметров компонента
             if len(pe3.entries) > 0:
                 #список не пуст, сравниваем поля текущей записи с последней имеющейся в списке
                 if pe3.entries[-1].prefix == component.GENERIC_designator_prefix and pe3.entries[-1].indexes[-1] == component.GENERIC_designator_index - 1 and pe3.entries[-1].label == value.label and pe3.entries[-1].annotation == value.annotation:

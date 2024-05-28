@@ -52,8 +52,9 @@ def optimize(data, **kwargs):
         while j < len(res5):
             #проверяем идентичность параметров резисторов
             if ((res5[j].RES_resistance == res1[i].RES_resistance) and                                      #значение сопротивления
-                ((res5[j].RES_type == res1[i].RES_type) or (res5[j].RES_type is None)) and                  #тип или у 5% не задан
-                ((res5[j].RES_tempCoeff == res1[i].RES_tempCoeff) or (res5[j].RES_tempCoeff is None)) and   #ТКС или у 5% не задан
+                (res5[j].RES_type == res1[i].RES_type) and                                                  #тип
+                ((res5[j].RES_structure == res1[i].RES_type) or (res5[j].RES_structure is None)) and        #структура или у 5% не задан
+                ((res5[j].RES_temperature_coefficient == res1[i].RES_temperature_coefficient) or (res5[j].RES_temperature_coefficient is None)) and   #ТКС или у 5% не задан
                 ((res5[j].RES_power == res1[i].RES_power) or (res5[j].RES_power is None)) and               #мощность или у 5% не задана
                 ((res5[j].RES_voltage == res1[i].RES_voltage) or (res5[j].RES_voltage is None)) and         #напряжение или у 5% не задано
                 (res5[j].GENERIC_package == res1[i].GENERIC_package) and                                    #корпус
@@ -61,7 +62,7 @@ def optimize(data, **kwargs):
                 (res5[j].GENERIC_THtype == res1[i].GENERIC_THtype) and                                      #тип монтажа в отверстия
                 (res5[j].GENERIC_size == res1[i].GENERIC_size) and                                          #типоразмер
                 (listedvalue_equal(res5[j].GENERIC_temperature_range, res1[i].GENERIC_temperature_range) or (res5[j].GENERIC_temperature_range is None)) and  #диапазон рабочих температур или у 5% не задан
-                listedvalue_equal(res5[j].GENERIC_assembly, res1[i].GENERIC_assembly) and                   #сборка
+                listedvalue_equal(res5[j].GENERIC_array, res1[i].GENERIC_array) and                         #сборка
                 listedvalue_equal(res5[j].GENERIC_misc, res1[i].GENERIC_misc)):                             #оставшиеся нераспознанные параметры
 
                 #копируем параметры компонента
@@ -70,7 +71,7 @@ def optimize(data, **kwargs):
                 res5[j].GENERIC_description = copy.deepcopy(res1[i].GENERIC_description)
                 res5[j].RES_tolerance = copy.deepcopy(res1[i].RES_tolerance)
                 res5[j].RES_type = copy.deepcopy(res1[i].RES_type)
-                res5[j].RES_tempCoeff = copy.deepcopy(res1[i].RES_tempCoeff)
+                res5[j].RES_tempCoeff = copy.deepcopy(res1[i].RES_temperature_coefficient)
                 res5[j].RES_power = copy.deepcopy(res1[i].RES_power)
                 res5[j].RES_voltage = copy.deepcopy(res1[i].RES_voltage)
                 res5[j].GENERIC_temperature_range = copy.deepcopy(res1[i].GENERIC_temperature_range)

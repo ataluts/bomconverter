@@ -3,12 +3,12 @@ from enum import IntEnum
 
 #CL class definition
 class CL_typeDef():
-    def __init__(self, name = '', component_list_name = '', substitute_list_name = ''):
+    def __init__(self, book_title = '', components_list_title = '', substitutes_list_title = ''):
         self.comp_entries = []          #элементы списка компонентов
         self.subs_entries = None        #элементы списка замен
-        self.name = name
-        self.component_list_name = component_list_name
-        self.substitute_list_name = substitute_list_name
+        self.book_title = book_title
+        self.components_list_title = components_list_title
+        self.substitutes_list_title = substitutes_list_title
 
     class FlagType(IntEnum):
         NONE    = 0

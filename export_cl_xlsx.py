@@ -2,6 +2,7 @@ import os
 import xlsxwriter
 import datetime
 import copy
+import dict_locale as lcl
 from typedef_cl import CL_typeDef                                                               #структура списка компонентов
 
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
@@ -27,14 +28,17 @@ def export(data, address, **kwargs):
     print('INFO >> cl-xlsx exporting module running with parameters:')
     print(' ' * 12 + 'output: ' +  os.path.basename(address))
 
+    #locale
+    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+
     #параметры объединения разных значений в одной ячейке
-    delimiter_grouped    = kwargs.get('delimGrouped', ', ')
-    delimiter_single = kwargs.get('delimSingle', '|')
+    delimiter_grouped = kwargs.get('delimGrouped', ', ')
+    delimiter_single  = kwargs.get('delimSingle', '|')
     print(' ' * 12 + 'delimiter for grouped columns: "' +  delimiter_grouped + '"')
     print(' ' * 12 + 'delimiter for single-value columns: "' +  delimiter_single + '"')
 
     #свойства книги
-    book_title    = kwargs.get('bookTitle', 'Список компонентов')
+    book_title    = kwargs.get('bookTitle', '<none>')
     book_subject  = kwargs.get('bookSubject', '')
     book_author   = kwargs.get('bookAuthor', '')
     book_manager  = kwargs.get('bookManager', '')
@@ -60,6 +64,8 @@ def export(data, address, **kwargs):
 
     if len(data) > 0 and len(address) > 0:
         with xlsxwriter.Workbook(address, {'in_memory': True, 'strings_to_numbers': False}) as workbook:
+            if 'bookTitle' not in kwargs: book_title = data[0].book_title
+            
             #заполняем свойства книги
             workbook.set_properties({
                 'title':    book_title,
@@ -86,12 +92,12 @@ def export(data, address, **kwargs):
                 if cl.comp_entries is not None:
                     #создаём лист в книге с именем списка компонентов, если имя неправильное то делаем имя листа по-умолчанию
                     try:
-                        worksheet = workbook.add_worksheet(cl.component_list_name)
+                        worksheet = workbook.add_worksheet(cl.components_list_title)
                     except (xlsxwriter.exceptions.InvalidWorksheetName, xlsxwriter.exceptions.DuplicateWorksheetName):
                         worksheet = workbook.add_worksheet()
 
                     #запись данных списка компонентов
-                    worksheet.write_row(0, 0, ['Поз. обозначение', 'Тип элемента', 'Номинал', 'Описание', 'Корпус', 'Производитель', 'Кол-во'], format_header)
+                    worksheet.write_row(0, 0, [lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index], lcl.export_cl_xlsx.HEADER_COMPONENT_TYPE.value[locale_index], lcl.export_cl_xlsx.HEADER_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_DESCRIPTION.value[locale_index], lcl.export_cl_xlsx.HEADER_PACKAGE.value[locale_index], lcl.export_cl_xlsx.HEADER_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index]], format_header)
                     rowIndex = 1    #начальная строка для записи данных
                     for entry in cl.comp_entries:
                         if entry.flag == entry.flag.OK: rowFormat = format_ok
@@ -125,17 +131,17 @@ def export(data, address, **kwargs):
                     worksheet.set_column(3, 3, 60.0)
                     worksheet.set_column(4, 4, 15.0)
                     worksheet.set_column(5, 5, 25.0)
-                    worksheet.set_column(6, 6,  7.0)
+                    worksheet.set_column(6, 6,  8.0)
 
                 if cl.subs_entries is not None:
                     #создаём лист в книге с именем списка замен, если имя неправильное то делаем имя листа по-умолчанию
                     try:
-                        worksheet = workbook.add_worksheet(cl.substitute_list_name)
+                        worksheet = workbook.add_worksheet(cl.substitutes_list_title)
                     except (xlsxwriter.exceptions.InvalidWorksheetName, xlsxwriter.exceptions.DuplicateWorksheetName):
                         worksheet = workbook.add_worksheet()
 
                     #запись данных списка компонентов
-                    worksheet.write_row(0, 0, ['Изнач. номинал', 'Изнач. производитель', 'Кол-во', 'Поз. обозначение', 'Кол-во', 'Зам. номинал', 'Зам. производитель', 'Зам. примечание'], format_header)
+                    worksheet.write_row(0, 0, [lcl.export_cl_xlsx.HEADER_ORIGINAL_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_ORIGINAL_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index], lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index], lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_NOTE.value[locale_index]], format_header)
                     rowIndex = 1 - 1    #начальная строка для записи данных (-1 из за обратного порядка записи и инкремента строки перед записью)
                     for entry in cl.subs_entries:
                         if entry.flag == entry.flag.OK: rowFormat = format_ok
@@ -179,9 +185,9 @@ def export(data, address, **kwargs):
 
                     worksheet.set_column(0, 0, 25.0)
                     worksheet.set_column(1, 1, 25.0)
-                    worksheet.set_column(2, 2,  7.0)
+                    worksheet.set_column(2, 2,  8.0)
                     worksheet.set_column(3, 3, 70.0)
-                    worksheet.set_column(4, 4,  7.0)
+                    worksheet.set_column(4, 4,  8.0)
                     worksheet.set_column(5, 5, 25.0)
                     worksheet.set_column(6, 6, 25.0)
                     worksheet.set_column(7, 7, 42.0)
