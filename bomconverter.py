@@ -25,8 +25,8 @@ import export_sp_csv                    #экспорт спецификации
 from dict_locale import LocaleIndex     #словарь с локализациями
 
 script_dirName = os.path.dirname(__file__)                     #адрес папки со скриптом
-script_version = '3.3'
-script_date    = datetime.datetime(2024, 9, 28)
+script_version = '3.4'
+script_date    = datetime.datetime(2024, 6, 7)
 
 #todo: пересмотреть логику группировки компонентов в одну запись во всех сборщиках, например добавлены данные о заменах и это надо учитывать
 #todo: CL - в допустимых заменах работа с флагами толком не реализована
@@ -167,7 +167,9 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
     #заменяем имена производителей
     if optmz_mfrnames:
         print("INFO >> Optimizing manufacturers names:")
-        optimize_mfrNames.optimize(components)
+        optimize_mfrNames.optimize(components,
+            #dict_groups    = 'dict_mfrNames.py'                                 #словарь с названиями производителей; либо адрес файла, либо сам словарь
+        )
     
     #оптимизируем номиналы резисторов по точности
     if optmz_restol5to1:
@@ -179,35 +181,56 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building cl:")
         cl = build_cl.build(components,
-                                locale_index                            = LocaleIndex.RU.value,
-                                #title_book                             = 'Список компонентов', 
-                                #title_list_components                  = 'Список компонентов',
-                                #title_list_substitutes                 = 'Допустимые замены',
-                                sorting_method                          = 'params',
-                                sorting_reverse                         = False,
-                                assemble_kind                           = False, #пересобирать тип элемента
-                                format_kind_capitalize                  = True,  #типы элементов с заглавной буквы
-                                assemble_description                    = False, #пересобирать описание (все аргументы ниже относятся к этому сборщику)
-                                content_param_basic                     = True,
-                                content_param_misc                      = True,
-                                format_param_enclosure                  = ['', ''],
-                                format_param_decimalPoint               = '.',
-                                format_param_rangeSymbol                = '\u2026',
-                                format_param_delimiter                  = ', ',
-                                format_param_unit_enclosure             = ['', ''],
-                                format_param_multivalue_delimiter       = '/',
-                                format_param_tolerance_enclosure        = ['\xa0', ''],
-                                format_param_tolerance_signDelimiter    = '',
-                                format_param_conditions_enclosure       = ['\xa0[', ']'],
-                                format_param_conditions_delimiter       = '; ',
-                                format_param_temperature_positiveSign   = True)
+            locale_index                                = LocaleIndex.RU.value,     #локализация
+            #title_book                                 = 'Список компонентов',      #название книги
+            #title_list_components                      = 'Компоненты',              #название листа со списком компонентов
+            #title_list_accessories                     = 'Аксессуары',              #название листа со списком сопутствующих компонентов
+            #title_list_substitutes                     = 'Допустимые замены',       #название листа со списком допустимых замен
+            sorting_method                              = 'params',                 #метод сортировки компонентов
+            sorting_reverse                             = False,                    #сортировать компоненты в обратном порядке
+            content_accessories                         = True,                     #добавлять аксессуары
+            content_accessories_segregate               = True,                     #выделить аксессуары в отдельную группу
+            content_substitutes                         = True,                     #добавлять список допустимых замен
+            assemble_kind                               = False,                    #пересобирать тип элемента (аргументы ниже относятся к этому сборщику)
+                format_kind_capitalize                  = True,                         #типы элементов с заглавной буквы
+            assemble_param                              = False,                    #пересобирать параметрическое описание (аргументы ниже относятся к этому сборщику)
+                content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
+                content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
+                format_param_enclosure                  = ['', ''],                     #обрамление параметров
+                format_param_decimalPoint               = '.',                          #десятичный разделитель
+                format_param_rangeSymbol                = '\u2026',                     #символ диапазона
+                format_param_delimiter                  = ', ',                         #разделитель параметров
+                format_param_unit_enclosure             = ['', ''],                     #обрамление единиц измерения
+                format_param_multivalue_delimiter       = '/',                          #разделитель значений многозначного параметра
+                format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
+                format_param_tolerance_signDelimiter    = '',                           #разделитель между значением допуска и его знаком
+                format_param_conditions_enclosure       = ['\xa0[', ']'],               #обрамление условий измерения параметра
+                format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
+                format_param_temperature_positiveSign   = True                          #указывать знак для положительных значений температуры
+        )
     #экспорт СК в xlsx
     if make_cl_xlsx:
         print('')
         print("INFO >> Exporting cl as xlsx:")
         file_name = (bom.prefix + output_name_enclosure[0] + 'СК' + output_name_enclosure[1] + bom.postfix).strip() + os.extsep + 'xlsx'
         export_cl_xlsx.export([cl], os.path.join(output_directory, file_name),
-                              locale_index = LocaleIndex.RU.value)
+            locale_index                                = LocaleIndex.RU.value,     #локализация
+            #book_title                                  = '',                       #свойства книги:    название
+            #book_subject                                = '',                       #                   тема
+            #book_author                                 = '',                       #                   автор, кем изменено
+            #book_manager                                = '',                       #                   руководитель
+            #book_company                                = '',                       #                   организация
+            #book_category                               = '',                       #                   категории
+            #book_keywords                               = '',                       #                   теги
+            #book_created                                = datetime.datetime.now(pytz.timezone('UTC')),# создан, изменён
+            #book_comments                               = '',                       #                   примечания
+            #book_status                                 = '',                       #                   состояние
+            #book_hyperlink                              = '',                       #                   база гиперссылки
+            content_accessories_location                = 'sheet',                  #расположение аксессуаров {'end' - в конце общего списка | 'sheet' - на отдельном листе}
+            content_accessories_indent                  = 1,                        #отступ (в строках) списка аксесуаров от списка компонентов при размещении на одном листе
+            format_groupvalue_delimiter                 = ', ',                     #разделитель значений в полях с группировкой значений
+            format_singlevalue_delimiter                = '|'                       #разделитель значений в полях с одиночным значением
+        )
 
     #создание спецификации
     if make_sp:
@@ -244,37 +267,42 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building sp:")
         sp = build_sp.build([components, sp_titleBlock],
-                                locale_index                            = LocaleIndex.RU.value,
-                                content_value                           = True,
-                                content_value_value                     = True,
-                                content_value_explicit                  = False,
-                                content_mfr                             = True,
-                                content_mfr_value                       = True,
-                                content_param                           = True,
-                                content_param_basic                     = True,
-                                content_param_misc                      = True,
-                                content_subst                           = True,
-                                content_subst_value                     = True,
-                                content_subst_manufacturer              = True,
-                                content_subst_note                      = True,
-                                format_value_enclosure                  = ['', ''],
-                                format_mfr_enclosure                    = [' ф.\xa0', ''],
-                                format_param_enclosure                  = [' (', ')'],
-                                format_param_decimalPoint               = ',',
-                                format_param_rangeSymbol                = '\xa0\u2026\xa0',
-                                format_param_delimiter                  = ' \u2013 ',
-                                format_param_unit_enclosure             = ['\xa0', ''],
-                                format_param_multivalue_delimiter       = '\xa0/\xa0',
-                                format_param_tolerance_enclosure        = ['\xa0', ''],
-                                format_param_tolerance_signDelimiter    = '\xa0',
-                                format_param_conditions_enclosure       = ['\xa0(', ')'],
-                                format_param_conditions_delimiter       = '; ',
-                                format_param_temperature_positiveSign   = True,
-                                format_subst_enclosure                  = ['', ''],
-                                format_subst_entry_enclosure            = ['доп.\xa0замена ', ''],
-                                format_subst_value_enclosure            = ['', ''],
-                                format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],
-                                format_subst_note_enclosure             = [' (', ')'])
+            locale_index                            = LocaleIndex.RU.value,         #локализация
+            content_accessories                     = True,                         #добавлять аксессуары
+            content_value                           = True,                         #добавлять номинал
+            content_value_value                     = True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
+            content_value_explicit                  = False,                        #принудительно сделать номиналы явными
+            content_mfr                             = True,                         #добавлять производителя
+            content_mfr_value                       = True,                         #добавлять значение производителя (такая же ситуация как с value)
+            content_param                           = True,                         #добавлять параметрическое описание
+            content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
+            content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
+            content_subst                           = True,                         #добавлять допустимые замены
+            content_subst_value                     = True,                         #добавлять номинал допустимой замены
+            content_subst_manufacturer              = True,                         #добавлять производителя допустимой замены
+            content_subst_note                      = True,                         #добавлять примечение для допустимой замены
+            format_value_enclosure                  = ['', ''],                     #обрамление номинала
+            format_mfr_enclosure                    = [' ф.\xa0', ''],              #обрамление производителя
+            format_param_enclosure                  = [' (', ')'],                  #обрамление параметров
+            format_param_decimalPoint               = ',',                          #десятичный разделитель
+            format_param_rangeSymbol                = '\xa0\u2026\xa0',             #символ диапазона
+            format_param_delimiter                  = ' \u2013 ',                   #разделитель параметров
+            format_param_unit_enclosure             = ['\xa0', ''],                 #обрамление единиц измерения
+            format_param_multivalue_delimiter       = '\xa0/\xa0',                  #разделитель значений многозначного параметра
+            format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
+            format_param_tolerance_signDelimiter    = '\xa0',                       #разделитель между значением допуска и его знаком
+            format_param_conditions_enclosure       = ['\xa0(', ')'],               #обрамление условий измерения параметра
+            format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
+            format_param_temperature_positiveSign   = True,                         #указывать знак для положительных значений температуры
+            format_subst_enclosure                  = ['', ''],                     #обрамление блока с допустимыми заменами
+            format_subst_entry_enclosure            = ['|доп.\xa0замена ', ''],     #обрамление допустимой замены
+            format_subst_value_enclosure            = ['', ''],                     #обрамление номинала допустимой замены
+            format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],              #обрамление производителя допустимой замены
+            format_subst_note_enclosure             = [' (', ')'],                  #обрамление примечения допустимой замены
+            format_annot_enclosure                  = ['|прим. ', ''],              #обрамление примечания
+            format_annot_delimiter                  = ', ',                         #разделитель значений в примечании
+            format_fitted_label                     = ['', '']                      #метка (не) установки компонента ['устанавливать', 'не устанавливать']
+        )
 
     #экспорт спецификации в CSV
     if make_sp_csv:
@@ -321,37 +349,47 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building pe3:")
         pe3 = build_pe3.build([components, pe3_titleBlock],
-                                locale_index                            = LocaleIndex.RU.value,
-                                content_value                           = True,
-                                content_value_value                     = True,
-                                content_value_explicit                  = False,
-                                content_mfr                             = True,
-                                content_mfr_value                       = True,
-                                content_param                           = True,
-                                content_param_basic                     = True,
-                                content_param_misc                      = True,
-                                content_subst                           = True,
-                                content_subst_value                     = True,
-                                content_subst_manufacturer              = True,
-                                content_subst_note                      = True,
-                                format_value_enclosure                  = ['', ''],
-                                format_mfr_enclosure                    = [' ф.\xa0', ''],
-                                format_param_enclosure                  = [' (', ')'],
-                                format_param_decimalPoint               = ',',
-                                format_param_rangeSymbol                = '\xa0\u2026\xa0',
-                                format_param_delimiter                  = ' \u2013 ',
-                                format_param_unit_enclosure             = ['\xa0', ''],
-                                format_param_multivalue_delimiter       = '\xa0/\xa0',
-                                format_param_tolerance_enclosure        = ['\xa0', ''],
-                                format_param_tolerance_signDelimiter    = '\xa0',
-                                format_param_conditions_enclosure       = ['\xa0(', ')'],
-                                format_param_conditions_delimiter       = '; ',
-                                format_param_temperature_positiveSign   = True,
-                                format_subst_enclosure                  = ['', ''],
-                                format_subst_entry_enclosure            = ['доп.\xa0замена ', ''],
-                                format_subst_value_enclosure            = ['', ''],
-                                format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],
-                                format_subst_note_enclosure             = [' (', ')'])
+            locale_index                            = LocaleIndex.RU.value,         #локализация
+            content_accessories                     = False,                        #добавлять аксессуары
+            content_value                           = True,                         #добавлять номинал
+            content_value_value                     = True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
+            content_value_explicit                  = False,                        #принудительно сделать номиналы явными
+            content_mfr                             = True,                         #добавлять производителя
+            content_mfr_value                       = True,                         #добавлять значение производителя (такая же ситуация как с value)
+            content_param                           = True,                         #добавлять параметрическое описание
+            content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
+            content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
+            content_subst                           = True,                         #добавлять допустимые замены
+            content_subst_value                     = True,                         #добавлять номинал допустимой замены
+            content_subst_manufacturer              = True,                         #добавлять производителя допустимой замены
+            content_subst_note                      = True,                         #добавлять примечение для допустимой замены
+            assemble_kind                           = True,                         #пересобирать тип элемента (для аксессуаров и не распознанных)
+            assemble_param                          = True,                         #пересобирать параметрическое описание
+            format_kind_capitalize                  = True,                         #типы элементов с заглавной буквы
+            format_desig_delimiter                  = [', ', '\u2013'],             #разделитель позиционных обозначений [<перечисление>, <диапазон>]
+            format_value_enclosure                  = ['', ''],                     #обрамление номинала
+            format_mfr_enclosure                    = [' ф.\xa0', ''],              #обрамление производителя
+            format_param_enclosure                  = [' (', ')'],                  #обрамление параметров
+            format_param_decimalPoint               = ',',                          #десятичный разделитель
+            format_param_rangeSymbol                = '\xa0\u2026\xa0',             #символ диапазона
+            format_param_delimiter                  = ' \u2013 ',                   #разделитель параметров
+            format_param_unit_enclosure             = ['\xa0', ''],                 #обрамление единиц измерения
+            format_param_multivalue_delimiter       = '\xa0/\xa0',                  #разделитель значений многозначного параметра
+            format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
+            format_param_tolerance_signDelimiter    = '\xa0',                       #разделитель между значением допуска и его знаком
+            format_param_conditions_enclosure       = ['\xa0(', ')'],               #обрамление условий измерения параметра
+            format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
+            format_param_temperature_positiveSign   = True,                         #указывать знак для положительных значений температуры
+            format_subst_enclosure                  = ['', ''],                     #обрамление блока с допустимыми заменами
+            format_subst_entry_enclosure            = ['\nдоп.\xa0замена ', ''],    #обрамление допустимой замены
+            format_subst_value_enclosure            = ['', ''],                     #обрамление номинала допустимой замены
+            format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],              #обрамление производителя допустимой замены
+            format_subst_note_enclosure             = [' (', ')'],                  #обрамление примечения допустимой замены
+            format_annot_enclosure                  = ['', ''],                     #обрамление примечания
+            format_annot_delimiter                  = ';\n'                         #разделитель значений в примечании
+            #format_fitted_label                     = ['', 'не устанавливать'],     #метка (не) установки компонента ['устанавливать', 'не устанавливать']
+            #dict_groups                             = 'dict_pe3.py'                 #словарь с названиями групп элементов; либо адрес файла, либо сам словарь
+        )
         #экспорт
         print('')
         print("INFO >> Exporting pe3 as docx:")
@@ -364,37 +402,46 @@ def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
         print('')
         print("INFO >> Building pe3:")
         pe3 = build_pe3.build([components, pe3_titleBlock],
-                                locale_index                            = LocaleIndex.RU.value,
-                                content_value                           = True,
-                                content_value_value                     = True,
-                                content_value_explicit                  = False,
-                                content_mfr                             = True,
-                                content_mfr_value                       = True,
-                                content_param                           = True,
-                                content_param_basic                     = True,
-                                content_param_misc                      = True,
-                                content_subst                           = True,
-                                content_subst_value                     = True,
-                                content_subst_manufacturer              = True,
-                                content_subst_note                      = True,
-                                format_value_enclosure                  = ['', ''],
-                                format_mfr_enclosure                    = [' ф.\xa0', ''],
-                                format_param_enclosure                  = [' (', ')'],
-                                format_param_decimalPoint               = '.',
-                                format_param_rangeSymbol                = '\u2026',
-                                format_param_delimiter                  = ', ',
-                                format_param_unit_enclosure             = ['', ''],
-                                format_param_multivalue_delimiter       = '/',
-                                format_param_tolerance_enclosure        = ['\xa0', ''],
-                                format_param_tolerance_signDelimiter    = '',
-                                format_param_conditions_enclosure       = ['\xa0[', ']'],
-                                format_param_conditions_delimiter       = '; ',
-                                format_param_temperature_positiveSign   = True,
-                                format_subst_enclosure                  = ['', ''],
-                                format_subst_entry_enclosure            = ['\nдоп.\xa0замена ', ''],
-                                format_subst_value_enclosure            = ['', ''],
-                                format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],
-                                format_subst_note_enclosure             = [' (', ')'])
+            locale_index                            = LocaleIndex.RU.value,         #локализация
+            content_accessories                     = False,                        #добавлять аксессуары
+            content_value                           = True,                         #добавлять номинал
+            content_value_value                     = True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
+            content_value_explicit                  = False,                        #принудительно сделать номиналы явными
+            content_mfr                             = True,                         #добавлять производителя
+            content_mfr_value                       = True,                         #добавлять значение производителя (такая же ситуация как с value)
+            content_param                           = True,                         #добавлять параметрическое описание
+            content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
+            content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
+            content_subst                           = True,                         #добавлять допустимые замены
+            content_subst_value                     = True,                         #добавлять номинал допустимой замены
+            content_subst_manufacturer              = True,                         #добавлять производителя допустимой замены
+            content_subst_note                      = True,                         #добавлять примечение для допустимой замены
+            assemble_kind                           = True,                         #пересобирать тип элемента (для аксессуаров и не распознанных)
+            assemble_param                          = True,                         #пересобирать параметрическое описание
+            format_kind_capitalize                  = True,                         #типы элементов с заглавной буквы
+            format_desig_delimiter                  = [', ', '\u2013'],             #разделитель позиционных обозначений [<перечисление>, <диапазон>]
+            format_value_enclosure                  = ['', ''],                     #обрамление номинала
+            format_mfr_enclosure                    = [' ф.\xa0', ''],              #обрамление производителя
+            format_param_enclosure                  = [' (', ')'],                  #обрамление параметров
+            format_param_decimalPoint               = '.',                          #десятичный разделитель
+            format_param_rangeSymbol                = '\u2026',                     #символ диапазона
+            format_param_delimiter                  = ', ',                         #разделитель параметров
+            format_param_unit_enclosure             = ['', ''],                     #обрамление единиц измерения
+            format_param_multivalue_delimiter       = '/',                          #разделитель значений многозначного параметра
+            format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
+            format_param_tolerance_signDelimiter    = '',                           #разделитель между значением допуска и его знаком
+            format_param_conditions_enclosure       = ['\xa0[', ']'],               #обрамление условий измерения параметра
+            format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
+            format_param_temperature_positiveSign   = True,                         #указывать знак для положительных значений температуры
+            format_subst_enclosure                  = ['', ''],                     #обрамление блока с допустимыми заменами
+            format_subst_entry_enclosure            = ['\nдоп.\xa0замена ', ''],    #обрамление допустимой замены
+            format_subst_value_enclosure            = ['', ''],                     #обрамление номинала допустимой замены
+            format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],              #обрамление производителя допустимой замены
+            format_annot_enclosure                  = ['', ''],                     #обрамление примечания
+            format_annot_delimiter                  = ';\n'                         #разделитель значений в примечании
+            #format_fitted_label                     = ['', 'не устанавливать']      #метка (не) установки компонента ['устанавливать', 'не устанавливать']
+            #dict_groups                             = 'dict_pe3.py'                 #словарь с названиями групп элементов; либо адрес файла, либо сам словарь
+        )
         #экспорт
         print('')
         print("INFO >> Exporting pe3 as PDF:")

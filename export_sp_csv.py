@@ -47,7 +47,7 @@ def export(data, address, **kwargs):
         writer = csv.DictWriter(csvFile, fieldnames=['Label', 'Quantity', 'Designator'], dialect='ADBoM')
         writer.writeheader()
         for entry in sp.entries:
-            writer.writerow({'Label':      entry.label,
+            writer.writerow({'Label':      entry.label + entry.annotation,
                              'Quantity':   entry.quantity,
                              'Designator': ', '.join(entry.designator)})
         csvFile.close()

@@ -104,6 +104,9 @@ def assemble_eskd(component, **kwargs):
     format_mfr_enclosure   = kwargs.get('format_mfr_enclosure',   [' ф.\xa0', ''])
     format_param_enclosure = kwargs.get('format_param_enclosure', ['', ''])
     format_subst_enclosure = kwargs.get('format_subst_enclosure', ['', ''])
+    format_annot_enclosure = kwargs.get('format_annot_enclosure', ['', ''])
+    format_annot_delimiter = kwargs.get('format_annot_delimiter', ';\n')
+    format_fitted_label    = kwargs.get('format_fitted_label', [lcl.assemble_eskd.DO_PLACE.value[locale_index], lcl.assemble_eskd.DO_NOT_PLACE.value[locale_index]])
 
     #инициализируем переменные
     result = eskdValue()
@@ -113,10 +116,15 @@ def assemble_eskd(component, **kwargs):
     if designator is None: designator = ''
     result.designator = designator
     result.quantity   = component.GENERIC_quantity
-    if not component.GENERIC_fitted:
-        result.annotation = lcl.assemble_eskd.DO_NOT_PLACE.value[locale_index]
+    if component.GENERIC_note is not None: result.annotation = component.GENERIC_note
+    if component.GENERIC_fitted:
+        result.annotation += format_annot_delimiter + format_fitted_label[0]
+    else:
         result.quantity   = 1     #фикс нулей в перечне когда элемент не устанавливается
-    
+        result.annotation += format_annot_delimiter + format_fitted_label[1]
+    result.annotation = string_strip_word(result.annotation, format_annot_delimiter)
+    if len(result.annotation) > 0: result.annotation = format_annot_enclosure[0] + result.annotation + format_annot_enclosure[1]
+
     #Наименование
     #--- номинал
     if content_value:
@@ -149,131 +157,137 @@ def assemble_kind(component, **kwargs):
     #locale
     locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
 
+    #параметры сборки
+    assemble_kind = kwargs.get('assemble_kind', True)
+
     #параметры формата
     format_capitalize = kwargs.get('format_kind_capitalize', False)
 
     result = ''
-    #Сборка (Устройство)
-    if isinstance(component, component.types.Assembly):
-        result = lcl.assemble_kind.ASSEMBLY.value[locale_index]
+    if assemble_kind:
+        #Сборка (Устройство)
+        if isinstance(component, component.types.Assembly):
+            result = lcl.assemble_kind.ASSEMBLY.value[locale_index]
 
-    #Фотоэлемент
-    elif isinstance(component, component.types.Photocell):
-        result = lcl.assemble_kind.PHOTO_CELL.value[locale_index]
-        if component.PHOTO_type == component.Type.DIODE: result = lcl.assemble_kind.PHOTO_DIODE.value[locale_index]
-        elif component.PHOTO_type == component.Type.TRANSISTOR: result = lcl.assemble_kind.PHOTO_TRANSISTOR.value[locale_index]
-        elif component.PHOTO_type == component.Type.RESISTOR: result = lcl.assemble_kind.PHOTO_RESISTOR.value[locale_index]
+        #Фотоэлемент
+        elif isinstance(component, component.types.Photocell):
+            result = lcl.assemble_kind.PHOTO_CELL.value[locale_index]
+            if component.PHOTO_type == component.Type.DIODE: result = lcl.assemble_kind.PHOTO_DIODE.value[locale_index]
+            elif component.PHOTO_type == component.Type.TRANSISTOR: result = lcl.assemble_kind.PHOTO_TRANSISTOR.value[locale_index]
+            elif component.PHOTO_type == component.Type.RESISTOR: result = lcl.assemble_kind.PHOTO_RESISTOR.value[locale_index]
 
-    #Конденсатор
-    elif isinstance(component, component.types.Capacitor):
-        result = lcl.assemble_kind.CAPACITOR.value[locale_index]
+        #Конденсатор
+        elif isinstance(component, component.types.Capacitor):
+            result = lcl.assemble_kind.CAPACITOR.value[locale_index]
 
-    #Микросхема
-    elif isinstance(component, component.types.IntegratedCircuit):
-        result = lcl.assemble_kind.INTEGRATED_CIRCUIT.value[locale_index]
+        #Микросхема
+        elif isinstance(component, component.types.IntegratedCircuit):
+            result = lcl.assemble_kind.INTEGRATED_CIRCUIT.value[locale_index]
 
-    #Крепёж
-    elif type(component) is component.types.Fastener:
-        result = lcl.assemble_kind.FASTENER.value[locale_index]
+        #Крепёж
+        elif type(component) is component.types.Fastener:
+            result = lcl.assemble_kind.FASTENER.value[locale_index]
 
-    #Радиатор
-    elif type(component) is component.types.Heatsink:
-        result = lcl.assemble_kind.HEATSINK.value[locale_index]
+        #Радиатор
+        elif type(component) is component.types.Heatsink:
+            result = lcl.assemble_kind.HEATSINK.value[locale_index]
 
-    #Автоматический выключатель (Предохранитель)
-    elif isinstance(component, component.types.CircuitBreaker):
-        result = lcl.assemble_kind.CIRCUIT_BREAKER.value[locale_index]
-        if component.CBRK_type == component.Type.FUSE: result = lcl.assemble_kind.FUSE.value[locale_index]
-        elif component.CBRK_type == component.Type.FUSE_PTC_RESETTABLE: result = lcl.assemble_kind.FUSE_PTC_RESETTABLE.value[locale_index]
-        elif component.CBRK_type == component.Type.FUSE_THERMAL: result = lcl.assemble_kind.FUSE_THERMAL.value[locale_index]
+        #Автоматический выключатель (Предохранитель)
+        elif isinstance(component, component.types.CircuitBreaker):
+            result = lcl.assemble_kind.CIRCUIT_BREAKER.value[locale_index]
+            if component.CBRK_type == component.Type.FUSE: result = lcl.assemble_kind.FUSE.value[locale_index]
+            elif component.CBRK_type == component.Type.FUSE_PTC_RESETTABLE: result = lcl.assemble_kind.FUSE_PTC_RESETTABLE.value[locale_index]
+            elif component.CBRK_type == component.Type.FUSE_THERMAL: result = lcl.assemble_kind.FUSE_THERMAL.value[locale_index]
 
-    #Ограничитель перенапряжения
-    elif isinstance(component, component.types.SurgeProtector):
-        result = lcl.assemble_kind.SURGE_PROTECTOR.value[locale_index]
-        if component.SPD_type == component.Type.DIODE: result = lcl.assemble_kind.TVS_DIODE.value[locale_index]
-        elif component.SPD_type == component.Type.THYRISTOR: result = lcl.assemble_kind.TVS_THYRISTOR.value[locale_index]
-        elif component.SPD_type == component.Type.VARISTOR: result = lcl.assemble_kind.VARISTOR.value[locale_index]
-        elif component.SPD_type == component.Type.GAS_DISCHARGE_TUBE: result = lcl.assemble_kind.GAS_DISCHARGE_TUBE.value[locale_index]
-        elif component.SPD_type == component.Type.IC: result = lcl.assemble_kind.SURGE_PROTECTOR.value[locale_index]
+        #Ограничитель перенапряжения
+        elif isinstance(component, component.types.SurgeProtector):
+            result = lcl.assemble_kind.SURGE_PROTECTOR.value[locale_index]
+            if component.SPD_type == component.Type.DIODE: result = lcl.assemble_kind.TVS_DIODE.value[locale_index]
+            elif component.SPD_type == component.Type.THYRISTOR: result = lcl.assemble_kind.TVS_THYRISTOR.value[locale_index]
+            elif component.SPD_type == component.Type.VARISTOR: result = lcl.assemble_kind.VARISTOR.value[locale_index]
+            elif component.SPD_type == component.Type.GAS_DISCHARGE_TUBE: result = lcl.assemble_kind.GAS_DISCHARGE_TUBE.value[locale_index]
+            elif component.SPD_type == component.Type.IC: result = lcl.assemble_kind.SURGE_PROTECTOR.value[locale_index]
 
-    #Батарея
-    elif isinstance(component, component.types.Battery):
-        result = lcl.assemble_kind.BATTERY.value[locale_index]
+        #Батарея
+        elif isinstance(component, component.types.Battery):
+            result = lcl.assemble_kind.BATTERY.value[locale_index]
 
-    #Дисплей
-    elif isinstance(component, component.types.Display):
-        result = lcl.assemble_kind.DISPLAY.value[locale_index]
+        #Дисплей
+        elif isinstance(component, component.types.Display):
+            result = lcl.assemble_kind.DISPLAY.value[locale_index]
 
-    #Светодиод
-    elif isinstance(component, component.types.LED):
-        result = lcl.assemble_kind.LED.value[locale_index]
+        #Светодиод
+        elif isinstance(component, component.types.LED):
+            result = lcl.assemble_kind.LED.value[locale_index]
 
-    #Перемычка
-    elif isinstance(component, component.types.Jumper):
-        result = lcl.assemble_kind.JUMPER.value[locale_index]
+        #Перемычка
+        elif isinstance(component, component.types.Jumper):
+            result = lcl.assemble_kind.JUMPER.value[locale_index]
 
-    #Реле
-    elif isinstance(component, component.types.Relay):
-        result = lcl.assemble_kind.RELAY.value[locale_index]
+        #Реле
+        elif isinstance(component, component.types.Relay):
+            result = lcl.assemble_kind.RELAY.value[locale_index]
 
-    #Индуктивность
-    elif isinstance(component, component.types.Inductor):
-        result = lcl.assemble_kind.INDUCTOR.value[locale_index]
-        if component.IND_type == component.Type.CHOKE: result = lcl.assemble_kind.CHOKE.value[locale_index]
+        #Индуктивность
+        elif isinstance(component, component.types.Inductor):
+            result = lcl.assemble_kind.INDUCTOR.value[locale_index]
+            if component.IND_type == component.Type.CHOKE: result = lcl.assemble_kind.CHOKE.value[locale_index]
 
-    #Резистор
-    elif isinstance(component, component.types.Resistor):
-        result = lcl.assemble_kind.RESISTOR.value[locale_index]
-        if component.RES_type == component.Type.VARIABLE: result = lcl.assemble_kind.POTENTIOMETER.value[locale_index]
+        #Резистор
+        elif isinstance(component, component.types.Resistor):
+            result = lcl.assemble_kind.RESISTOR.value[locale_index]
+            if component.RES_type == component.Type.VARIABLE: result = lcl.assemble_kind.POTENTIOMETER.value[locale_index]
 
-    #Переключатель
-    elif isinstance(component, component.types.Switch):
-        result = lcl.assemble_kind.SWITCH.value[locale_index]
+        #Переключатель
+        elif isinstance(component, component.types.Switch):
+            result = lcl.assemble_kind.SWITCH.value[locale_index]
 
-    #Трансформатор
-    elif isinstance(component, component.types.Transformer):
-        result = lcl.assemble_kind.TRANSFORMER.value[locale_index]
+        #Трансформатор
+        elif isinstance(component, component.types.Transformer):
+            result = lcl.assemble_kind.TRANSFORMER.value[locale_index]
 
-    #Диод
-    elif isinstance(component, component.types.Diode):
-        result = lcl.assemble_kind.DIODE.value[locale_index]
-        if component.DIODE_type == component.Type.ZENER: result = lcl.assemble_kind.ZENER_DIODE.value[locale_index]
-        elif component.DIODE_type == component.Type.VARICAP: result = lcl.assemble_kind.VARICAP.value[locale_index]
+        #Диод
+        elif isinstance(component, component.types.Diode):
+            result = lcl.assemble_kind.DIODE.value[locale_index]
+            if component.DIODE_type == component.Type.ZENER: result = lcl.assemble_kind.ZENER_DIODE.value[locale_index]
+            elif component.DIODE_type == component.Type.VARICAP: result = lcl.assemble_kind.VARICAP.value[locale_index]
 
-    #Тиристор
-    elif isinstance(component, component.types.Thyristor):
-        result = lcl.assemble_kind.THYRISTOR.value[locale_index]
-        if component.THYR_type == component.Type.TRIAC: result = lcl.assemble_kind.TRIAC.value[locale_index]
-        elif component.THYR_type == component.Type.DYNISTOR: result = lcl.assemble_kind.DYNISTOR.value[locale_index]
+        #Тиристор
+        elif isinstance(component, component.types.Thyristor):
+            result = lcl.assemble_kind.THYRISTOR.value[locale_index]
+            if component.THYR_type == component.Type.TRIAC: result = lcl.assemble_kind.TRIAC.value[locale_index]
+            elif component.THYR_type == component.Type.DYNISTOR: result = lcl.assemble_kind.DYNISTOR.value[locale_index]
 
-    #Транзистор
-    elif isinstance(component, component.types.Transistor):
-        result = lcl.assemble_kind.TRANSISTOR.value[locale_index]
+        #Транзистор
+        elif isinstance(component, component.types.Transistor):
+            result = lcl.assemble_kind.TRANSISTOR.value[locale_index]
 
-    #Оптоизолятор
-    elif isinstance(component, component.types.Optoisolator):
-        result = lcl.assemble_kind.OPTOISOLATOR.value[locale_index]
-        if component.OPTOISO_outputType == component.OutputType.TRANSISTOR: result = lcl.assemble_kind.OPTOCOUPLER.value[locale_index]
-        elif component.OPTOISO_outputType == component.OutputType.DARLINGTON: result = lcl.assemble_kind.OPTOCOUPLER.value[locale_index]
-        elif component.OPTOISO_outputType == component.OutputType.LINEAR: result = lcl.assemble_kind.OPTOCOUPLER.value[locale_index]
-        elif component.OPTOISO_outputType == component.OutputType.TRIAC: result = lcl.assemble_kind.PHOTOTRIAC.value[locale_index]
+        #Оптоизолятор
+        elif isinstance(component, component.types.Optoisolator):
+            result = lcl.assemble_kind.OPTOISOLATOR.value[locale_index]
+            if component.OPTOISO_outputType == component.OutputType.TRANSISTOR: result = lcl.assemble_kind.OPTOCOUPLER.value[locale_index]
+            elif component.OPTOISO_outputType == component.OutputType.DARLINGTON: result = lcl.assemble_kind.OPTOCOUPLER.value[locale_index]
+            elif component.OPTOISO_outputType == component.OutputType.LINEAR: result = lcl.assemble_kind.OPTOCOUPLER.value[locale_index]
+            elif component.OPTOISO_outputType == component.OutputType.TRIAC: result = lcl.assemble_kind.PHOTOTRIAC.value[locale_index]
 
-    #Соединитель
-    elif isinstance(component, component.types.Connector):
-        result = lcl.assemble_kind.CONNECTOR.value[locale_index]
+        #Соединитель
+        elif isinstance(component, component.types.Connector):
+            result = lcl.assemble_kind.CONNECTOR.value[locale_index]
 
-    #Фильтр ЭМП
-    elif isinstance(component, component.types.EMIFilter):
-        result = lcl.assemble_kind.EMI_FILTER.value[locale_index]
+        #Фильтр ЭМП
+        elif isinstance(component, component.types.EMIFilter):
+            result = lcl.assemble_kind.EMI_FILTER.value[locale_index]
 
-    #Осциллятор (Резонатор)
-    elif isinstance(component, component.types.Oscillator):
-        result = lcl.assemble_kind.OSCILLATOR.value[locale_index]
-        if component.OSC_type == component.Type.RESONATOR:
-            result = lcl.assemble_kind.RESONATOR.value[locale_index]
-            if component.OSC_structure == component.Structure.QUARTZ:
-                result = lcl.assemble_kind.CRYSTAL.value[locale_index]
+        #Осциллятор (Резонатор)
+        elif isinstance(component, component.types.Oscillator):
+            result = lcl.assemble_kind.OSCILLATOR.value[locale_index]
+            if component.OSC_type == component.Type.RESONATOR:
+                result = lcl.assemble_kind.RESONATOR.value[locale_index]
+                if component.OSC_structure == component.Structure.QUARTZ:
+                    result = lcl.assemble_kind.CRYSTAL.value[locale_index]
 
+        else:
+            result = component.GENERIC_kind
     else:
         result = component.GENERIC_kind
 
@@ -312,8 +326,11 @@ def assemble_manufacturer(component, **kwargs):
 
 #сборка параметрической записи
 def assemble_parameters(component, **kwargs):
-    #locale
+    #локализация
     locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+
+    #параметры сборки
+    assemble_param = kwargs.get('assemble_param', True)
 
     #параметры содержимого
     content_basic = kwargs.get('content_param_basic', True)
@@ -332,178 +349,523 @@ def assemble_parameters(component, **kwargs):
     format_temperature_positiveSign = kwargs.get('format_param_temperature_positiveSign', True)
 
     result = ''
+    if assemble_param:
+        #базовые параметры
+        if content_basic:
+            #Сборка (Устройство)
+            if type(component) is component.types.Assembly:
+                pass
 
-    #базовые параметры
-    if content_basic:
-        #Сборка (Устройство)
-        if type(component) is component.types.Assembly:
-            pass
+            #Фотоэлемент
+            elif type(component) is component.types.Photocell:
+                pass
 
-        #Фотоэлемент
-        elif type(component) is component.types.Photocell:
-            pass
+            #Конденсатор
+            elif type(component) is component.types.Capacitor:
+                #тип
+                if component.CAP_type == component.Type.CERAMIC:
+                    result += lcl.assemble_parameters.CAP_TYPE_CERAMIC.value[locale_index]
+                elif component.CAP_type == component.Type.TANTALUM:
+                    result += lcl.assemble_parameters.CAP_TYPE_TANTALUM.value[locale_index]
+                elif component.CAP_type == component.Type.FILM:
+                    result += lcl.assemble_parameters.CAP_TYPE_FILM.value[locale_index]
+                elif component.CAP_type == component.Type.ALUM_ELECTROLYTIC:
+                    result += lcl.assemble_parameters.CAP_TYPE_ALUM_ELECTROLYTIC.value[locale_index]
+                elif component.CAP_type == component.Type.ALUM_POLYMER:
+                    result += lcl.assemble_parameters.CAP_TYPE_ALUM_POLYMER.value[locale_index]
+                elif component.CAP_type == component.Type.SUPERCAPACITOR:
+                    result += lcl.assemble_parameters.CAP_TYPE_SUPERCAPACITOR.value[locale_index]
 
-        #Конденсатор
-        elif type(component) is component.types.Capacitor:
-            #тип
-            if component.CAP_type == component.Type.CERAMIC:
-                result += lcl.assemble_parameters.CAP_TYPE_CERAMIC.value[locale_index]
-            elif component.CAP_type == component.Type.TANTALUM:
-                result += lcl.assemble_parameters.CAP_TYPE_TANTALUM.value[locale_index]
-            elif component.CAP_type == component.Type.FILM:
-                result += lcl.assemble_parameters.CAP_TYPE_FILM.value[locale_index]
-            elif component.CAP_type == component.Type.ALUM_ELECTROLYTIC:
-                result += lcl.assemble_parameters.CAP_TYPE_ALUM_ELECTROLYTIC.value[locale_index]
-            elif component.CAP_type == component.Type.ALUM_POLYMER:
-                result += lcl.assemble_parameters.CAP_TYPE_ALUM_POLYMER.value[locale_index]
-            elif component.CAP_type == component.Type.SUPERCAPACITOR:
-                result += lcl.assemble_parameters.CAP_TYPE_SUPERCAPACITOR.value[locale_index]
+                if len(result) > 0: result += format_param_delimiter
 
-            if len(result) > 0: result += format_param_delimiter
+                #размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE:
+                    result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
+                    if component.GENERIC_THtype == component.Mounting.ThroughHole.AXIAL:
+                        result += lcl.assemble_parameters.MOUNT_AXIAL.value[locale_index]
+                    elif component.GENERIC_THtype == component.Mounting.ThroughHole.RADIAL:
+                        result += lcl.assemble_parameters.MOUNT_RADIAL.value[locale_index]
+                result += "\xa0"
+                if component.GENERIC_size is not None: result += component.GENERIC_size
+                result = result.strip('\xa0')
 
-            #размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE:
-                result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
-                if component.GENERIC_THtype == component.Mounting.ThroughHole.AXIAL:
-                    result += lcl.assemble_parameters.MOUNT_AXIAL.value[locale_index]
-                elif component.GENERIC_THtype == component.Mounting.ThroughHole.RADIAL:
-                    result += lcl.assemble_parameters.MOUNT_RADIAL.value[locale_index]
-            result += "\xa0"
-            if component.GENERIC_size is not None: result += component.GENERIC_size
-            result = result.strip('\xa0')
-
-            result += format_param_delimiter
-            
-            #диэлектрик
-            if component.CAP_dielectric is not None:
-                result += component.CAP_dielectric
                 result += format_param_delimiter
-
-            #напряжение
-            if component.CAP_voltage is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.CAP_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #ёмкость + допуск
-            if component.CAP_capacitance is not None:
-                ranges = ((1e-12, MetricMultiplier.PICO), (10e-9, MetricMultiplier.MICRO), (0.1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.CAP_capacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.CAP_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.CAP_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #низкий импеданс
-            if component.CAP_lowImpedance:
-                result += lcl.assemble_parameters.LOW_ESR.value[locale_index]
-                result += format_param_delimiter
-
-        #Микросхема
-        elif type(component) is component.types.IntegratedCircuit:
-            pass
-
-        #Крепёж
-        elif type(component) is component.types.Fastener:
-            pass
-
-        #Радиатор
-        elif type(component) is component.types.Heatsink:
-            pass
-
-        #Автоматический выключатель (Предохранитель)
-        elif type(component) is component.types.CircuitBreaker:
-            #тип
-            if component.CBRK_type == component.Type.FUSE:
-                result += lcl.assemble_parameters.CBRK_TYPE_FUSE.value[locale_index]
-            elif component.CBRK_type == component.Type.FUSE_PTC_RESETTABLE:
-                result += lcl.assemble_parameters.CBRK_TYPE_FUSE_PTCRESETTABLE.value[locale_index]
-            elif component.CBRK_type == component.Type.FUSE_THERMAL:
-                result += lcl.assemble_parameters.CBRK_TYPE_FUSE_THERMAL.value[locale_index]
-            elif component.CBRK_type == component.Type.BREAKER:
-                result += lcl.assemble_parameters.CBRK_TYPE_BREAKER.value[locale_index]
-            elif component.CBRK_type == component.Type.HOLDER:
-                result += lcl.assemble_parameters.CBRK_TYPE_HOLDER.value[locale_index]
-            if len(result) > 0: result += format_param_delimiter
-
-            #тип монтажа + размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index] + '\xa0'
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index] + '\xa0'
-            elif component.GENERIC_mount == component.Mounting.Type.HOLDER: result += lcl.assemble_parameters.MOUNT_HOLDER.value[locale_index] + '\xa0'
-            if component.GENERIC_size is not None: result += component.GENERIC_size
-            result = result.strip('\xa0')
-            result += format_param_delimiter
-
-            #номинальный ток
-            if component.CBRK_current_rating is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.CBRK_current_rating, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #точка плавления
-            if component.CBRK_meltingPoint is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), )
-                result += _assemble_param_value(component.CBRK_meltingPoint, lcl.Units.AMPERE.value[locale_index]  + '²' + lcl.Units.SECOND.value[locale_index], format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #максимальное напряжение
-            if component.CBRK_voltage is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.CBRK_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.CBRK_voltage_ac: result += '\xa0' + lcl.assemble_parameters.VOLTAGE_AC.value[locale_index]
-                result += format_param_delimiter
-
-            #сопротивление
-            if component.CBRK_resistance is not None:
-                ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.CBRK_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #максимальная мощность
-            if component.CBRK_power is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.CBRK_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #классификация скорости срабатывания
-            if component.CBRK_speed_grade is not None:
-                if component.CBRK_speed_grade == component.SpeedGrade.FAST: result += lcl.assemble_parameters.CBRK_SPEEDGRADE_FAST.value[locale_index] + format_param_delimiter
-                elif component.CBRK_speed_grade == component.SpeedGrade.MEDIUM: result += lcl.assemble_parameters.CBRK_SPEEDGRADE_MEDIUM.value[locale_index] + format_param_delimiter
-                elif component.CBRK_speed_grade == component.SpeedGrade.SLOW: result += lcl.assemble_parameters.CBRK_SPEEDGRADE_SLOW.value[locale_index] + format_param_delimiter
-
-        #Ограничитель перенапряжения
-        elif type(component) is component.types.SurgeProtector:
-            #тип
-            if component.SPD_type == component.Type.DIODE:          #диод
-                result += lcl.assemble_parameters.SPD_TYPE_DIODE.value[locale_index]
-                result += format_param_delimiter
-
-                #двунаправленный тип
-                if component.SPD_bidirectional is not None:
-                    if component.SPD_bidirectional:
-                        result += lcl.assemble_parameters.SPD_BIDIRECTIONAL.value[locale_index]
-                    else:
-                        result += lcl.assemble_parameters.SPD_UNIDIRECTIONAL.value[locale_index]
+                
+                #диэлектрик
+                if component.CAP_dielectric is not None:
+                    result += component.CAP_dielectric
                     result += format_param_delimiter
 
-                #максимальное рабочее напряжение
-                if component.SPD_standoff_voltage is not None:
+                #напряжение
+                if component.CAP_voltage is not None:
                     ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                    result += _assemble_param_value(component.SPD_standoff_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += _assemble_param_value(component.CAP_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
                     result += format_param_delimiter
 
-                #мощность + тип тестового импульса
-                if component.SPD_power is not None:
-                    ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                    result += _assemble_param_value(component.SPD_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                    if component.SPD_testPulse is not None:
-                        result += format_conditions_enclosure[0]
-                        if component.SPD_testPulse == component.TestPulse.US_8_20:
-                            result += '8/20' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index] + format_unit_enclosure[1]
-                        elif component.SPD_testPulse == component.TestPulse.US_10_1000:
-                            result += '10/1000' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index] + format_unit_enclosure[1]
+                #ёмкость + допуск
+                if component.CAP_capacitance is not None:
+                    ranges = ((1e-12, MetricMultiplier.PICO), (10e-9, MetricMultiplier.MICRO), (0.1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.CAP_capacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.CAP_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.CAP_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
+
+                #низкий импеданс
+                if component.CAP_lowImpedance:
+                    result += lcl.assemble_parameters.LOW_ESR.value[locale_index]
+                    result += format_param_delimiter
+
+            #Микросхема
+            elif type(component) is component.types.IntegratedCircuit:
+                pass
+
+            #Крепёж
+            elif type(component) is component.types.Fastener:
+                pass
+
+            #Радиатор
+            elif type(component) is component.types.Heatsink:
+                pass
+
+            #Автоматический выключатель (Предохранитель)
+            elif type(component) is component.types.CircuitBreaker:
+                #тип
+                if component.CBRK_type == component.Type.FUSE:
+                    result += lcl.assemble_parameters.CBRK_TYPE_FUSE.value[locale_index]
+                elif component.CBRK_type == component.Type.FUSE_PTC_RESETTABLE:
+                    result += lcl.assemble_parameters.CBRK_TYPE_FUSE_PTCRESETTABLE.value[locale_index]
+                elif component.CBRK_type == component.Type.FUSE_THERMAL:
+                    result += lcl.assemble_parameters.CBRK_TYPE_FUSE_THERMAL.value[locale_index]
+                elif component.CBRK_type == component.Type.BREAKER:
+                    result += lcl.assemble_parameters.CBRK_TYPE_BREAKER.value[locale_index]
+                elif component.CBRK_type == component.Type.HOLDER:
+                    result += lcl.assemble_parameters.CBRK_TYPE_HOLDER.value[locale_index]
+                if len(result) > 0: result += format_param_delimiter
+
+                #тип монтажа + размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index] + '\xa0'
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index] + '\xa0'
+                elif component.GENERIC_mount == component.Mounting.Type.HOLDER: result += lcl.assemble_parameters.MOUNT_HOLDER.value[locale_index] + '\xa0'
+                if component.GENERIC_size is not None: result += component.GENERIC_size
+                result = result.strip('\xa0')
+                result += format_param_delimiter
+
+                #номинальный ток
+                if component.CBRK_current_rating is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.CBRK_current_rating, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #точка плавления
+                if component.CBRK_meltingPoint is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), )
+                    result += _assemble_param_value(component.CBRK_meltingPoint, lcl.Units.AMPERE.value[locale_index]  + '²' + lcl.Units.SECOND.value[locale_index], format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #максимальное напряжение
+                if component.CBRK_voltage is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.CBRK_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.CBRK_voltage_ac: result += '\xa0' + lcl.assemble_parameters.VOLTAGE_AC.value[locale_index]
+                    result += format_param_delimiter
+
+                #сопротивление
+                if component.CBRK_resistance is not None:
+                    ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.CBRK_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #максимальная мощность
+                if component.CBRK_power is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.CBRK_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #классификация скорости срабатывания
+                if component.CBRK_speed_grade is not None:
+                    if component.CBRK_speed_grade == component.SpeedGrade.FAST: result += lcl.assemble_parameters.CBRK_SPEEDGRADE_FAST.value[locale_index] + format_param_delimiter
+                    elif component.CBRK_speed_grade == component.SpeedGrade.MEDIUM: result += lcl.assemble_parameters.CBRK_SPEEDGRADE_MEDIUM.value[locale_index] + format_param_delimiter
+                    elif component.CBRK_speed_grade == component.SpeedGrade.SLOW: result += lcl.assemble_parameters.CBRK_SPEEDGRADE_SLOW.value[locale_index] + format_param_delimiter
+
+            #Ограничитель перенапряжения
+            elif type(component) is component.types.SurgeProtector:
+                #тип
+                if component.SPD_type == component.Type.DIODE:          #диод
+                    result += lcl.assemble_parameters.SPD_TYPE_DIODE.value[locale_index]
+                    result += format_param_delimiter
+
+                    #двунаправленный тип
+                    if component.SPD_bidirectional is not None:
+                        if component.SPD_bidirectional:
+                            result += lcl.assemble_parameters.SPD_BIDIRECTIONAL.value[locale_index]
                         else:
-                            result += '???'
+                            result += lcl.assemble_parameters.SPD_UNIDIRECTIONAL.value[locale_index]
+                        result += format_param_delimiter
+
+                    #максимальное рабочее напряжение
+                    if component.SPD_standoff_voltage is not None:
+                        ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                        result += _assemble_param_value(component.SPD_standoff_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                        result += format_param_delimiter
+
+                    #мощность + тип тестового импульса
+                    if component.SPD_power is not None:
+                        ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                        result += _assemble_param_value(component.SPD_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                        if component.SPD_testPulse is not None:
+                            result += format_conditions_enclosure[0]
+                            if component.SPD_testPulse == component.TestPulse.US_8_20:
+                                result += '8/20' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index] + format_unit_enclosure[1]
+                            elif component.SPD_testPulse == component.TestPulse.US_10_1000:
+                                result += '10/1000' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index] + format_unit_enclosure[1]
+                            else:
+                                result += '???'
+                            result += format_conditions_enclosure[1]
+                        result += format_param_delimiter
+
+                    #корпус
+                    if component.GENERIC_package is not None:
+                        result += lcl.assemble_parameters.PACKAGE.value[locale_index] + '\xa0' + component.GENERIC_package 
+                        result += format_param_delimiter
+
+                elif component.SPD_type == component.Type.VARISTOR:     #варистор
+                    result += lcl.assemble_parameters.SPD_TYPE_VARISTOR.value[locale_index]
+                    result += format_param_delimiter
+
+                    #тип + размер
+                    if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                    elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
+                    result += '\xa0'
+                    if component.GENERIC_size is not None: result += component.GENERIC_size
+                    result = result.strip('\xa0')
+                    result += format_param_delimiter
+                    
+                    #максимальное рабочее напряжение
+                    if component.SPD_standoff_voltage is not None:
+                        ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                        result += _assemble_param_value(component.SPD_standoff_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                        result += format_param_delimiter
+                    
+                    #энергия + тип тестового импульса
+                    if component.SPD_energy is not None:
+                        ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                        result += _assemble_param_value(component.SPD_energy, lcl.Units.JOULE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                        if component.SPD_testPulse is not None:
+                            result += format_conditions_enclosure[0]
+                            if component.SPD_testPulse == component.TestPulse.US_8_20:
+                                result += '8/20' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index]  + format_unit_enclosure[1]
+                            elif component.SPD_testPulse == component.TestPulse.US_10_1000:
+                                result += '10/1000' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index] + format_unit_enclosure[1]
+                            else:
+                                result += '???'
+                            result += format_conditions_enclosure[1]
+                        result += format_param_delimiter
+
+            #Батарея
+            elif type(component) is component.types.Battery:
+                #тип
+                if component.BAT_type == component.Type.HOLDER:
+                    result += lcl.assemble_parameters.BAT_TYPE_HOLDER.value[locale_index]
+                if len(result) > 0: result += format_param_delimiter
+
+                #размер
+                if component.GENERIC_size is not None:
+                    result += component.GENERIC_size + format_param_delimiter
+
+                #номинальное напряжение
+                if component.BAT_voltage_rated is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), )
+                    result += _assemble_param_value(component.BAT_voltage_rated, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #ёмкость @ нагрузка + температура
+                if component.BAT_capacity is not None:
+                    ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.BAT_capacity, lcl.Units.AMPERE.value[locale_index] + lcl.Units.HOUR.value[locale_index], format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if (component.BAT_capacity_load_current is not None) or (component.BAT_capacity_load_resistance is not None) or (component.BAT_capacity_voltage is not None) or (component.BAT_capacity_temperature is not None):
+                        result += format_conditions_enclosure[0]
+                        
+                        if component.BAT_capacity_load_current is not None:
+                            ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                            result += _assemble_param_value(component.BAT_capacity_load_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                            result += format_conditions_delimiter
+                        
+                        if component.BAT_capacity_load_resistance is not None:
+                            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA))
+                            result += _assemble_param_value(component.BAT_capacity_load_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                            result += format_conditions_delimiter
+                        
+                        if component.BAT_capacity_voltage is not None:
+                            ranges = ((1e0, MetricMultiplier.NONE), )
+                            result += _assemble_param_value(component.BAT_capacity_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                            result += format_conditions_delimiter
+                        
+                        if component.BAT_capacity_temperature is not None:
+                            result += _assemble_param_temperature(component.BAT_capacity_temperature, lcl.Units.CELCIUS_DEG, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, format_temperature_positiveSign)
+                            result += format_conditions_delimiter
+                        
+                        result = string_strip_word(result, format_conditions_delimiter)
+                        result += format_conditions_enclosure[1]
+                    result += format_param_delimiter
+
+                #диапазон рабочих температур
+                if component.GENERIC_temperature_range is not None:
+                    result += _assemble_param_temperature_range(component.GENERIC_temperature_range, lcl.Units.CELCIUS_DEG, format_decimalPoint, format_unit_enclosure, format_rangeSymbol, locale_index, format_temperature_positiveSign)
+                    result += format_param_delimiter
+
+            #Дисплей
+            elif type(component) is component.types.Display:
+                pass
+
+            #Светодиод
+            elif type(component) is component.types.LED:
+                #тип
+                if component.LED_type == component.Type.INDICATION:
+                    result += lcl.assemble_parameters.LED_TYPE_INDICATOR.value[locale_index]
+                elif component.LED_type == component.Type.LIGHTING:
+                    result += lcl.assemble_parameters.LED_TYPE_LIGHTING.value[locale_index]
+                if len(result) > 0: result += format_param_delimiter
+
+                #тип монтажа + размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE:
+                    result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                    if component.GENERIC_size is not None: 
+                        result +=  '\xa0' + component.GENERIC_size
+                    result += format_param_delimiter
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
+                    result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
+                    if component.GENERIC_size is not None: 
+                        result +=  '\xa0' + component.GENERIC_size
+                    result += format_param_delimiter
+
+                #цвет
+                if component.LED_color is not None:
+                    if   component.LED_color == component.Color.INFRARED:    result += lcl.Color.INFRARED.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.ULTRAVIOLET: result += lcl.Color.ULTRAVIOLET.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.RED:         result += lcl.Color.RED.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.ORANGE:      result += lcl.Color.ORANGE.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.AMBER:       result += lcl.Color.AMBER.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.YELLOW:      result += lcl.Color.YELLOW.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.LIME:        result += lcl.Color.LIME.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.GREEN:       result += lcl.Color.GREEN.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.TURQUOISE:   result += lcl.Color.TURQUOISE.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.CYAN:        result += lcl.Color.CYAN.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.BLUE:        result += lcl.Color.BLUE.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.VIOLET:      result += lcl.Color.VIOLET.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.PURPLE:      result += lcl.Color.PURPLE.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.PINK:        result += lcl.Color.PINK.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.MULTI:       result += lcl.Color.MULTI.value[locale_index] + format_param_delimiter
+                    elif component.LED_color == component.Color.WHITE:       result += lcl.Color.WHITE.value[locale_index] + format_param_delimiter
+                        
+                #цветовая температура
+                if component.LED_color_temperature is not None:
+                    result += '\xa0' + _floatToString(component.LED_color_temperature, format_decimalPoint) + format_unit_enclosure[0] + lcl.Units.KELVIN.value[locale_index] + format_unit_enclosure[1]
+                    result += format_param_delimiter
+                    
+                #длина волны
+                if component.LED_wavelength_peak is not None:
+                    value = [component.LED_wavelength_peak]
+                    if component.LED_wavelength_dominant is not None: value.append(component.LED_wavelength_dominant)
+                    ranges = ((1e-9, MetricMultiplier.NANO), )
+                    result += _assemble_param_value(value, lcl.Units.METRE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #индекс цветопередачи
+                if component.LED_color_renderingIndex is not None:
+                    result += lcl.assemble_parameters.LED_CRI.value[locale_index] + format_unit_enclosure[0] + _floatToString(component.LED_color_renderingIndex, format_decimalPoint) + format_unit_enclosure[1]
+                    result += format_param_delimiter
+
+                #сила света
+                if component.LED_luminous_intensity is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.LED_luminous_intensity, lcl.Units.CANDELA, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.LED_luminous_intensity_current is not None:
+                        result += format_conditions_enclosure[0]
+                        ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                        result += _assemble_param_value(component.LED_luminous_intensity_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                        result += format_conditions_enclosure[1]
+                    result += format_param_delimiter
+
+                #световой поток
+                if component.LED_luminous_flux is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), )
+                    result += _assemble_param_value(component.LED_luminous_flux, lcl.Units.LUMEN, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.LED_luminous_flux_current is not None:
+                        result += format_conditions_enclosure[0]
+                        ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                        result += _assemble_param_value(component.LED_luminous_flux_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                        result += format_conditions_enclosure[1]
+                    result += format_param_delimiter
+
+                #угол обзора
+                if component.LED_viewingAngle is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), )
+                    result += _assemble_param_value(component.LED_viewingAngle, lcl.Units.DEGREE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #прямой ток
+                if component.LED_current_nominal is not None:
+                    value = [component.LED_current_nominal]
+                    if component.LED_current_maximum is not None: value.append(component.LED_current_maximum)
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(value, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #прямое падение напряжения
+                if component.LED_voltage_forward is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), )
+                    result += _assemble_param_value(component.LED_voltage_forward, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #сборка
+                if component.GENERIC_array is not None:
+                    result += lcl.assemble_parameters.ARRAY.value[locale_index]
+                    result += format_param_delimiter
+
+            #Перемычка
+            elif type(component) is component.types.Jumper:
+                #тип
+                if component.JMP_type is not None:
+                    if component.JMP_type == component.Type.ELECTRICAL:
+                        pass #result += '' + format_param_delimiter
+                    elif component.JMP_type == component.Type.THERMAL:
+                        result += lcl.assemble_parameters.JMP_TYPE_THERMAL.value[locale_index] + format_param_delimiter
+
+                #тип монтажа + размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
+                result += '\xa0'
+                if component.GENERIC_size is not None: result += component.GENERIC_size
+                result = result.strip('\xa0')
+                result += format_param_delimiter
+
+            #Реле
+            elif type(component) is component.types.Relay:
+                pass
+
+            #Индуктивность
+            elif type(component) is component.types.Inductor:
+                #тип монтажа + размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
+                result += '\xa0'
+                if component.GENERIC_size is not None: result += component.GENERIC_size
+                result = result.strip('\xa0')
+
+                result += format_param_delimiter
+
+                #индуктивность + допуск
+                if component.IND_inductance is not None:
+                    ranges = ((1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.IND_inductance, lcl.Units.HENRY, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.IND_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.IND_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
+
+                #ток
+                if component.IND_current is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.IND_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #низкая ёмкость
+                if component.IND_lowCapacitance:
+                    result += lcl.assemble_parameters.LOW_CAPACITANCE.value[locale_index]
+                    result += format_param_delimiter
+
+            #Резистор
+            elif type(component) is component.types.Resistor:
+                #тип монтажа + размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
+                result += '\xa0'
+                if component.GENERIC_size is not None: result += component.GENERIC_size
+                result = result.strip('\xa0')
+
+                result += format_param_delimiter
+                
+                #мощность
+                if component.RES_power is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.RES_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+                
+                #напряжение
+                if component.RES_voltage is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.RES_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #сопротивление + допуск
+                if component.RES_resistance is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+                    result += _assemble_param_value(component.RES_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.RES_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.RES_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
+
+                #ТКС
+                if component.RES_temperature_coefficient is not None:
+                    result += _assemble_param_tolerance(component.RES_temperature_coefficient, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index)
+                    result += format_param_delimiter
+
+            #Переключатель
+            elif type(component) is component.types.Switch:
+                pass
+
+            #Трансформатор
+            elif type(component) is component.types.Transformer:
+                pass
+
+            #Диод
+            elif type(component) is component.types.Diode:
+                #тип
+                if component.DIODE_type == component.Type.SCHOTTKY:
+                    result += lcl.assemble_parameters.SCHOTTKY.value[locale_index]
+                    result += format_param_delimiter
+
+                #обратное напряжение
+                if component.DIODE_reverseVoltage is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.DIODE_reverseVoltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.DIODE_reverseVoltage_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.DIODE_reverseVoltage_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
+
+                #прямой ток
+                if component.DIODE_forwardCurrent is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.DIODE_forwardCurrent, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #максимальная мощность
+                if component.DIODE_power is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.DIODE_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #ёмкость + допуск + условия
+                if component.DIODE_capacitance is not None:
+                    ranges = ((1e-12, MetricMultiplier.PICO), )
+                    result += _assemble_param_value(component.DIODE_capacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    #допуск
+                    if component.DIODE_capacitance_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.DIODE_capacitance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    #условия
+                    if (component.DIODE_capacitance_voltage is not None) or (component.DIODE_capacitance_frequency is not None):
+                        result += format_conditions_enclosure[0]
+                        #напряжение
+                        if component.DIODE_capacitance_voltage is not None:
+                            ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                            result += _assemble_param_value(component.DIODE_capacitance_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                            result += format_conditions_delimiter
+                        #частота
+                        if component.DIODE_capacitance_frequency is not None:
+                            ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+                            result += _assemble_param_value(component.DIODE_capacitance_frequency, lcl.Units.HERTZ, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                            result += format_conditions_delimiter
+                        result = string_strip_word(result, format_conditions_delimiter)
                         result += format_conditions_enclosure[1]
                     result += format_param_delimiter
 
@@ -512,502 +874,160 @@ def assemble_parameters(component, **kwargs):
                     result += lcl.assemble_parameters.PACKAGE.value[locale_index] + '\xa0' + component.GENERIC_package 
                     result += format_param_delimiter
 
-            elif component.SPD_type == component.Type.VARISTOR:     #варистор
-                result += lcl.assemble_parameters.SPD_TYPE_VARISTOR.value[locale_index]
-                result += format_param_delimiter
+            #Тиристор
+            elif type(component) is component.types.Thyristor:
+                pass
 
-                #тип + размер
-                if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
-                result += '\xa0'
-                if component.GENERIC_size is not None: result += component.GENERIC_size
-                result = result.strip('\xa0')
-                result += format_param_delimiter
-                
-                #максимальное рабочее напряжение
-                if component.SPD_standoff_voltage is not None:
-                    ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                    result += _assemble_param_value(component.SPD_standoff_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+            #Транзистор
+            elif type(component) is component.types.Transistor:
+                pass
+
+            #Оптоизолятор
+            elif type(component) is component.types.Optoisolator:
+                pass
+
+            #Соединитель
+            elif type(component) is component.types.Connector:
+                pass
+
+            #Фильтр ЭМП
+            elif type(component) is component.types.EMIFilter:
+                #тип
+                if component.EMIF_type == component.Type.FERRITE_BEAD:
+                    result += lcl.assemble_parameters.FERRITE_BEAD.value[locale_index]
+                elif component.EMIF_type == component.Type.COMMON_MODE_CHOKE:
+                    result += lcl.assemble_parameters.COMMON_MODE_CHOKE.value[locale_index]
+                if len(result) > 0: result += format_param_delimiter
+
+                #тип монтажа + размер
+                if component.GENERIC_mount == component.Mounting.Type.SURFACE:
+                    result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
+                    if component.GENERIC_size is not None: 
+                        result +=  '\xa0' + component.GENERIC_size
                     result += format_param_delimiter
-                
-                #энергия + тип тестового импульса
-                if component.SPD_energy is not None:
-                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                    result += _assemble_param_value(component.SPD_energy, lcl.Units.JOULE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                    if component.SPD_testPulse is not None:
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
+                    result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
+                    if component.GENERIC_size is not None: 
+                        result +=  '\xa0' + component.GENERIC_size
+                    result += format_param_delimiter
+
+                #импеданс + допуск @ частота
+                if component.EMIF_impedance is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.EMIF_impedance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.EMIF_impedance_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_impedance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    if component.EMIF_impedance_frequency is not None:
                         result += format_conditions_enclosure[0]
-                        if component.SPD_testPulse == component.TestPulse.US_8_20:
-                            result += '8/20' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index]  + format_unit_enclosure[1]
-                        elif component.SPD_testPulse == component.TestPulse.US_10_1000:
-                            result += '10/1000' + format_unit_enclosure[0] + lcl.MetricPrefix.MICRO.value[locale_index] + lcl.Units.SECOND.value[locale_index] + format_unit_enclosure[1]
-                        else:
-                            result += '???'
+                        ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
+                        result += _assemble_param_value(component.EMIF_impedance_frequency, lcl.Units.HERTZ, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
                         result += format_conditions_enclosure[1]
                     result += format_param_delimiter
 
-        #Батарея
-        elif type(component) is component.types.Battery:
-            #тип
-            if component.BAT_type == component.Type.HOLDER:
-                result += lcl.assemble_parameters.BAT_TYPE_HOLDER.value[locale_index]
-            if len(result) > 0: result += format_param_delimiter
+                #индуктивность + допуск
+                if component.EMIF_inductance is not None:
+                    ranges = ((1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.EMIF_inductance, lcl.Units.HENRY, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.EMIF_inductance_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_inductance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
 
-            #размер
-            if component.GENERIC_size is not None:
-                result += component.GENERIC_size + format_param_delimiter
+                #ёмкость + допуск
+                if component.EMIF_capacitance is not None:
+                    ranges = ((1e-12, MetricMultiplier.PICO), (1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (0.1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.EMIF_capacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.EMIF_capacitance_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_capacitance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
 
-            #номинальное напряжение
-            if component.BAT_voltage_rated is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), )
-                result += _assemble_param_value(component.BAT_voltage_rated, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
+                #сопротивление + допуск
+                if component.EMIF_resistance is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.EMIF_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.EMIF_resistance_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_resistance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
 
-            #ёмкость @ нагрузка + температура
-            if component.BAT_capacity is not None:
-                ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.BAT_capacity, lcl.Units.AMPERE.value[locale_index] + lcl.Units.HOUR.value[locale_index], format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if (component.BAT_capacity_load_current is not None) or (component.BAT_capacity_load_resistance is not None) or (component.BAT_capacity_voltage is not None) or (component.BAT_capacity_temperature is not None):
-                    result += format_conditions_enclosure[0]
-                    
-                    if component.BAT_capacity_load_current is not None:
-                        ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                        result += _assemble_param_value(component.BAT_capacity_load_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                        result += format_conditions_delimiter
-                    
-                    if component.BAT_capacity_load_resistance is not None:
-                        ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA))
-                        result += _assemble_param_value(component.BAT_capacity_load_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                        result += format_conditions_delimiter
-                    
-                    if component.BAT_capacity_voltage is not None:
-                        ranges = ((1e0, MetricMultiplier.NONE), )
-                        result += _assemble_param_value(component.BAT_capacity_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                        result += format_conditions_delimiter
-                    
-                    if component.BAT_capacity_temperature is not None:
-                        result += _assemble_param_temperature(component.BAT_capacity_temperature, lcl.Units.CELCIUS_DEG, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, format_temperature_positiveSign)
-                        result += format_conditions_delimiter
-                    
-                    result = string_strip_word(result, format_conditions_delimiter)
-                    result += format_conditions_enclosure[1]
-                result += format_param_delimiter
+                #номинальный ток
+                if component.EMIF_current is not None:
+                    ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.EMIF_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
 
-            #диапазон рабочих температур
-            if component.GENERIC_temperature_range is not None:
-                result += _assemble_param_temperature_range(component.GENERIC_temperature_range, lcl.Units.CELCIUS_DEG, format_decimalPoint, format_unit_enclosure, format_rangeSymbol, locale_index, format_temperature_positiveSign)
-                result += format_param_delimiter
+                #максимальное напряжение
+                if component.EMIF_voltage is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.EMIF_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
 
-        #Дисплей
-        elif type(component) is component.types.Display:
-            pass
+            #Осциллятор (Резонатор)
+            elif type(component) is component.types.Oscillator:
+                #структура
+                if component.OSC_structure == component.Structure.QUARTZ:
+                    result += lcl.assemble_parameters.OSC_STRUCTURE_QUARTZ.value[locale_index]
+                elif component.OSC_structure == component.Structure.CERAMIC:
+                    result += lcl.assemble_parameters.OSC_STRUCTURE_CERAMIC.value[locale_index]
+                if len(result) > 0: result += format_param_delimiter
 
-        #Светодиод
-        elif type(component) is component.types.LED:
-            #тип
-            if component.LED_type == component.Type.INDICATION:
-                result += lcl.assemble_parameters.LED_TYPE_INDICATOR.value[locale_index]
-            elif component.LED_type == component.Type.LIGHTING:
-                result += lcl.assemble_parameters.LED_TYPE_LIGHTING.value[locale_index]
-            if len(result) > 0: result += format_param_delimiter
-
-            #тип монтажа + размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE:
-                result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-                if component.GENERIC_size is not None: 
-                    result +=  '\xa0' + component.GENERIC_size
-                result += format_param_delimiter
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
-                result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
-                if component.GENERIC_size is not None: 
-                    result +=  '\xa0' + component.GENERIC_size
-                result += format_param_delimiter
-
-            #цвет
-            if component.LED_color is not None:
-                if   component.LED_color == component.Color.INFRARED:    result += lcl.Color.INFRARED.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.ULTRAVIOLET: result += lcl.Color.ULTRAVIOLET.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.RED:         result += lcl.Color.RED.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.ORANGE:      result += lcl.Color.ORANGE.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.AMBER:       result += lcl.Color.AMBER.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.YELLOW:      result += lcl.Color.YELLOW.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.LIME:        result += lcl.Color.LIME.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.GREEN:       result += lcl.Color.GREEN.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.TURQUOISE:   result += lcl.Color.TURQUOISE.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.CYAN:        result += lcl.Color.CYAN.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.BLUE:        result += lcl.Color.BLUE.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.VIOLET:      result += lcl.Color.VIOLET.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.PURPLE:      result += lcl.Color.PURPLE.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.PINK:        result += lcl.Color.PINK.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.MULTI:       result += lcl.Color.MULTI.value[locale_index] + format_param_delimiter
-                elif component.LED_color == component.Color.WHITE:       result += lcl.Color.WHITE.value[locale_index] + format_param_delimiter
-                    
-            #цветовая температура
-            if component.LED_color_temperature is not None:
-                result += '\xa0' + _floatToString(component.LED_color_temperature, format_decimalPoint) + format_unit_enclosure[0] + lcl.Units.KELVIN.value[locale_index] + format_unit_enclosure[1]
-                result += format_param_delimiter
-                
-            #длина волны
-            if component.LED_wavelength_peak is not None:
-                value = [component.LED_wavelength_peak]
-                if component.LED_wavelength_dominant is not None: value.append(component.LED_wavelength_dominant)
-                ranges = ((1e-9, MetricMultiplier.NANO), )
-                result += _assemble_param_value(value, lcl.Units.METRE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #индекс цветопередачи
-            if component.LED_color_renderingIndex is not None:
-                result += lcl.assemble_parameters.LED_CRI.value[locale_index] + format_unit_enclosure[0] + _floatToString(component.LED_color_renderingIndex, format_decimalPoint) + format_unit_enclosure[1]
-                result += format_param_delimiter
-
-            #сила света
-            if component.LED_luminous_intensity is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.LED_luminous_intensity, lcl.Units.CANDELA, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.LED_luminous_intensity_current is not None:
-                    result += format_conditions_enclosure[0]
-                    ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                    result += _assemble_param_value(component.LED_luminous_intensity_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                    result += format_conditions_enclosure[1]
-                result += format_param_delimiter
-
-            #световой поток
-            if component.LED_luminous_flux is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), )
-                result += _assemble_param_value(component.LED_luminous_flux, lcl.Units.LUMEN, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.LED_luminous_flux_current is not None:
-                    result += format_conditions_enclosure[0]
-                    ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                    result += _assemble_param_value(component.LED_luminous_flux_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                    result += format_conditions_enclosure[1]
-                result += format_param_delimiter
-
-            #угол обзора
-            if component.LED_viewingAngle is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), )
-                result += _assemble_param_value(component.LED_viewingAngle, lcl.Units.DEGREE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #прямой ток
-            if component.LED_current_nominal is not None:
-                value = [component.LED_current_nominal]
-                if component.LED_current_maximum is not None: value.append(component.LED_current_maximum)
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(value, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #прямое падение напряжения
-            if component.LED_voltage_forward is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), )
-                result += _assemble_param_value(component.LED_voltage_forward, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #сборка
-            if component.GENERIC_array is not None:
-                result += lcl.assemble_parameters.ARRAY.value[locale_index]
-                result += format_param_delimiter
-
-        #Перемычка
-        elif type(component) is component.types.Jumper:
-            #тип
-            if component.JMP_type is not None:
-                if component.JMP_type == component.Type.ELECTRICAL:
-                    pass #result += '' + format_param_delimiter
-                elif component.JMP_type == component.Type.THERMAL:
-                    result += lcl.assemble_parameters.JMP_TYPE_THERMAL.value[locale_index] + format_param_delimiter
-
-            #тип монтажа + размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
-            result += '\xa0'
-            if component.GENERIC_size is not None: result += component.GENERIC_size
-            result = result.strip('\xa0')
-            result += format_param_delimiter
-
-        #Реле
-        elif type(component) is component.types.Relay:
-            pass
-
-        #Индуктивность
-        elif type(component) is component.types.Inductor:
-            #тип монтажа + размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
-            result += '\xa0'
-            if component.GENERIC_size is not None: result += component.GENERIC_size
-            result = result.strip('\xa0')
-
-            result += format_param_delimiter
-
-            #индуктивность + допуск
-            if component.IND_inductance is not None:
-                ranges = ((1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.IND_inductance, lcl.Units.HENRY, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.IND_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.IND_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #ток
-            if component.IND_current is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.IND_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #низкая ёмкость
-            if component.IND_lowCapacitance:
-                result += lcl.assemble_parameters.LOW_CAPACITANCE.value[locale_index]
-                result += format_param_delimiter
-
-        #Резистор
-        elif type(component) is component.types.Resistor:
-            #тип монтажа + размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
-            result += '\xa0'
-            if component.GENERIC_size is not None: result += component.GENERIC_size
-            result = result.strip('\xa0')
-
-            result += format_param_delimiter
-            
-            #мощность
-            if component.RES_power is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.RES_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-            
-            #напряжение
-            if component.RES_voltage is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.RES_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #сопротивление + допуск
-            if component.RES_resistance is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
-                result += _assemble_param_value(component.RES_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.RES_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.RES_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #ТКС
-            if component.RES_temperature_coefficient is not None:
-                result += _assemble_param_tolerance(component.RES_temperature_coefficient, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index)
-                result += format_param_delimiter
-
-        #Переключатель
-        elif type(component) is component.types.Switch:
-            pass
-
-        #Трансформатор
-        elif type(component) is component.types.Transformer:
-            pass
-
-        #Диод
-        elif type(component) is component.types.Diode:
-            #тип
-            if component.DIODE_type == component.Type.SCHOTTKY:
-                result += lcl.assemble_parameters.SCHOTTKY.value[locale_index]
-                result += format_param_delimiter
-
-            #обратное напряжение
-            if component.DIODE_reverseVoltage is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.DIODE_reverseVoltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.DIODE_reverseVoltage_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.DIODE_reverseVoltage_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #прямой ток
-            if component.DIODE_forwardCurrent is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.DIODE_forwardCurrent, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #максимальная мощность
-            if component.DIODE_power is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.DIODE_power, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #ёмкость + допуск + условия
-            if component.DIODE_capacitance is not None:
-                ranges = ((1e-12, MetricMultiplier.PICO), )
-                result += _assemble_param_value(component.DIODE_capacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                #допуск
-                if component.DIODE_capacitance_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.DIODE_capacitance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                #условия
-                if (component.DIODE_capacitance_voltage is not None) or (component.DIODE_capacitance_frequency is not None):
-                    result += format_conditions_enclosure[0]
-                    #напряжение
-                    if component.DIODE_capacitance_voltage is not None:
-                        ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                        result += _assemble_param_value(component.DIODE_capacitance_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                        result += format_conditions_delimiter
-                    #частота
-                    if component.DIODE_capacitance_frequency is not None:
-                        ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
-                        result += _assemble_param_value(component.DIODE_capacitance_frequency, lcl.Units.HERTZ, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                        result += format_conditions_delimiter
-                    result = string_strip_word(result, format_conditions_delimiter)
-                    result += format_conditions_enclosure[1]
-                result += format_param_delimiter
-
-            #корпус
-            if component.GENERIC_package is not None:
-                result += lcl.assemble_parameters.PACKAGE.value[locale_index] + '\xa0' + component.GENERIC_package 
-                result += format_param_delimiter
-
-        #Тиристор
-        elif type(component) is component.types.Thyristor:
-            pass
-
-        #Транзистор
-        elif type(component) is component.types.Transistor:
-            pass
-
-        #Оптоизолятор
-        elif type(component) is component.types.Optoisolator:
-            pass
-
-        #Соединитель
-        elif type(component) is component.types.Connector:
-            pass
-
-        #Фильтр ЭМП
-        elif type(component) is component.types.EMIFilter:
-            #тип
-            if component.EMIF_type == component.Type.FERRITE_BEAD:
-                result += lcl.assemble_parameters.FERRITE_BEAD.value[locale_index]
-            elif component.EMIF_type == component.Type.COMMON_MODE_CHOKE:
-                result += lcl.assemble_parameters.COMMON_MODE_CHOKE.value[locale_index]
-            if len(result) > 0: result += format_param_delimiter
-
-            #тип монтажа + размер
-            if component.GENERIC_mount == component.Mounting.Type.SURFACE:
-                result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
-                if component.GENERIC_size is not None: 
-                    result +=  '\xa0' + component.GENERIC_size
-                result += format_param_delimiter
-            elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
-                result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index]
-                if component.GENERIC_size is not None: 
-                    result +=  '\xa0' + component.GENERIC_size
-                result += format_param_delimiter
-
-            #импеданс + допуск @ частота
-            if component.EMIF_impedance is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.EMIF_impedance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.EMIF_impedance_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_impedance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                if component.EMIF_impedance_frequency is not None:
-                    result += format_conditions_enclosure[0]
+                #частота + допуск
+                if component.OSC_frequency is not None:
                     ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
-                    result += _assemble_param_value(component.EMIF_impedance_frequency, lcl.Units.HERTZ, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                    result += format_conditions_enclosure[1]
+                    result += _assemble_param_value(component.OSC_frequency, lcl.Units.HERTZ, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    if component.OSC_tolerance is not None:
+                        result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.OSC_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
+                    result += format_param_delimiter
+
+                #гармоника
+                if component.OSC_overtone is not None:
+                    if component.OSC_overtone == 1:
+                        result += lcl.assemble_parameters.OSC_OVERTONE_FUNDAMENTAL.value[locale_index]
+                    else:
+                        result += str(component.OSC_overtone) + '\xa0' + lcl.assemble_parameters.OSC_OVERTONE.value[locale_index]
+                    result += format_param_delimiter
+
+                #стабильность частоты
+                if component.OSC_stability is not None:
+                    result += _assemble_param_tolerance(component.OSC_stability, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index)
+                    result += format_param_delimiter
+
+                #ёмкость нагрузки
+                if component.OSC_loadCapacitance is not None:
+                    ranges = ((1e-12, MetricMultiplier.PICO), )
+                    result += _assemble_param_value(component.OSC_loadCapacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #эквивалентное последовательное сопротивление
+                if component.OSC_ESR is not None:
+                    ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
+                    result += _assemble_param_value(component.OSC_ESR, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #уровень возбуждения
+                if component.OSC_driveLevel is not None:
+                    ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
+                    result += _assemble_param_value(component.OSC_driveLevel, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
+                    result += format_param_delimiter
+
+                #диапазон рабочих температур
+                if component.GENERIC_temperature_range is not None:
+                    result += _assemble_param_temperature_range(component.GENERIC_temperature_range, lcl.Units.CELCIUS_DEG, format_decimalPoint, format_unit_enclosure, format_rangeSymbol, locale_index, format_temperature_positiveSign)
+                    result += format_param_delimiter
+
+            #Общий тип
+            else:
+                pass
+
+        #дополнительные параметры
+        if content_misc:
+            for item in component.GENERIC_misc:
+                result += item
                 result += format_param_delimiter
 
-            #индуктивность + допуск
-            if component.EMIF_inductance is not None:
-                ranges = ((1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.EMIF_inductance, lcl.Units.HENRY, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.EMIF_inductance_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_inductance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #ёмкость + допуск
-            if component.EMIF_capacitance is not None:
-                ranges = ((1e-12, MetricMultiplier.PICO), (1e-9, MetricMultiplier.NANO), (1e-6, MetricMultiplier.MICRO), (0.1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.EMIF_capacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.EMIF_capacitance_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_capacitance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #сопротивление + допуск
-            if component.EMIF_resistance is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.EMIF_resistance, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.EMIF_resistance_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.EMIF_resistance_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #номинальный ток
-            if component.EMIF_current is not None:
-                ranges = ((1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.EMIF_current, lcl.Units.AMPERE, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #максимальное напряжение
-            if component.EMIF_voltage is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (10e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.EMIF_voltage, lcl.Units.VOLT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-        #Осциллятор (Резонатор)
-        elif type(component) is component.types.Oscillator:
-            #структура
-            if component.OSC_structure == component.Structure.QUARTZ:
-                result += lcl.assemble_parameters.OSC_STRUCTURE_QUARTZ.value[locale_index]
-            elif component.OSC_structure == component.Structure.CERAMIC:
-                result += lcl.assemble_parameters.OSC_STRUCTURE_CERAMIC.value[locale_index]
-            if len(result) > 0: result += format_param_delimiter
-
-            #частота + допуск
-            if component.OSC_frequency is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO), (1e6, MetricMultiplier.MEGA), (1e9, MetricMultiplier.GIGA))
-                result += _assemble_param_value(component.OSC_frequency, lcl.Units.HERTZ, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                if component.OSC_tolerance is not None:
-                    result += format_tolerance_enclosure[0] + _assemble_param_tolerance(component.OSC_tolerance, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index) + format_tolerance_enclosure[1]
-                result += format_param_delimiter
-
-            #гармоника
-            if component.OSC_overtone is not None:
-                if component.OSC_overtone == 1:
-                    result += lcl.assemble_parameters.OSC_OVERTONE_FUNDAMENTAL.value[locale_index]
-                else:
-                    result += str(component.OSC_overtone) + '\xa0' + lcl.assemble_parameters.OSC_OVERTONE.value[locale_index]
-                result += format_param_delimiter
-
-            #стабильность частоты
-            if component.OSC_stability is not None:
-                result += _assemble_param_tolerance(component.OSC_stability, None, format_decimalPoint, format_unit_enclosure, format_tolerance_signDelimiter, format_rangeSymbol, locale_index)
-                result += format_param_delimiter
-
-            #ёмкость нагрузки
-            if component.OSC_loadCapacitance is not None:
-                ranges = ((1e-12, MetricMultiplier.PICO), )
-                result += _assemble_param_value(component.OSC_loadCapacitance, lcl.Units.FARAD, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #эквивалентное последовательное сопротивление
-            if component.OSC_ESR is not None:
-                ranges = ((1e0, MetricMultiplier.NONE), (1e3, MetricMultiplier.KILO))
-                result += _assemble_param_value(component.OSC_ESR, lcl.Units.OHM, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #уровень возбуждения
-            if component.OSC_driveLevel is not None:
-                ranges = ((1e-6, MetricMultiplier.MICRO), (1e-3, MetricMultiplier.MILLI), (1e0, MetricMultiplier.NONE))
-                result += _assemble_param_value(component.OSC_driveLevel, lcl.Units.WATT, format_decimalPoint, format_unit_enclosure, format_multivalue_delimiter, locale_index, ranges)
-                result += format_param_delimiter
-
-            #диапазон рабочих температур
-            if component.GENERIC_temperature_range is not None:
-                result += _assemble_param_temperature_range(component.GENERIC_temperature_range, lcl.Units.CELCIUS_DEG, format_decimalPoint, format_unit_enclosure, format_rangeSymbol, locale_index, format_temperature_positiveSign)
-                result += format_param_delimiter
-
-        #Общий тип
-        else:
-            pass
-
-    #дополнительные параметры
-    if content_misc:
-        for item in component.GENERIC_misc:
-            result += item
-            result += format_param_delimiter
-
-    #удаляем лишние разделители
-    result = string_strip_word(result, format_param_delimiter)
+        #удаляем лишние разделители
+        result = string_strip_word(result, format_param_delimiter)
+    else:
+        #пересобирать не надо - возвращаем исходное описание
+        if component.GENERIC_description is not None: result = component.GENERIC_description
 
     return result
 

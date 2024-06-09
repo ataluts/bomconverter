@@ -3,12 +3,16 @@ from enum import IntEnum
 
 #CL class definition
 class CL_typeDef():
-    def __init__(self, book_title = '', components_list_title = '', substitutes_list_title = ''):
-        self.comp_entries = []          #элементы списка компонентов
-        self.subs_entries = None        #элементы списка замен
-        self.book_title = book_title
-        self.components_list_title = components_list_title
-        self.substitutes_list_title = substitutes_list_title
+    def __init__(self, book_title = ''):
+        self.book_title  = book_title
+        self.components  = None         #список основных компонентов
+        self.accessories = None         #список сопутствующих компонентов
+        self.substitutes = None         #список допустимых замен
+
+    class Sublist():
+        def __init__(self, title = '', entries = None):
+            self.title   = title
+            self.entries = [] if entries is None else entries
 
     class FlagType(IntEnum):
         NONE    = 0
@@ -17,7 +21,7 @@ class CL_typeDef():
         ERROR   = 3
 
     class ComponentEntry():
-        def __init__(self, designator = None, kind = None, value = None, description = None, package = None, manufacturer = None, quantity = 0, flag = None):
+        def __init__(self, designator = None, kind = None, value = None, description = None, package = None, manufacturer = None, quantity = 0, note = None, flag = None):
             self.designator   = []
             self.kind         = []
             self.value        = []
@@ -25,6 +29,7 @@ class CL_typeDef():
             self.package      = []
             self.manufacturer = []
             self.quantity     = int(quantity)
+            self.note         = []
             self.flag         = CL_typeDef.FlagType.NONE
             if isinstance(designator, (list, tuple)): self.designator.extend(designator)
             else: self.designator.append(designator)
@@ -38,10 +43,12 @@ class CL_typeDef():
             else: self.package.append(package)
             if isinstance(manufacturer, (list, tuple)): self.manufacturer.extend(manufacturer)
             else: self.manufacturer.append(manufacturer)
+            if isinstance(note, (list, tuple)): self.note.extend(note)
+            else: self.note.append(note)
             if flag is not None: self.flag = flag
 
         #добавляет компонент к текущей записи
-        def add(self, designator, kind, value, description, package, manufacturer, quantity = 1, flag = None):
+        def add(self, designator, kind, value, description, package, manufacturer, quantity = 1, note = '', flag = None):
             if flag == None: flag = CL_typeDef.FlagType.NONE
             if flag > self.flag: self.flag = flag
 
@@ -72,6 +79,10 @@ class CL_typeDef():
 
             self.quantity += quantity
 
+            if note not in self.note:
+                #if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                self.note.append(note)
+
         #проверяет текущую запись на ошибки
         def check(self):
             #десигнатор
@@ -95,6 +106,9 @@ class CL_typeDef():
             #количество
             if self.quantity < 0:
                 if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
+            #примечание
+            if len(self.note) > 1:
+                pass #if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
 
     class SubstituteEntry():
         def __init__(self, primary_value = None, primary_manufacturer = None, primary_quantity = 0, substitute_group = None, flag = None):

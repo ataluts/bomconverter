@@ -41,7 +41,7 @@ def optimize(data, **kwargs):
                                 res5.append(component)
                             elif abs(component.RES_tolerance[0]) == 0.01:                               #1%
                                 res1.append(component)
-    print('done (' + str(len(res5)) + ' for 5%, ' + str(len(res1)) + ' for 1%)')
+    print(f"done ({len(res5)} for 5%, {len(res1)} for 1%)")
 
     print('INFO >> Optimizing:')
     initial_res5_size = len(res5)
@@ -53,7 +53,7 @@ def optimize(data, **kwargs):
             #проверяем идентичность параметров резисторов
             if ((res5[j].RES_resistance == res1[i].RES_resistance) and                                      #значение сопротивления
                 (res5[j].RES_type == res1[i].RES_type) and                                                  #тип
-                ((res5[j].RES_structure == res1[i].RES_type) or (res5[j].RES_structure is None)) and        #структура или у 5% не задан
+                ((res5[j].RES_structure == res1[i].RES_structure) or (res5[j].RES_structure is None)) and   #структура или у 5% не задан
                 ((res5[j].RES_temperature_coefficient == res1[i].RES_temperature_coefficient) or (res5[j].RES_temperature_coefficient is None)) and   #ТКС или у 5% не задан
                 ((res5[j].RES_power == res1[i].RES_power) or (res5[j].RES_power is None)) and               #мощность или у 5% не задана
                 ((res5[j].RES_voltage == res1[i].RES_voltage) or (res5[j].RES_voltage is None)) and         #напряжение или у 5% не задано
@@ -91,6 +91,6 @@ def optimize(data, **kwargs):
         i += 1
     
     if initial_res5_size == len(res5): print(' ' * 12 + 'nothing to optimize.')
-    print("INFO >> Resistors tolerances otimization completed (" + str(initial_res5_size - len(res5)) + ' resistors optimized).') 
+    print(f"INFO >> Resistors tolerances otimization completed ({initial_res5_size - len(res5)} resistors optimized).") 
 
     return True

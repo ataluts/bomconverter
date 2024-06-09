@@ -10,6 +10,8 @@ class Components_typeDef():
                 self.GENERIC_designator_channel = None          #десигнатор - канал
                 self.GENERIC_designator_prefix  = None          #десигнатор - префикс
                 self.GENERIC_designator_index   = None          #десигнатор - индекс
+                self.GENERIC_accessory_child    = None          #ссылка/ссылки на дочерние компоненты (список)
+                self.GENERIC_accessory_parent   = None          #ссылка на родительский компонент
                 self.GENERIC_kind               = None          #тип элемента
                 self.GENERIC_value              = None          #номинал
                 self.GENERIC_description        = None          #описание
@@ -23,8 +25,9 @@ class Components_typeDef():
                 self.GENERIC_size               = None          #типоразмер
                 self.GENERIC_temperature_range  = None          #диапазон рабочих температур [<->, <+>], K
                 self.GENERIC_array              = None          #сборка [<кол-во_блоков>, <кол-во_элем_в_блоке>, <ArrayType>] (например [3, 2, SERIES] - 3 пары с последовательным включением)
-                self.GENERIC_substitute         = None          #допустимая замена
+                self.GENERIC_substitute         = None          #допустимые замены (список)
                 self.GENERIC_misc               = []            #оставшиеся нераспознанные параметры
+                self.GENERIC_note               = None          #примечание
 
                 self.flag = self.__class__.FlagType.NONE        #флаг (ошибки, предупреждения и т.п.)
                 self.types = Components_typeDef.ComponentTypes  #ссылка на класс с типами компонентов

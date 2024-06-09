@@ -84,7 +84,8 @@ class Color(Enum):
     WHITE       = ("white", "белый")
 
 class assemble_eskd(Enum):
-    DO_NOT_PLACE = ("Do not place", "Не устанавливать")
+    DO_PLACE = ("", "")
+    DO_NOT_PLACE = ("do not place", "не устанавливать")
 
 class assemble_parameters(Enum):
     MOUNT_SURFACE = ("SMD", "чип")
@@ -177,7 +178,8 @@ class assemble_kind(Enum):
 
 class build_cl(Enum):
     TITLE_BOOK = ("Component list", "Список компонентов")
-    TITLE_COMPONENTS_LIST = ("Components", "Список компонентов")
+    TITLE_COMPONENTS_LIST = ("Components", "Компоненты")
+    TITLE_ACCESSORIES_LIST = ("Accessories", "Аксессуары")
     TITLE_SUBSTITUTES_LIST = ("Substitutes", "Допустимые замены")
     NO_SUBSITUTE = ("no substitute", "без замены")
 
@@ -189,6 +191,7 @@ class export_cl_xlsx(Enum):
     HEADER_PACKAGE = ("Package", "Корпус")
     HEADER_MANUFACTURER = ("Manufacturer", "Производитель")
     HEADER_QUANTITY = ("Quantity", "Кол-во")
+    HEADER_NOTE = ("Note", "Примечание")
     HEADER_ORIGINAL_VALUE = ("Orig. value", "Изнач. номинал")
     HEADER_ORIGINAL_MANUFACTURER = ("Orig. manufacturer", "Изнач. производитель")
     HEADER_SUBSTITUTE_VALUE = ("Subs. value", "Зам. номинал")

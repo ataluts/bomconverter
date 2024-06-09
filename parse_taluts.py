@@ -6,7 +6,7 @@ from typedef_titleBlock import TitleBlock_typeDef                               
 
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
-script_date     = datetime.datetime(2022, 9, 2)
+script_date     = datetime.datetime(2024, 6, 8)
 
 designer_name = "Alexander Taluts"                                                              #имя разработчика
 
@@ -72,6 +72,37 @@ def string_endswith(string, prefixTuple, start = 0, end = -1, caseSensitive = Fa
             for item in prefixTuple:
                 if string.endswith(item.casefold(), start, end): return True
     return False
+
+#Extract enclosed substrings from the string (return source string without substings in element 0 and substrings in subsequent elements)
+def string_extract_enclosed(string, enclosure = ['(', ')'], start = 0, end = -1, max_extract = -1, case_sensitive = True):
+    if len(enclosure[0]) + len(enclosure[1]) < 2: return [string]
+    if end < 0: end = len(string)
+    if max_extract < 0: max_extract = len(string)
+
+    if case_sensitive:
+        string_cf = string
+        enclosure_cf = enclosure
+    else:
+        string_cf = string.casefold()
+        enclosure_cf[0] = enclosure[0].casefold()
+        enclosure_cf[1] = enclosure[1].casefold()
+    
+    result = ['']
+    string_start = 0
+    enclosure_start = start
+    while len(result) < max_extract + 1:
+        enclosure_start = string_cf.find(enclosure_cf[0], enclosure_start, end)
+        enclosure_end   = string_cf.find(enclosure_cf[1], enclosure_start, end)
+        if enclosure_start >= 0 and enclosure_end >= 0 and enclosure_end > enclosure_start:
+            result[0] += string[string_start:enclosure_start]
+            result.append(string[enclosure_start + 1:enclosure_end])
+            string_start = enclosure_end + 1
+            enclosure_start = enclosure_end
+        else:
+            break
+    result[0] += string[string_start:]
+
+    return result
 
 #========================================================== END Generic functions =================================================
 
@@ -155,353 +186,433 @@ def parse_project(data, **kwargs):
 #Создание базы данных компонентов из BoM
 def parse_components(components, BoM, **kwargs):
     print(' ' * 12 + 'designer: ' +  designer_name + ' (' + script_baseName + ')')
-    decimalPoint = '.'
-    
-    warnings = 0
-    errors = 0
+
+    stats = [0, 0]      #статистика [errors, warnings]
 
     print("INFO >> Parsing BoM data", end ="... ", flush = True)
     for i in range(len(BoM.entries)):
-        #определяем тип элемента
-        kind = BoM.entries[i]['BOM_type']
-        if   string_equal(kind, ("Assembly", "Сборка", "Устройство"), False):
-            component = components.ComponentTypes.Assembly()
-        elif string_equal(kind, ("Photocell", "Фотоэлемент", "Photodiode", "Фотодиод", "Phototransistor", "Фототранзистор", "Photoresistor", "Фоторезистор"), False):
-            component = components.ComponentTypes.Photocell()
-        elif string_equal(kind, ("Capacitor", "Конденсатор"), False):
-            component = components.ComponentTypes.Capacitor()
-        elif string_equal(kind, ("Integrated Circuit", "Микросхема"), False):
-            component = components.ComponentTypes.IntegratedCircuit()
-        elif string_equal(kind, ("Fastener", "Крепёж"), False):
-            component = components.ComponentTypes.Fastener()
-        elif string_equal(kind, ("Heatsink", "Радиатор"), False):
-            component = components.ComponentTypes.Heatsink()
-        elif string_equal(kind, ("Circuit Breaker", "Автоматический выключатель", "Fuse", "Предохранитель"), False):
-            component = components.ComponentTypes.CircuitBreaker()
-        elif string_equal(kind, ("Surge protector", "Ограничитель перенапряжения", "TVS", "Супрессор", "GDT", "Разрядник", "Varistor", "Варистор"), False):
-            component = components.ComponentTypes.SurgeProtector()
-        elif string_equal(kind, ("Cell", "Элемент гальванический", "Battery", "Батарея", "Battery holder", "Держатель батареи"), False):
-            component = components.ComponentTypes.Battery()
-        elif string_equal(kind, ("Display", "Дисплей"), False):
-            component = components.ComponentTypes.Display()
-        elif string_equal(kind, ("LED", "Светодиод"), False):
-            component = components.ComponentTypes.LED()
-        elif string_equal(kind, ("Jumper", "Перемычка"), False):
-            component = components.ComponentTypes.Jumper()
-        elif string_equal(kind, ("Relay", "Реле"), False):
-            component = components.ComponentTypes.Relay()
-        elif string_equal(kind, ("Inductor", "Индуктивность", "Choke", "Дроссель"), False):
-            component = components.ComponentTypes.Inductor()
-        elif string_equal(kind, ("Resistor", "Резистор", "Thermistor", "Термистор", "Posistor", "Позистор", "Potentiometer", "Потенциометр", "Rheostat", "Реостат"), False):
-            component = components.ComponentTypes.Resistor()
-        elif string_equal(kind, ("Switch", "Переключатель", "Выключатель", "Button", "Кнопка"), False):
-            component = components.ComponentTypes.Switch()
-        elif string_equal(kind, ("Transformer", "Трансформатор"), False):
-            component = components.ComponentTypes.Transformer()
-        elif string_equal(kind, ("Diode", "Диод", "Zener", "Стабилитрон", "Varicap", "Варикап"), False):
-            component = components.ComponentTypes.Diode()
-        elif string_equal(kind, ("Thyristor", "Тиристор", "TRIAC", "Symistor", "Симистор", "DIAC", "Dynistor", "Динистор"), False):
-            component = components.ComponentTypes.Thyristor()
-        elif string_equal(kind, ("Transistor", "Транзистор"), False):
-            component = components.ComponentTypes.Transistor()
-        elif string_equal(kind, ("Optoisolator", "Оптоизолятор", "Optocoupler", "Оптопара", "Phototriac", "Оптосимистор"), False):
-            component = components.ComponentTypes.Optoisolator()
-        elif string_equal(kind, ("Connector", "Соединитель", "Разъём"), False):
-            component = components.ComponentTypes.Connector()
-        elif string_equal(kind, ("EMI filter", "Фильтр ЭМП"), False):
-            component = components.ComponentTypes.EMIFilter()
-        elif string_equal(kind, ("Crystal", "Resonator", "Резонатор", "Oscillator", "Осциллятор"), False):
-            component = components.ComponentTypes.Oscillator()
+        component = _parse_component(BoM.entries[i], None, stats)
+        if isinstance(component, Components_typeDef.ComponentTypes.Generic):
+            components.entries.append(component)
+            if component.GENERIC_accessory_child is not None:
+                for child in component.GENERIC_accessory_child:
+                    components.entries.append(child)
         else:
-            component = components.ComponentTypes.Generic()
+            stats[0] += 1
+            print('\n' + ' ' * 12 + "error: parsing bom entry #" +  str(i) + " failed")
+    
+    if stats[0] + stats[1] == 0: 
+        print('done (' + str(len(components.entries)) + ' components created)')
+    else:
+        print('\n' + ' ' * 12 + 'completed with ' + str(stats[0]) + ' errors and ' +  str(stats[1]) + ' warnings.')
 
-        #Fill-in generic attributes
-        component.GENERIC_designator   = BoM.entries[i]['Designator']           #позиционное обозначение
-        component.GENERIC_kind         = BoM.entries[i]['BOM_type']             #тип элемента
-        component.GENERIC_value        = BoM.entries[i]['BOM_value']            #номинал
-        component.GENERIC_quantity     = int(BoM.entries[i]['Quantity'])        #количество
-        #--- описание
-        if len(BoM.entries[i]['BOM_description'].strip(' ')) > 0:
-            component.GENERIC_description  = BoM.entries[i]['BOM_description']
-        #--- производитель
-        if len(BoM.entries[i]['BOM_manufacturer'].strip(' ')) > 0:
-            component.GENERIC_manufacturer = BoM.entries[i]['BOM_manufacturer']
-        #--- установка на плату
-        component.GENERIC_fitted       = True
-        if 'Fitted' in BoM.fieldNames:
-            if BoM.entries[i]['Fitted'] == 'Not Fitted':
-                component.GENERIC_fitted = False
-        #--- допустимые замены
-        if 'BOM_substitute' in BoM.fieldNames:
-            substitutes = BoM.entries[i]['BOM_substitute']
-            if len(substitutes) > 0:                                            #проверяем пустое ли поле
-                component.GENERIC_substitute = []                                   #создаём пустой список замен чтобы добавлять в него элементы
-                substitutes = substitutes.split(';')
-                for entry in substitutes:
-                    tmp = entry.split('*', 1)
-                    sub_note = None
-                    if len(tmp) > 1: sub_note = tmp[1].strip(' ')
-                    tmp = tmp[0].split('@', 1)
-                    sub_value = tmp[0].strip(' ')
-                    sub_manufacturer = None
-                    if len(tmp) > 1: sub_manufacturer = tmp[1].strip(' ')
-                    component.GENERIC_substitute.append(component.Substitute(sub_value, sub_manufacturer, sub_note))
+    designer_check(components)
 
-        #--- явное определение
-        if 'BOM_explicit' in BoM.fieldNames:
-            #есть данные в BoM
-            explicit = BoM.entries[i]['BOM_explicit']
-            if   string_equal(explicit, ('true', 'истина', '1'), False): component.GENERIC_explicit = True
-            elif string_equal(explicit, ('false', 'ложь', '0'), False): component.GENERIC_explicit = False
-            else: component.GENERIC_explicit = True     #значение по-умолчанию если не смогли распознать значение поля
-        else:
-            #нет данных в BoM
-            #legacy: у резисторов и конденсаторов если не указан производитель то задание неявное
-            component.GENERIC_explicit = True
-            if isinstance(component, (components.ComponentTypes.Resistor, components.ComponentTypes.Capacitor, components.ComponentTypes.Jumper)):
-                if component.GENERIC_manufacturer is None: component.GENERIC_explicit = False
+#разбор компонента
+def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
+    decimalPoint = '.'
 
-        #Переводим footprint в package с помощью словаря
+    #определяем тип элемента
+    kind = bom_entry['BOM_type']
+    if   string_equal(kind, ("Assembly", "Сборка", "Устройство"), False):
+        component = Components_typeDef.ComponentTypes.Assembly()
+    elif string_equal(kind, ("Photocell", "Фотоэлемент", "Photodiode", "Фотодиод", "Phototransistor", "Фототранзистор", "Photoresistor", "Фоторезистор"), False):
+        component = Components_typeDef.ComponentTypes.Photocell()
+    elif string_equal(kind, ("Capacitor", "Конденсатор"), False):
+        component = Components_typeDef.ComponentTypes.Capacitor()
+    elif string_equal(kind, ("Integrated Circuit", "Микросхема"), False):
+        component = Components_typeDef.ComponentTypes.IntegratedCircuit()
+    elif string_equal(kind, ("Fastener", "Крепёж"), False):
+        component = Components_typeDef.ComponentTypes.Fastener()
+    elif string_equal(kind, ("Heatsink", "Радиатор"), False):
+        component = Components_typeDef.ComponentTypes.Heatsink()
+    elif string_equal(kind, ("Circuit Breaker", "Автоматический выключатель", "Fuse", "Предохранитель"), False):
+        component = Components_typeDef.ComponentTypes.CircuitBreaker()
+    elif string_equal(kind, ("Surge protector", "Ограничитель перенапряжения", "TVS", "Супрессор", "GDT", "Разрядник", "Varistor", "Варистор"), False):
+        component = Components_typeDef.ComponentTypes.SurgeProtector()
+    elif string_equal(kind, ("Cell", "Элемент гальванический", "Battery", "Батарея", "Battery holder", "Держатель батареи"), False):
+        component = Components_typeDef.ComponentTypes.Battery()
+    elif string_equal(kind, ("Display", "Дисплей"), False):
+        component = Components_typeDef.ComponentTypes.Display()
+    elif string_equal(kind, ("LED", "Светодиод"), False):
+        component = Components_typeDef.ComponentTypes.LED()
+    elif string_equal(kind, ("Jumper", "Перемычка"), False):
+        component = Components_typeDef.ComponentTypes.Jumper()
+    elif string_equal(kind, ("Relay", "Реле"), False):
+        component = Components_typeDef.ComponentTypes.Relay()
+    elif string_equal(kind, ("Inductor", "Индуктивность", "Choke", "Дроссель"), False):
+        component = Components_typeDef.ComponentTypes.Inductor()
+    elif string_equal(kind, ("Resistor", "Резистор", "Thermistor", "Термистор", "Posistor", "Позистор", "Potentiometer", "Потенциометр", "Rheostat", "Реостат"), False):
+        component = Components_typeDef.ComponentTypes.Resistor()
+    elif string_equal(kind, ("Switch", "Переключатель", "Выключатель", "Button", "Кнопка"), False):
+        component = Components_typeDef.ComponentTypes.Switch()
+    elif string_equal(kind, ("Transformer", "Трансформатор"), False):
+        component = Components_typeDef.ComponentTypes.Transformer()
+    elif string_equal(kind, ("Diode", "Диод", "Zener", "Стабилитрон", "Varicap", "Варикап"), False):
+        component = Components_typeDef.ComponentTypes.Diode()
+    elif string_equal(kind, ("Thyristor", "Тиристор", "TRIAC", "Symistor", "Симистор", "DIAC", "Dynistor", "Динистор"), False):
+        component = Components_typeDef.ComponentTypes.Thyristor()
+    elif string_equal(kind, ("Transistor", "Транзистор"), False):
+        component = Components_typeDef.ComponentTypes.Transistor()
+    elif string_equal(kind, ("Optoisolator", "Оптоизолятор", "Optocoupler", "Оптопара", "Phototriac", "Оптосимистор"), False):
+        component = Components_typeDef.ComponentTypes.Optoisolator()
+    elif string_equal(kind, ("Connector", "Соединитель", "Разъём"), False):
+        component = Components_typeDef.ComponentTypes.Connector()
+    elif string_equal(kind, ("EMI filter", "Фильтр ЭМП"), False):
+        component = Components_typeDef.ComponentTypes.EMIFilter()
+    elif string_equal(kind, ("Crystal", "Resonator", "Резонатор", "Oscillator", "Осциллятор"), False):
+        component = Components_typeDef.ComponentTypes.Oscillator()
+    else:
+        component = Components_typeDef.ComponentTypes.Generic()
+    component.GENERIC_kind = kind
+
+    #Fill-in generic attributes
+    component.GENERIC_accessory_parent  = parent                            #ссылка на родительский компонент
+    
+    #--- десигнатор
+    if 'Designator' in bom_entry:
+        if len(bom_entry['Designator'].strip(' ')) > 0:
+            component.GENERIC_designator = bom_entry['Designator']
+            if len(component.GENERIC_designator) > 0:
+                tmp = component.GENERIC_designator.rsplit('.', 1)
+                if len(tmp) > 1:
+                    component.GENERIC_designator_channel = tmp[0]
+                    tmp = tmp[1]
+                else:
+                    component.GENERIC_designator_channel = ''
+                    tmp = tmp[0]
+                component.GENERIC_designator_prefix = ''
+                for char in tmp:
+                    if not char.isdigit():
+                        component.GENERIC_designator_prefix += char
+                    else:
+                        break
+                component.GENERIC_designator_index = int(''.join([s for s in tmp if s.isdigit()]))
+    
+    #--- номинал
+    if 'BOM_value' in bom_entry:
+        if len(bom_entry['BOM_value'].strip(' ')) > 0:
+            component.GENERIC_value = bom_entry['BOM_value']
+
+    #--- количество
+    if 'Quantity' in bom_entry:
+        if len(bom_entry['Quantity'].strip(' ')) > 0:
+            component.GENERIC_quantity = int(bom_entry['Quantity'])
+
+    #--- производитель
+    if 'BOM_manufacturer' in bom_entry:
+        if len(bom_entry['BOM_manufacturer'].strip(' ')) > 0:
+            component.GENERIC_manufacturer = bom_entry['BOM_manufacturer']
+    
+    #--- установка на плату
+    if 'Fitted' in bom_entry:
+        if bom_entry['Fitted'] == 'Not Fitted':
+            component.GENERIC_fitted = False
+    
+    #--- допустимые замены
+    if 'BOM_substitute' in bom_entry:
+        substitutes = bom_entry['BOM_substitute']
+        if len(substitutes) > 0:                                            #проверяем пустое ли поле
+            component.GENERIC_substitute = []                                   #создаём пустой список замен чтобы добавлять в него элементы
+            substitutes = substitutes.split(';')
+            for entry in substitutes:
+                tmp = entry.split('*', 1)
+                sub_note = None
+                if len(tmp) > 1: sub_note = tmp[1].strip(' ')
+                tmp = tmp[0].split('@', 1)
+                sub_value = tmp[0].strip(' ')
+                sub_manufacturer = None
+                if len(tmp) > 1: sub_manufacturer = tmp[1].strip(' ')
+                component.GENERIC_substitute.append(component.Substitute(sub_value, sub_manufacturer, sub_note))
+
+    #--- явное определение
+    if 'BOM_explicit' in bom_entry:
+        #есть данные в BoM
+        if   string_equal(bom_entry['BOM_explicit'], ('true', 'истина', '1'), False): component.GENERIC_explicit = True
+        elif string_equal(bom_entry['BOM_explicit'], ('false', 'ложь', '0'), False): component.GENERIC_explicit = False
+        else: component.GENERIC_explicit = True     #значение по-умолчанию если не смогли распознать значение поля
+    else:
+        #нет данных в BoM
+        #legacy: у резисторов и конденсаторов если не указан производитель то задание неявное
+        component.GENERIC_explicit = True
+        if isinstance(component, (component.types.Resistor, component.types.Capacitor, component.types.Jumper)):
+            if component.GENERIC_manufacturer is None: component.GENERIC_explicit = False
+
+    #--- footprint - переводим в package с помощью словаря
+    if 'Footprint' in bom_entry:
         for entry in __dict_package:
             for word in __dict_package[entry]:
-                if word == BoM.entries[i]['Footprint']:
+                if word == bom_entry['Footprint']:
                     component.GENERIC_package = entry
                     break
             if component.GENERIC_package is not None: break
 
-        #Разбираем десигнатор
-        tmp = component.GENERIC_designator.rsplit('.', 1)
+    #--- примечание
+    if 'BOM_note' in bom_entry:
+        if len(bom_entry['BOM_note'].strip(' ')) > 0:
+            component.GENERIC_note = bom_entry['BOM_note']
+
+    #--- описание
+    if 'BOM_description' in bom_entry:
+        if len(bom_entry['BOM_description'].strip(' ')) > 0:
+            component.GENERIC_description = bom_entry['BOM_description']
+
+    #Разбираем параметры из описания
+    if component.GENERIC_description is None: descriptionParams = ['']
+    else: descriptionParams = [s.strip() for s in component.GENERIC_description.split(',')]
+
+    #Сборка (Устройство)
+    if type(component) is component.types.Assembly:
+        pass
+
+    #Фотоэлемент
+    elif type(component) is component.types.Photocell:
+        pass
+
+    #Конденсатор
+    elif type(component) is component.types.Capacitor:
+        #legacy: затычка для старого формата где у чипов нет ',' после типа конденсатора (впоследствии надо убрать)
+        tmp = descriptionParams[0].replace('керам. ', 'керам., ')
+        tmp = tmp.replace('тантал. ', 'тантал., ')
+        tmp = tmp.split(', ')
         if len(tmp) > 1:
-            component.GENERIC_designator_channel = tmp[0]
-            tmp = tmp[1]
-        else:
-            component.GENERIC_designator_channel = ''
-            tmp = tmp[0]
-        component.GENERIC_designator_prefix = ''
-        for char in tmp:
-            if not char.isdigit():
-                component.GENERIC_designator_prefix += char
-            else:
+            descriptionParams[0] = tmp[0]
+            descriptionParams.insert(1, tmp[1])
+
+        #legacy: затычка для старого формата где ёмкость и допуск в разных параметрах
+        for j in range(len(descriptionParams)):
+            if descriptionParams[j].endswith('Ф') and j < len(descriptionParams) - 1:
+                if descriptionParams[j + 1].endswith('%'):
+                    descriptionParams[j] += ' ±' + descriptionParams.pop(j + 1).replace('±', '')
                 break
-        component.GENERIC_designator_index   = int(''.join([s for s in tmp if s.isdigit()]))
 
-        #Разбираем параметры из описания
-        if component.GENERIC_description is None: descriptionParams = ['']
-        else: descriptionParams = component.GENERIC_description.split(', ')
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип конденсатора
+            if component.CAP_type is None:
+                if string_equal(descriptionParams[j], ('керамический', 'керам.'), False):
+                    component.CAP_type = component.Type.CERAMIC
+                elif string_equal(descriptionParams[j], ('танталовый', 'тантал.'), False):
+                    component.CAP_type = component.Type.TANTALUM
+                elif string_equal(descriptionParams[j], ('плёночный', 'плён.'), False):
+                    component.CAP_type = component.Type.FILM
+                elif string_equal(descriptionParams[j], ('ионистор', 'суперконд.'), False):
+                    component.CAP_type = component.Type.SUPERCAPACITOR
+                elif string_find_any(descriptionParams[j], ('алюминиевый', 'алюм.'), False):
+                    if string_find_any(descriptionParams[j], ('электролитический', 'эл-лит'), False):
+                        component.CAP_type = component.Type.ALUM_ELECTROLYTIC
+                    elif string_find_any(descriptionParams[j], ('полимерный', 'полим.'), False):
+                        component.CAP_type = component.Type.ALUM_POLYMER
+                    else:
+                        component.CAP_type = component.Type.UNKNOWN
+                #завершаем обработку если нашли нужный параметр
+                if component.CAP_type is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
 
-        #Сборка (Устройство)
-        if type(component) is component.types.Assembly:
-            pass
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
 
-        #Фотоэлемент
-        elif type(component) is component.types.Photocell:
-            pass
-
-        #Конденсатор
-        elif type(component) is components.ComponentTypes.Capacitor:
-            #legacy: затычка для старого формата где у чипов нет ',' после типа конденсатора (впоследствии надо убрать)
-            tmp = descriptionParams[0].replace('керам. ', 'керам., ')
-            tmp = tmp.replace('тантал. ', 'тантал., ')
-            tmp = tmp.split(', ')
-            if len(tmp) > 1:
-                descriptionParams[0] = tmp[0]
-                descriptionParams.insert(1, tmp[1])
-
-            #legacy: затычка для старого формата где ёмкость и допуск в разных параметрах
-            for j in range(len(descriptionParams)):
-                if descriptionParams[j].endswith('Ф') and j < len(descriptionParams) - 1:
-                    if descriptionParams[j + 1].endswith('%'):
-                        descriptionParams[j] += ' ±' + descriptionParams.pop(j + 1).replace('±', '')
-                    break
-
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип конденсатора
-                if component.CAP_type is None:
-                    if string_equal(descriptionParams[j], ('керамический', 'керам.'), False):
-                        component.CAP_type = component.Type.CERAMIC
-                    elif string_equal(descriptionParams[j], ('танталовый', 'тантал.'), False):
-                        component.CAP_type = component.Type.TANTALUM
-                    elif string_equal(descriptionParams[j], ('плёночный', 'плён.'), False):
-                        component.CAP_type = component.Type.FILM
-                    elif string_equal(descriptionParams[j], ('ионистор', 'суперконд.'), False):
-                        component.CAP_type = component.Type.SUPERCAPACITOR
-                    elif string_find_any(descriptionParams[j], ('алюминиевый', 'алюм.'), False):
-                        if string_find_any(descriptionParams[j], ('электролитический', 'эл-лит'), False):
-                            component.CAP_type = component.Type.ALUM_ELECTROLYTIC
-                        elif string_find_any(descriptionParams[j], ('полимерный', 'полим.'), False):
-                            component.CAP_type = component.Type.ALUM_POLYMER
+            #тип диэлектрика (температурный коэффициент)
+            if component.CAP_dielectric is None:
+                #керамические
+                if component.CAP_type == component.Type.CERAMIC:
+                    if string_equal(descriptionParams[j], ('COG', 'C0H', 'C0J', 'C0K', 'CCG', 'CGJ', 'M5U', 'NP0', 'P90', 'U2J', 'U2K', 'UNJ', 'X0U', 'X5R', 'X5S', 'X6S', 'X6T','X7R', 'X7S', 'X7T', 'X7U', 'X8G', 'X8L', 'X8M', 'X8R', 'X9M', 'Y5E', 'Y5P', 'Y5R', 'Y5U', 'Y5V', 'Z5U', 'Z7S', 'ZLM'), True):
+                        component.CAP_dielectric = descriptionParams[j]
+                #плёночные
+                elif component.CAP_type == component.Type.FILM:
+                    if string_equal(descriptionParams[j], ('PC', 'PEN', 'PET', 'PPS', 'PP', 'PS'), True):
+                        component.CAP_dielectric = descriptionParams[j]
+                #завершаем обработку если нашли нужный параметр
+                if component.CAP_dielectric is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+            
+            parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #ёмкость
+                if component.CAP_capacitance is None:
+                    if string_equal(parsing_result[0][1], ('F', 'Ф'), True):
+                        component.CAP_capacitance = parsing_result[0][0]
+                        #допуск
+                        if parsing_result[1] is not None:
+                            component.CAP_tolerance = parsing_result[1]
                         else:
-                            component.CAP_type = component.Type.UNKNOWN
-                    #завершаем обработку если нашли нужный параметр
-                    if component.CAP_type is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
+                            component.flag = component.FlagType.ERROR
+                            stats[0] += 1
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
 
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
+                #напряжение
+                if component.CAP_voltage is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.CAP_voltage = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
 
-                #тип диэлектрика (температурный коэффициент)
-                if component.CAP_dielectric is None:
-                    #керамические
-                    if component.CAP_type == component.Type.CERAMIC:
-                        if string_equal(descriptionParams[j], ('COG', 'C0H', 'C0J', 'C0K', 'CCG', 'CGJ', 'M5U', 'NP0', 'P90', 'U2J', 'U2K', 'UNJ', 'X0U', 'X5R', 'X5S', 'X6S', 'X6T','X7R', 'X7S', 'X7T', 'X7U', 'X8G', 'X8L', 'X8M', 'X8R', 'X9M', 'Y5E', 'Y5P', 'Y5R', 'Y5U', 'Y5V', 'Z5U', 'Z7S', 'ZLM'), True):
-                            component.CAP_dielectric = descriptionParams[j]
-                    #плёночные
-                    elif component.CAP_type == component.Type.FILM:
-                        if string_equal(descriptionParams[j], ('PC', 'PEN', 'PET', 'PPS', 'PP', 'PS'), True):
-                            component.CAP_dielectric = descriptionParams[j]
-                    #завершаем обработку если нашли нужный параметр
-                    if component.CAP_dielectric is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
+            #низкий импеданс
+            if string_equal(descriptionParams[j], ("low ESR", "низк. имп."), False):
+                component.CAP_lowImpedance = True
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
+
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
+
+    #Микросхема
+    elif type(component) is component.types.IntegratedCircuit:
+        pass
+
+    #Крепёж
+    elif type(component) is component.types.Fastener:
+        pass
+
+    #Радиатор
+    elif type(component) is component.types.Heatsink:
+        pass
+
+    #Автоматический выключатель (Предохранитель)
+    elif type(component) is component.types.CircuitBreaker:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип предохранителя
+            if component.CBRK_type is None:
+                if string_equal(descriptionParams[j], ('fuse', 'плавкий'), False):
+                    component.CBRK_type = component.Type.FUSE
+                elif string_equal(descriptionParams[j], ('PTC resettable', 'самовосстанавливающийся', 'самовосст.'), False):
+                    component.CBRK_type = component.Type.FUSE_PTC_RESETTABLE
+                elif string_equal(descriptionParams[j], ('thermal', 'термо'), False):
+                    component.CBRK_type = component.Type.FUSE_THERMAL
+                elif string_equal(descriptionParams[j], ('circuit breaker', 'авт. выкл.'), False):
+                    component.CBRK_type = component.Type.BREAKER
+                elif string_equal(descriptionParams[j], ('holder', 'держатель'), False):
+                    component.CBRK_type = component.Type.HOLDER
+                #завершаем обработку если нашли нужный параметр
+                if component.CBRK_type is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #номинальный ток
+                if component.CBRK_current_rating is None:
+                    if string_equal(parsing_result[0][1], ('A', 'А')):
+                        component.CBRK_current_rating = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
-                
-                parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+
+                #напряжение
+                if component.CBRK_voltage is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.CBRK_voltage = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #точка плавления
+                if component.CBRK_meltingPoint is None:
+                    if string_equal(parsing_result[0][1], ('A²s', 'А²с', 'A?s', 'А?с'), True): #костыли для неюникода
+                        component.CBRK_meltingPoint = parsing_result[0][0]
+                        #фикс неюникода
+                        component.GENERIC_description = component.GENERIC_description.replace('A?s', 'A²s')
+                        component.GENERIC_description = component.GENERIC_description.replace('А?с', 'А²с')
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+            #классификация скорости срабатывания
+            if component.CBRK_speed_grade is None:
+                if string_equal(descriptionParams[j], ('fast', 'быстрый', 'быстр.'), False):
+                    component.CBRK_speed_grade = component.SpeedGrade.FAST
+                elif string_equal(descriptionParams[j], ('medium', 'средний', 'средн.'), False):
+                    component.CBRK_speed_grade = component.SpeedGrade.MEDIUM
+                elif string_equal(descriptionParams[j], ('slow', 'медленный', 'медл.'), False):
+                    component.CBRK_speed_grade = component.SpeedGrade.SLOW
+                #завершаем обработку если нашли нужный параметр
+                if component.CBRK_speed_grade is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+    #Ограничитель перенапряжения
+    elif type(component) is component.types.SurgeProtector:
+        #Определяем тип по разновидности компонента
+        if string_equal(component.GENERIC_kind, ("TVS", "Супрессор"), False):
+            component.SPD_type = component.Type.DIODE
+        elif string_equal(component.GENERIC_kind, ("Varistor", "Варистор"), False):
+            component.SPD_type = component.Type.VARISTOR
+        elif string_equal(component.GENERIC_kind, ("GDT", "Разрядник"), False):
+            component.SPD_type = component.Type.GAS_DISCHARGE_TUBE
+
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            #ток гашения выброса
+            if component.SPD_clamping_current is None:
+                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
                 if parsing_result is not None:
-                    #ёмкость
-                    if component.CAP_capacitance is None:
-                        if string_equal(parsing_result[0][1], ('F', 'Ф'), True):
-                            component.CAP_capacitance = parsing_result[0][0]
-                            #допуск
-                            if parsing_result[1] is not None:
-                                component.CAP_tolerance = parsing_result[1]
+                    if string_equal(parsing_result[0][1], ('A', 'А'), True):
+                        component.SPD_clamping_current = parsing_result[0][0]
+                        if component.SPD_testPulse is None and parsing_result[2] is not None:
+                            conditions = parsing_result[2][0].replace(' ', '')
+                            if string_equal(conditions, ('8/20us', '8/20мкс'), False):
+                                component.SPD_testPulse = component.TestPulse.US_8_20
+                            elif  string_equal(conditions, ('10/1000us', '10/1000мкс'), False):
+                                component.SPD_testPulse = component.TestPulse.US_10_1000
                             else:
-                                component.flag = component.FlagType.ERROR
-                                errors += 1
-                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
+                                component.SPD_testPulse = component.TestPulse.UNKNOWN
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
 
-                    #напряжение
-                    if component.CAP_voltage is None:
-                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.CAP_voltage = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                #низкий импеданс
-                if string_equal(descriptionParams[j], ("low ESR", "низк. имп."), False):
-                    component.CAP_lowImpedance = True
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-        #Микросхема
-        elif type(component) is component.types.IntegratedCircuit:
-            pass
-
-        #Крепёж
-        elif type(component) is component.types.Fastener:
-            pass
-
-        #Радиатор
-        elif type(component) is component.types.Heatsink:
-            pass
-
-        #Автоматический выключатель (Предохранитель)
-        elif type(component) is components.ComponentTypes.CircuitBreaker:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип предохранителя
-                if component.CBRK_type is None:
-                    if string_equal(descriptionParams[j], ('fuse', 'плавкий'), False):
-                        component.CBRK_type = component.Type.FUSE
-                    elif string_equal(descriptionParams[j], ('PTC resettable', 'самовосстанавливающийся', 'самовосст.'), False):
-                        component.CBRK_type = component.Type.FUSE_PTC_RESETTABLE
-                    elif string_equal(descriptionParams[j], ('thermal', 'термо'), False):
-                        component.CBRK_type = component.Type.FUSE_THERMAL
-                    elif string_equal(descriptionParams[j], ('circuit breaker', 'авт. выкл.'), False):
-                        component.CBRK_type = component.Type.BREAKER
-                    elif string_equal(descriptionParams[j], ('holder', 'держатель'), False):
-                        component.CBRK_type = component.Type.HOLDER
+            #диод
+            if component.SPD_type == component.Type.DIODE:
+                #направленность
+                if component.SPD_bidirectional is None:
+                    if string_equal(descriptionParams[j], ('однонаправленный', 'однонаправ.'), False):
+                        component.SPD_bidirectional = False
+                    elif string_equal(descriptionParams[j], ('двунаправленный', 'двунаправ.'), False):
+                        component.SPD_bidirectional = True
                     #завершаем обработку если нашли нужный параметр
-                    if component.CBRK_type is not None:   
+                    if component.SPD_bidirectional is not None:   
                         descriptionParams[j] = '' #clear parsed parameter
                         continue
 
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
                 if parsing_result is not None:
-                    #номинальный ток
-                    if component.CBRK_current_rating is None:
-                        if string_equal(parsing_result[0][1], ('A', 'А')):
-                            component.CBRK_current_rating = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #напряжение
-                    if component.CBRK_voltage is None:
+                    #максимальное рабочее напряжение
+                    if component.SPD_standoff_voltage is None:
                         if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.CBRK_voltage = parsing_result[0][0]
+                            component.SPD_standoff_voltage = parsing_result[0][0]
                             #clear parsed parameter and go to next param
                             descriptionParams[j] = ''
                             continue
 
-                    #точка плавления
-                    if component.CBRK_meltingPoint is None:
-                        if string_equal(parsing_result[0][1], ('A²s', 'А²с', 'A?s', 'А?с'), True): #костыли для неюникода
-                            component.CBRK_meltingPoint = parsing_result[0][0]
-                            #фикс неюникода
-                            component.GENERIC_description = component.GENERIC_description.replace('A?s', 'A²s')
-                            component.GENERIC_description = component.GENERIC_description.replace('А?с', 'А²с')
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                #классификация скорости срабатывания
-                if component.CBRK_speed_grade is None:
-                    if string_equal(descriptionParams[j], ('fast', 'быстрый', 'быстр.'), False):
-                        component.CBRK_speed_grade = component.SpeedGrade.FAST
-                    elif string_equal(descriptionParams[j], ('medium', 'средний', 'средн.'), False):
-                        component.CBRK_speed_grade = component.SpeedGrade.MEDIUM
-                    elif string_equal(descriptionParams[j], ('slow', 'медленный', 'медл.'), False):
-                        component.CBRK_speed_grade = component.SpeedGrade.SLOW
-                    #завершаем обработку если нашли нужный параметр
-                    if component.CBRK_speed_grade is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-        #Ограничитель перенапряжения
-        elif type(component) is components.ComponentTypes.SurgeProtector:
-            #Определяем тип по разновидности компонента
-            if string_equal(component.GENERIC_kind, ("TVS", "Супрессор"), False):
-                component.SPD_type = component.Type.DIODE
-            elif string_equal(component.GENERIC_kind, ("Varistor", "Варистор"), False):
-                component.SPD_type = component.Type.VARISTOR
-            elif string_equal(component.GENERIC_kind, ("GDT", "Разрядник"), False):
-                component.SPD_type = component.Type.GAS_DISCHARGE_TUBE
-
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                #ток гашения выброса
-                if component.SPD_clamping_current is None:
-                    parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
-                    if parsing_result is not None:
-                        if string_equal(parsing_result[0][1], ('A', 'А'), True):
-                            component.SPD_clamping_current = parsing_result[0][0]
+                    #мощность
+                    if component.SPD_power is None:
+                        if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
+                            component.SPD_power = parsing_result[0][0]
                             if component.SPD_testPulse is None and parsing_result[2] is not None:
                                 conditions = parsing_result[2][0].replace(' ', '')
                                 if string_equal(conditions, ('8/20us', '8/20мкс'), False):
@@ -514,838 +625,854 @@ def parse_components(components, BoM, **kwargs):
                             descriptionParams[j] = ''
                             continue
 
-                #диод
-                if component.SPD_type == component.Type.DIODE:
-                    #направленность
-                    if component.SPD_bidirectional is None:
-                        if string_equal(descriptionParams[j], ('однонаправленный', 'однонаправ.'), False):
-                            component.SPD_bidirectional = False
-                        elif string_equal(descriptionParams[j], ('двунаправленный', 'двунаправ.'), False):
-                            component.SPD_bidirectional = True
-                        #завершаем обработку если нашли нужный параметр
-                        if component.SPD_bidirectional is not None:   
-                            descriptionParams[j] = '' #clear parsed parameter
+
+            #варистор
+            elif component.SPD_type == component.Type.VARISTOR:
+                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
+                if parsing_result is not None:
+                    #максимальное рабочее напряжение
+                    if component.SPD_standoff_voltage is None:
+                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                            component.SPD_standoff_voltage = parsing_result[0][0]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
                             continue
 
-                    parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
-                    if parsing_result is not None:
-                        #максимальное рабочее напряжение
-                        if component.SPD_standoff_voltage is None:
-                            if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                                component.SPD_standoff_voltage = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
+                    #энергия
+                    if component.SPD_energy is None:
+                        if string_equal(parsing_result[0][1], ('J', 'Дж'), True):
+                            component.SPD_energy = parsing_result[0][0]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
 
-                        #мощность
-                        if component.SPD_power is None:
-                            if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
-                                component.SPD_power = parsing_result[0][0]
-                                if component.SPD_testPulse is None and parsing_result[2] is not None:
-                                    conditions = parsing_result[2][0].replace(' ', '')
-                                    if string_equal(conditions, ('8/20us', '8/20мкс'), False):
-                                        component.SPD_testPulse = component.TestPulse.US_8_20
-                                    elif  string_equal(conditions, ('10/1000us', '10/1000мкс'), False):
-                                        component.SPD_testPulse = component.TestPulse.US_10_1000
-                                    else:
-                                        component.SPD_testPulse = component.TestPulse.UNKNOWN
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
+            #газоразрядник
+            elif component.SPD_type == component.Type.GAS_DISCHARGE_TUBE:
+                pass
 
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
 
-                #варистор
-                elif component.SPD_type == component.Type.VARISTOR:
-                    parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
-                    if parsing_result is not None:
-                        #максимальное рабочее напряжение
-                        if component.SPD_standoff_voltage is None:
-                            if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                                component.SPD_standoff_voltage = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-
-                        #энергия
-                        if component.SPD_energy is None:
-                            if string_equal(parsing_result[0][1], ('J', 'Дж'), True):
-                                component.SPD_energy = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-
-                #газоразрядник
-                elif component.SPD_type == component.Type.GAS_DISCHARGE_TUBE:
-                    pass
-
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
+    #Батарея
+    elif type(component) is component.types.Battery:
+        #Определяем тип по разновидности компонента
+        if string_equal(component.GENERIC_kind, ("Battery holder", "Держатель батареи"), False):
+            component.BAT_type = component.Type.HOLDER
+        elif string_equal(component.GENERIC_kind, ("Cell", "Элемент гальванический"), False):
+            component.BAT_type = component.Type.CELL
+        elif string_equal(component.GENERIC_kind, ("Battery", "Батарея"), False):
+            component.BAT_type = component.Type.BATTERY
+    
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип (ищем признак держателя в описании)
+            if component.BAT_type != component.Type.HOLDER:
+                if string_equal(descriptionParams[j], ('holder', 'держатель'), False):
+                    component.BAT_type = component.Type.HOLDER
                     descriptionParams[j] = '' #clear parsed parameter
                     continue
 
-        #Батарея
-        elif type(component) is component.types.Battery:
-            #Определяем тип по разновидности компонента
-            if string_equal(component.GENERIC_kind, ("Battery holder", "Держатель батареи"), False):
-                component.BAT_type = component.Type.HOLDER
-            elif string_equal(component.GENERIC_kind, ("Cell", "Элемент гальванический"), False):
-                component.BAT_type = component.Type.CELL
-            elif string_equal(component.GENERIC_kind, ("Battery", "Батарея"), False):
-                component.BAT_type = component.Type.BATTERY
-        
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип (ищем признак держателя в описании)
-                if component.BAT_type != component.Type.HOLDER:
-                    if string_equal(descriptionParams[j], ('holder', 'держатель'), False):
-                        component.BAT_type = component.Type.HOLDER
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                #диапазон рабочих температур
-                if component.GENERIC_temperature_range is None:
-                    parsing_result = _parse_param_temperatureRange(descriptionParams[j], decimalPoint)
-                    if parsing_result is not None:
-                        component.GENERIC_temperature_range = parsing_result
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
+            #диапазон рабочих температур
+            if component.GENERIC_temperature_range is None:
+                parsing_result = _parse_param_temperatureRange(descriptionParams[j], decimalPoint)
                 if parsing_result is not None:
-                    #номинальное напряжение
-                    if component.BAT_voltage_rated is None:
-                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.BAT_voltage_rated = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
+                    component.GENERIC_temperature_range = parsing_result
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
 
-                    #ёмкость
-                    if component.BAT_capacity is None:
-                        if string_equal(parsing_result[0][1], ('Ah', 'Ач'), True):
-                            component.BAT_capacity = parsing_result[0][0]
-                            #допуск
-                            #if parsing_result[1] is not None:
-                            #    component.BAT_capacity_tolerance = parsing_result[1]
-                            #условия измерения
-                            if parsing_result[2] is not None:
-                                for k in range(len(parsing_result[2])):
-                                    condition = _parse_param_value(parsing_result[2][k], decimalPoint)
-                                    if condition is not None:
-                                        #ток нагрузки
-                                        if string_equal(condition[1], ('A', 'А'), True):
-                                            component.BAT_capacity_load_current = condition[0]
-                                            parsing_result[2][k] = ''
-                                            continue
-                                        #сопротивление нагрузки
-                                        if string_equal(condition[1], ('Ohm', 'Ом'), True):
-                                            component.BAT_capacity_load_resistance = condition[0]
-                                            parsing_result[2][k] = ''
-                                            continue
-                                        #напряжение отсечки
-                                        if string_equal(condition[1], ('V', 'В'), True):
-                                            component.BAT_capacity_voltage = condition[0]
-                                            parsing_result[2][k] = ''
-                                            continue
-                                        #температура
-                                        if string_equal(condition[1], ('°C', '℃', 'K', 'К'), True):
-                                            component.BAT_capacity_temperature = _parse_param_temperature(condition, decimalPoint)
-                                            parsing_result[2][k] = ''
-                                            continue
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-        #Дисплей
-        elif type(component) is component.types.Display:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип
-                if component.DISP_type is None:
-                    if string_equal(descriptionParams[j], ('7-seg', '7-сегм.', '7 segment'), False):
-                        component.DISP_type = component.Type.NUMERIC_7SEG
-                    elif string_equal(descriptionParams[j], ('14-seg', '14-сегм.', '14 segment'), False): 
-                        component.DISP_type = component.Type.ALPHANUMERIC_14SEG
-                    elif string_equal(descriptionParams[j], ('16-seg', '16-сегм.', '16 segment'), False): 
-                        component.DISP_type = component.Type.ALPHANUMERIC_16SEG
-                    elif string_equal(descriptionParams[j], ('bar graph', 'шкальный'), False): 
-                        component.DISP_type = component.Type.BARGRAPH
-                    elif string_equal(descriptionParams[j], ('dot matrix', 'матричный'), False): 
-                        component.DISP_type = component.Type.DOTMATRIX
-                    elif string_equal(descriptionParams[j], ('graphic', 'графический'), False): 
-                        component.DISP_type = component.Type.GRAPHIC
-                    #завершаем обработку если нашли нужный параметр
-                    if component.DISP_type is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                #структура
-                if component.DISP_structure is None:
-                    if string_equal(descriptionParams[0], ('LED', 'светодиодный'), False):
-                        component.DISP_structure = component.Structure.LED
-                    elif string_equal(descriptionParams[0], ('OLED', 'орг. светодиодный'), False):
-                        component.DISP_structure = component.Structure.OLED
-                    elif string_equal(descriptionParams[0], ('LCD', 'жидкокрист.'), False):
-                        component.DISP_structure = component.Structure.LCD
-                    elif string_equal(descriptionParams[0], ('VFD', 'вак. люм.'), False):
-                        component.DISP_structure = component.Structure.VFD
-                    #завершаем обработку если нашли нужный параметр
-                    if component.DISP_structure is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                #цвет
-                if component.DISP_color is None:
-                    parsing_result = _parse_param_color(descriptionParams[j])
-                    if parsing_result is not None:
-                        component.DISP_color = parsing_result
+            parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #номинальное напряжение
+                if component.BAT_voltage_rated is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.BAT_voltage_rated = parsing_result[0][0]
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
 
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-        #Светодиод
-        elif type(component) is components.ComponentTypes.LED:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                #цвет
-                if component.LED_color is None:
-                    parsing_result = _parse_param_color(descriptionParams[j])
-                    if parsing_result is not None:
-                        component.LED_color = parsing_result
+                #ёмкость
+                if component.BAT_capacity is None:
+                    if string_equal(parsing_result[0][1], ('Ah', 'Ач'), True):
+                        component.BAT_capacity = parsing_result[0][0]
+                        #допуск
+                        #if parsing_result[1] is not None:
+                        #    component.BAT_capacity_tolerance = parsing_result[1]
+                        #условия измерения
+                        if parsing_result[2] is not None:
+                            for k in range(len(parsing_result[2])):
+                                condition = _parse_param_value(parsing_result[2][k], decimalPoint)
+                                if condition is not None:
+                                    #ток нагрузки
+                                    if string_equal(condition[1], ('A', 'А'), True):
+                                        component.BAT_capacity_load_current = condition[0]
+                                        parsing_result[2][k] = ''
+                                        continue
+                                    #сопротивление нагрузки
+                                    if string_equal(condition[1], ('Ohm', 'Ом'), True):
+                                        component.BAT_capacity_load_resistance = condition[0]
+                                        parsing_result[2][k] = ''
+                                        continue
+                                    #напряжение отсечки
+                                    if string_equal(condition[1], ('V', 'В'), True):
+                                        component.BAT_capacity_voltage = condition[0]
+                                        parsing_result[2][k] = ''
+                                        continue
+                                    #температура
+                                    if string_equal(condition[1], ('°C', '℃', 'K', 'К'), True):
+                                        component.BAT_capacity_temperature = _parse_param_temperature(condition, decimalPoint)
+                                        parsing_result[2][k] = ''
+                                        continue
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
 
-                #индекс цветопередачи
-                if component.LED_color_renderingIndex is None:
-                    if descriptionParams[j].startswith('CRI'):
-                        parsing_result = _parse_param_value(descriptionParams[j][3:], decimalPoint)
-                        if parsing_result is not None:
-                            component.LED_color_renderingIndex = parsing_result[0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
-                if parsing_result is not None:
-                    #длина волны
-                    if (component.LED_color is None) or (component.LED_color <= component.Color.VIOLET):
-                        if (component.LED_wavelength_peak is None) and (component.LED_wavelength_dominant is None):
-                            if string_equal(parsing_result[0][1], ('m', 'м'), True):
-                                if isinstance(parsing_result[0][0], list):
-                                    component.LED_wavelength_peak = parsing_result[0][0][0]
-                                    component.LED_wavelength_dominant = parsing_result[0][0][1]
-                                else:
-                                    component.LED_wavelength_peak = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-
-                    #цветовая температура
-                    if component.LED_color == component.Color.WHITE:
-                        if component.LED_color_temperature is None:
-                            if string_equal(parsing_result[0][1], ('K', 'К'), True):
-                                component.LED_color_temperature = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-                        
-                    #сила света
-                    if component.LED_luminous_intensity is None:
-                        if string_equal(parsing_result[0][1], ('cd', 'кд'), True):
-                            component.LED_luminous_intensity = parsing_result[0][0]
-                            if parsing_result[2] is not None:
-                                conditions = _parse_param_value(parsing_result[2][0], decimalPoint)
-                                if conditions is not None:
-                                    if string_equal(conditions[1], ('A', 'А'), True):
-                                        component.LED_luminous_intensity_current = conditions[0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #световой поток
-                    if component.LED_luminous_flux is None:
-                        if string_equal(parsing_result[0][1], ('lm', 'лм'), True):
-                            component.LED_luminous_flux = parsing_result[0][0]
-                            if parsing_result[2] is not None:
-                                conditions = _parse_param_value(parsing_result[2][0], decimalPoint)
-                                if conditions is not None:
-                                    if string_equal(conditions[1], ('A', 'А'), True):
-                                        component.LED_luminous_flux_current = conditions[0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #угол обзора
-                    if component.LED_viewingAngle is None:
-                        if string_equal(parsing_result[0][1], ('°', 'degrees', 'град.'), True):
-                            component.LED_viewingAngle = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #прямой ток
-                    if (component.LED_current_nominal is None) and (component.LED_current_maximum is None):
-                        if string_equal(parsing_result[0][1], ('A', 'А'), True):
-                            if isinstance(parsing_result[0][0], list):
-                                component.LED_current_nominal = parsing_result[0][0][0]
-                                component.LED_current_maximum = parsing_result[0][0][1]
-                            else:
-                                component.LED_current_nominal = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #прямое падение напряжения
-                    if component.LED_voltage_forward is None:
-                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.LED_voltage_forward = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-        #Перемычка
-        elif type(component) is components.ComponentTypes.Jumper:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип
-                if component.JMP_type is None:
-                    if string_equal(descriptionParams[j], ('thermal', 'термо'), False):
-                        component.JMP_type = component.Type.THERMAL
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-                    else: 
-                        component.JMP_type = component.Type.ELECTRICAL
-
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-        #Реле
-        elif type(component) is component.types.Relay:
-            pass
-
-        #Индуктивность
-        elif type(component) is components.ComponentTypes.Inductor:
-            #Определяем тип
-            if string_equal(component.GENERIC_kind, ("Inductor", "Индуктивность"), False):
-                component.IND_type = component.Type.INDUCTOR
-            elif string_equal(component.GENERIC_kind, ("Choke", "Дроссель"), False):
-                component.IND_type = component.Type.CHOKE
-
-            #legacy: затычка для старого формата где ёмкость и допуск в разных параметрах
-            for j in range(len(descriptionParams)):
-                if descriptionParams[j].endswith('Гн') and j < len(descriptionParams) - 1:
-                    if descriptionParams[j + 1].endswith('%'):
-                        descriptionParams[j] += ' ±' + descriptionParams.pop(j + 1).replace('±', '')
-                    break
-
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
-                if parsing_result is not None:
-                    #индуктивность
-                    if component.IND_inductance is None:
-                        if string_equal(parsing_result[0][1], ('H', 'Гн'), True):
-                            component.IND_inductance = parsing_result[0][0]
-                            #допуск
-                            if parsing_result[1] is not None:
-                                component.IND_tolerance = parsing_result[1]
-                            else:
-                                component.flag = component.FlagType.ERROR
-                                errors += 1
-                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #ток
-                    if component.IND_current is None:
-                        if string_equal(parsing_result[0][1], ('A', 'А'), True):
-                            component.IND_current = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-        #Резистор
-        elif type(component) is components.ComponentTypes.Resistor:
-            #legacy: затычка для старого формата где сопротивление и допуск в разных параметрах
-            for j in range(len(descriptionParams)):
-                if descriptionParams[j].endswith('Ом') and j < len(descriptionParams) - 1:
-                    if descriptionParams[j + 1].endswith('%'):
-                        descriptionParams[j] += ' ±' + descriptionParams.pop(j + 1).replace('±', '')
-                    break
-            
+    #Дисплей
+    elif type(component) is component.types.Display:
+        #Parsing params
+        for j in range(len(descriptionParams)):
             #тип
-            if string_equal(component.GENERIC_kind, ("Resistor", "Резистор"), False):
-                component.RES_type = component.Type.FIXED
-            elif string_equal(component.GENERIC_kind, ("Potentiometer", "Потенциометр", "Rheostat", "Реостат"), False):
-                component.RES_type = component.Type.VARIABLE
-            elif string_equal(component.GENERIC_kind, ("Thermistor", "Термистор", "Posistor", "Позистор"), False):
-                component.RES_type = component.Type.THERMAL
+            if component.DISP_type is None:
+                if string_equal(descriptionParams[j], ('7-seg', '7-сегм.', '7 segment'), False):
+                    component.DISP_type = component.Type.NUMERIC_7SEG
+                elif string_equal(descriptionParams[j], ('14-seg', '14-сегм.', '14 segment'), False): 
+                    component.DISP_type = component.Type.ALPHANUMERIC_14SEG
+                elif string_equal(descriptionParams[j], ('16-seg', '16-сегм.', '16 segment'), False): 
+                    component.DISP_type = component.Type.ALPHANUMERIC_16SEG
+                elif string_equal(descriptionParams[j], ('bar graph', 'шкальный'), False): 
+                    component.DISP_type = component.Type.BARGRAPH
+                elif string_equal(descriptionParams[j], ('dot matrix', 'матричный'), False): 
+                    component.DISP_type = component.Type.DOTMATRIX
+                elif string_equal(descriptionParams[j], ('graphic', 'графический'), False): 
+                    component.DISP_type = component.Type.GRAPHIC
+                #завершаем обработку если нашли нужный параметр
+                if component.DISP_type is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
 
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #структура
-                if component.RES_structure is None:
-                    if string_equal(descriptionParams[0], ('тонкоплёночный', 'тонкоплён.'), False):
-                        component.RES_structure = component.Structure.THIN_FILM
-                    elif string_equal(descriptionParams[0], ('толстоплёночный', 'толстоплён.'), False):
-                        component.RES_structure = component.Structure.THICK_FILM
-                    elif string_equal(descriptionParams[0], ('металло-плёночный', 'мет-плён.'), False):
-                        component.RES_structure = component.Structure.METAL_FILM
-                    elif string_equal(descriptionParams[0], ('углеродистый', 'углерод.'), False):
-                        component.RES_structure = component.Structure.CARBON_FILM
-                    elif string_equal(descriptionParams[0], ('проволочный', 'провол.'), False):
-                        component.RES_structure = component.Structure.WIREWOUND
-                    elif string_equal(descriptionParams[0], ('керамический', 'керам.'), False):
-                        component.RES_structure = component.Structure.CERAMIC
-                    #завершаем обработку если нашли нужный параметр
-                    if component.RES_structure is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
+            #структура
+            if component.DISP_structure is None:
+                if string_equal(descriptionParams[0], ('LED', 'светодиодный'), False):
+                    component.DISP_structure = component.Structure.LED
+                elif string_equal(descriptionParams[0], ('OLED', 'орг. светодиодный'), False):
+                    component.DISP_structure = component.Structure.OLED
+                elif string_equal(descriptionParams[0], ('LCD', 'жидкокрист.'), False):
+                    component.DISP_structure = component.Structure.LCD
+                elif string_equal(descriptionParams[0], ('VFD', 'вак. люм.'), False):
+                    component.DISP_structure = component.Structure.VFD
+                #завершаем обработку если нашли нужный параметр
+                if component.DISP_structure is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
 
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+            #цвет
+            if component.DISP_color is None:
+                parsing_result = _parse_param_color(descriptionParams[j])
                 if parsing_result is not None:
-                    #сопротивление
-                    if component.RES_resistance is None:
-                        if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
-                            component.RES_resistance = parsing_result[0][0]
-                            #допуск
-                            if parsing_result[1] is not None:
-                                component.RES_tolerance = parsing_result[1]
-                            elif component.RES_resistance == 0:
-                                pass #если сопротивление равно нулю (т.е. перемычка) то допуск добавлять не надо и это не ошибка
+                    component.DISP_color = parsing_result
+                    #clear parsed parameter and go to next param
+                    descriptionParams[j] = ''
+                    continue
+
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
+
+    #Светодиод
+    elif type(component) is component.types.LED:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            #цвет
+            if component.LED_color is None:
+                parsing_result = _parse_param_color(descriptionParams[j])
+                if parsing_result is not None:
+                    component.LED_color = parsing_result
+                    #clear parsed parameter and go to next param
+                    descriptionParams[j] = ''
+                    continue
+
+            #индекс цветопередачи
+            if component.LED_color_renderingIndex is None:
+                if descriptionParams[j].startswith('CRI'):
+                    parsing_result = _parse_param_value(descriptionParams[j][3:], decimalPoint)
+                    if parsing_result is not None:
+                        component.LED_color_renderingIndex = parsing_result[0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+            parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #длина волны
+                if (component.LED_color is None) or (component.LED_color <= component.Color.VIOLET):
+                    if (component.LED_wavelength_peak is None) and (component.LED_wavelength_dominant is None):
+                        if string_equal(parsing_result[0][1], ('m', 'м'), True):
+                            if isinstance(parsing_result[0][0], list):
+                                component.LED_wavelength_peak = parsing_result[0][0][0]
+                                component.LED_wavelength_dominant = parsing_result[0][0][1]
                             else:
-                                component.flag = component.FlagType.ERROR
-                                errors += 1
-                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                                component.LED_wavelength_peak = parsing_result[0][0]
                             #clear parsed parameter and go to next param
                             descriptionParams[j] = ''
                             continue
 
-                    #ТКС
-                    if component.RES_temperature_coefficient is None:
-                        if parsing_result[1] is not None:
-                            if string_equal(parsing_result[1][2], ('ppm/°C', ), True):
-                                component.RES_temperature_coefficient = parsing_result[1]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-
-                    #напряжение
-                    if component.RES_voltage is None:
-                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.RES_voltage = parsing_result[0][0]
+                #цветовая температура
+                if component.LED_color == component.Color.WHITE:
+                    if component.LED_color_temperature is None:
+                        if string_equal(parsing_result[0][1], ('K', 'К'), True):
+                            component.LED_color_temperature = parsing_result[0][0]
                             #clear parsed parameter and go to next param
                             descriptionParams[j] = ''
                             continue
-
-                    #мощность
-                    if component.RES_power is None:
-                        if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
-                            component.RES_power = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-            #добавляем мощность к чип-резисторам (если не указана)
-            #if component.GENERIC_mount == component.Mounting.Type.SURFACE and component.RES_power is None:
-            #    if   component.GENERIC_size == '0075': component.RES_power = 0.02
-            #    elif component.GENERIC_size == '0100': component.RES_power = 0.03125
-            #    elif component.GENERIC_size == '0201': component.RES_power = 0.05
-            #    elif component.GENERIC_size == '0402': component.RES_power = 0.0625
-            #    elif component.GENERIC_size == '0603': component.RES_power = 0.1
-            #    elif component.GENERIC_size == '0805': component.RES_power = 0.125
-            #    elif component.GENERIC_size == '1206': component.RES_power = 0.25
-            #    elif component.GENERIC_size == '1210': component.RES_power = 0.5
-            #    elif component.GENERIC_size == '1218': component.RES_power = 1.0
-            #    elif component.GENERIC_size == '2010': component.RES_power = 0.75
-            #    elif component.GENERIC_size == '2512': component.RES_power = 1.0
-
-        #Переключатель
-        elif type(component) is component.types.Switch:
-            pass
-
-        #Трансформатор
-        elif type(component) is components.ComponentTypes.Transformer:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-        #Диод
-        elif type(component) is components.ComponentTypes.Diode:
-            #Определяем тип по разновидности компонента
-            if string_equal(component.GENERIC_kind, ("Zener", "Стабилитрон"), False):
-                component.DIODE_type = component.Type.ZENER
-            elif string_equal(component.GENERIC_kind, ("Varicap", "Варикап"), False):
-                component.DIODE_type = component.Type.VARICAP
-        
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип диода
-                if component.DIODE_type is None:
-                    if string_equal(descriptionParams[j], ("general purpose", "общего применения", "общ. прим."), False):
-                        component.DIODE_type = component.Type.GENERAL_PURPOSE
-                    elif string_equal(descriptionParams[j], ("Шоттки", "Schottky"), False):
-                        component.DIODE_type = component.Type.SCHOTTKY
-                    elif string_equal(descriptionParams[j], ("tunnel", "туннельный", ), False):
-                        component.DIODE_type = component.Type.TUNNEL
-                    #завершаем обработку если нашли нужный параметр
-                    if component.DIODE_type is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
-                if parsing_result is not None:
-                    #прямой ток
-                    if component.DIODE_forwardCurrent is None:
-                        if string_equal(parsing_result[0][1], ('A', 'А'), True):
-                            component.DIODE_forwardCurrent = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #обратное напряжение
-                    if component.DIODE_reverseVoltage is None:
-                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.DIODE_reverseVoltage = parsing_result[0][0]
-                            #допуск
-                            if parsing_result[1] is not None:
-                                component.DIODE_reverseVoltage_tolerance = parsing_result[1]
-                            else:
-                                if component.DIODE_type is component.Type.ZENER:
-                                    component.flag = component.FlagType.ERROR
-                                    errors += 1
-                                    print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #максимальная мощность
-                    if component.DIODE_power is None:
-                        if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
-                            component.DIODE_power = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #ёмкость перехода
-                    if component.DIODE_capacitance is None:
-                        if string_equal(parsing_result[0][1], ('F', 'Ф'), True):
-                            component.DIODE_capacitance = parsing_result[0][0]
-                            #допуск
-                            if parsing_result[1] is not None:
-                                component.EMIF_capacitance_tolerance = parsing_result[1]
-                            #условия измерения
-                            if parsing_result[2] is not None:
-                                for k in range(len(parsing_result[2])):
-                                    condition = _parse_param_value(parsing_result[2][k], decimalPoint)
-                                    if condition is not None:
-                                        #напряжение
-                                        if string_equal(condition[1], ('V', 'В'), True):
-                                            component.DIODE_capacitance_voltage = condition[0]
-                                            parsing_result[2][k] = ''
-                                            continue
-                                        #частота
-                                        if string_equal(condition[1], ('Hz', 'Гц'), True):
-                                            component.DIODE_capacitance_frequency = condition[0]
-                                            parsing_result[2][k] = ''
-                                            continue
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-        #Тиристор
-        elif type(component) is component.types.Thyristor:
-            pass
-
-        #Транзистор
-        elif type(component) is components.ComponentTypes.Transistor:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #сборка
-                parsing_result = _parse_param_array(descriptionParams[j])
-                if parsing_result is not None:
-                    component.GENERIC_array = parsing_result
-                    descriptionParams[j] = '' #clear parsed parameter
-                    continue
-
-        #Оптоизолятор
-        elif type(component) is components.ComponentTypes.Optoisolator:
-            #Определяем тип по разновидности компонента
-            if string_equal(component.GENERIC_kind, ("Optocoupler", "Оптопара"), False):
-                component.OPTOISO_outputType = component.OutputType.TRANSISTOR
-            elif string_equal(component.GENERIC_kind, ("Phototriac", "Оптосимистор"), False):
-                component.OPTOISO_outputType = component.OutputType.TRIAC
-
-        #Соединитель
-        elif type(component) is components.ComponentTypes.Connector:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #пол
-                if component.CON_gender is None:
-                    if string_equal(descriptionParams[j], ('plug', 'вилка', 'male', 'папа'), False):
-                        component.CON_gender = component.Gender.PLUG
-                    elif string_equal(descriptionParams[j], ('receptacle', 'socket', 'розетка', 'female', 'мама'), False):
-                        component.CON_gender = component.Gender.RECEPTACLE
-                    #завершаем обработку если нашли нужный параметр
-                    if component.CON_gender is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-        #Фильтр ЭМП
-        elif type(component) is components.ComponentTypes.EMIFilter:
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип фильтра
-                if component.EMIF_type is None:
-                    if string_equal(descriptionParams[0], ('ферритовая бусина', 'фер. бус.'), False):
-                        component.EMIF_type = component.Type.FERRITE_BEAD
-                    elif string_equal(descriptionParams[0], ('синфазный дроссель', 'синф. дроссель', 'синф. др.'), False):
-                        component.EMIF_type = component.Type.COMMON_MODE_CHOKE
-                    #завершаем обработку если нашли нужный параметр
-                    if component.EMIF_type is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                #тип монтажа и типоразмер
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
-                        continue
-
-                parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
-                if parsing_result is not None:
-                    #импеданс
-                    if component.EMIF_impedance is None:
+                    
+                #сила света
+                if component.LED_luminous_intensity is None:
+                    if string_equal(parsing_result[0][1], ('cd', 'кд'), True):
+                        component.LED_luminous_intensity = parsing_result[0][0]
                         if parsing_result[2] is not None:
                             conditions = _parse_param_value(parsing_result[2][0], decimalPoint)
                             if conditions is not None:
-                                if string_equal(conditions[1], ('Hz', 'Гц'), True):
-                                    if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
-                                        component.EMIF_impedance = parsing_result[0][0]
-                                        component.EMIF_impedance_frequency = conditions[0]
-                                        #допуск
-                                        if parsing_result[1] is not None:
-                                            component.EMIF_impedance_tolerance = parsing_result[1]
-                                        else:
-                                            component.flag = component.FlagType.ERROR
-                                            errors += 1
-                                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
-                                        #clear parsed parameter and go to next param
-                                        descriptionParams[j] = ''
-                                        continue
+                                if string_equal(conditions[1], ('A', 'А'), True):
+                                    component.LED_luminous_intensity_current = conditions[0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
 
-                    #индуктивность
-                    if component.EMIF_inductance is None:
-                        if string_equal(parsing_result[0][1], ('H', 'Гн'), True):
-                            component.EMIF_inductance = parsing_result[0][0]
-                            #допуск
-                            if parsing_result[1] is not None:
-                                component.EMIF_inductance_tolerance = parsing_result[1]
-                            else:
+                #световой поток
+                if component.LED_luminous_flux is None:
+                    if string_equal(parsing_result[0][1], ('lm', 'лм'), True):
+                        component.LED_luminous_flux = parsing_result[0][0]
+                        if parsing_result[2] is not None:
+                            conditions = _parse_param_value(parsing_result[2][0], decimalPoint)
+                            if conditions is not None:
+                                if string_equal(conditions[1], ('A', 'А'), True):
+                                    component.LED_luminous_flux_current = conditions[0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #угол обзора
+                if component.LED_viewingAngle is None:
+                    if string_equal(parsing_result[0][1], ('°', 'degrees', 'град.'), True):
+                        component.LED_viewingAngle = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #прямой ток
+                if (component.LED_current_nominal is None) and (component.LED_current_maximum is None):
+                    if string_equal(parsing_result[0][1], ('A', 'А'), True):
+                        if isinstance(parsing_result[0][0], list):
+                            component.LED_current_nominal = parsing_result[0][0][0]
+                            component.LED_current_maximum = parsing_result[0][0][1]
+                        else:
+                            component.LED_current_nominal = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #прямое падение напряжения
+                if component.LED_voltage_forward is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.LED_voltage_forward = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
+
+    #Перемычка
+    elif type(component) is component.types.Jumper:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип
+            if component.JMP_type is None:
+                if string_equal(descriptionParams[j], ('thermal', 'термо'), False):
+                    component.JMP_type = component.Type.THERMAL
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+                else: 
+                    component.JMP_type = component.Type.ELECTRICAL
+
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+    #Реле
+    elif type(component) is component.types.Relay:
+        pass
+
+    #Индуктивность
+    elif type(component) is component.types.Inductor:
+        #Определяем тип
+        if string_equal(component.GENERIC_kind, ("Inductor", "Индуктивность"), False):
+            component.IND_type = component.Type.INDUCTOR
+        elif string_equal(component.GENERIC_kind, ("Choke", "Дроссель"), False):
+            component.IND_type = component.Type.CHOKE
+
+        #legacy: затычка для старого формата где ёмкость и допуск в разных параметрах
+        for j in range(len(descriptionParams)):
+            if descriptionParams[j].endswith('Гн') and j < len(descriptionParams) - 1:
+                if descriptionParams[j + 1].endswith('%'):
+                    descriptionParams[j] += ' ±' + descriptionParams.pop(j + 1).replace('±', '')
+                break
+
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #индуктивность
+                if component.IND_inductance is None:
+                    if string_equal(parsing_result[0][1], ('H', 'Гн'), True):
+                        component.IND_inductance = parsing_result[0][0]
+                        #допуск
+                        if parsing_result[1] is not None:
+                            component.IND_tolerance = parsing_result[1]
+                        else:
+                            component.flag = component.FlagType.ERROR
+                            stats[0] += 1
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #ток
+                if component.IND_current is None:
+                    if string_equal(parsing_result[0][1], ('A', 'А'), True):
+                        component.IND_current = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+    #Резистор
+    elif type(component) is component.types.Resistor:
+        #legacy: затычка для старого формата где сопротивление и допуск в разных параметрах
+        for j in range(len(descriptionParams)):
+            if descriptionParams[j].endswith('Ом') and j < len(descriptionParams) - 1:
+                if descriptionParams[j + 1].endswith('%'):
+                    descriptionParams[j] += ' ±' + descriptionParams.pop(j + 1).replace('±', '')
+                break
+        
+        #тип
+        if string_equal(component.GENERIC_kind, ("Resistor", "Резистор"), False):
+            component.RES_type = component.Type.FIXED
+        elif string_equal(component.GENERIC_kind, ("Potentiometer", "Потенциометр", "Rheostat", "Реостат"), False):
+            component.RES_type = component.Type.VARIABLE
+        elif string_equal(component.GENERIC_kind, ("Thermistor", "Термистор", "Posistor", "Позистор"), False):
+            component.RES_type = component.Type.THERMAL
+
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #структура
+            if component.RES_structure is None:
+                if string_equal(descriptionParams[0], ('тонкоплёночный', 'тонкоплён.'), False):
+                    component.RES_structure = component.Structure.THIN_FILM
+                elif string_equal(descriptionParams[0], ('толстоплёночный', 'толстоплён.'), False):
+                    component.RES_structure = component.Structure.THICK_FILM
+                elif string_equal(descriptionParams[0], ('металло-плёночный', 'мет-плён.'), False):
+                    component.RES_structure = component.Structure.METAL_FILM
+                elif string_equal(descriptionParams[0], ('углеродистый', 'углерод.'), False):
+                    component.RES_structure = component.Structure.CARBON_FILM
+                elif string_equal(descriptionParams[0], ('проволочный', 'провол.'), False):
+                    component.RES_structure = component.Structure.WIREWOUND
+                elif string_equal(descriptionParams[0], ('керамический', 'керам.'), False):
+                    component.RES_structure = component.Structure.CERAMIC
+                #завершаем обработку если нашли нужный параметр
+                if component.RES_structure is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #сопротивление
+                if component.RES_resistance is None:
+                    if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
+                        component.RES_resistance = parsing_result[0][0]
+                        #допуск
+                        if parsing_result[1] is not None:
+                            component.RES_tolerance = parsing_result[1]
+                        elif component.RES_resistance == 0:
+                            pass #если сопротивление равно нулю (т.е. перемычка) то допуск добавлять не надо и это не ошибка
+                        else:
+                            component.flag = component.FlagType.ERROR
+                            stats[0] += 1
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #ТКС
+                if component.RES_temperature_coefficient is None:
+                    if parsing_result[1] is not None:
+                        if string_equal(parsing_result[1][2], ('ppm/°C', ), True):
+                            component.RES_temperature_coefficient = parsing_result[1]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
+
+                #напряжение
+                if component.RES_voltage is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.RES_voltage = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #мощность
+                if component.RES_power is None:
+                    if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
+                        component.RES_power = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
+
+        #добавляем мощность к чип-резисторам (если не указана)
+        #if component.GENERIC_mount == component.Mounting.Type.SURFACE and component.RES_power is None:
+        #    if   component.GENERIC_size == '0075': component.RES_power = 0.02
+        #    elif component.GENERIC_size == '0100': component.RES_power = 0.03125
+        #    elif component.GENERIC_size == '0201': component.RES_power = 0.05
+        #    elif component.GENERIC_size == '0402': component.RES_power = 0.0625
+        #    elif component.GENERIC_size == '0603': component.RES_power = 0.1
+        #    elif component.GENERIC_size == '0805': component.RES_power = 0.125
+        #    elif component.GENERIC_size == '1206': component.RES_power = 0.25
+        #    elif component.GENERIC_size == '1210': component.RES_power = 0.5
+        #    elif component.GENERIC_size == '1218': component.RES_power = 1.0
+        #    elif component.GENERIC_size == '2010': component.RES_power = 0.75
+        #    elif component.GENERIC_size == '2512': component.RES_power = 1.0
+
+    #Переключатель
+    elif type(component) is component.types.Switch:
+        pass
+
+    #Трансформатор
+    elif type(component) is component.types.Transformer:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
+
+    #Диод
+    elif type(component) is component.types.Diode:
+        #Определяем тип по разновидности компонента
+        if string_equal(component.GENERIC_kind, ("Zener", "Стабилитрон"), False):
+            component.DIODE_type = component.Type.ZENER
+        elif string_equal(component.GENERIC_kind, ("Varicap", "Варикап"), False):
+            component.DIODE_type = component.Type.VARICAP
+    
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип диода
+            if component.DIODE_type is None:
+                if string_equal(descriptionParams[j], ("general purpose", "общего применения", "общ. прим."), False):
+                    component.DIODE_type = component.Type.GENERAL_PURPOSE
+                elif string_equal(descriptionParams[j], ("Шоттки", "Schottky"), False):
+                    component.DIODE_type = component.Type.SCHOTTKY
+                elif string_equal(descriptionParams[j], ("tunnel", "туннельный", ), False):
+                    component.DIODE_type = component.Type.TUNNEL
+                #завершаем обработку если нашли нужный параметр
+                if component.DIODE_type is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #прямой ток
+                if component.DIODE_forwardCurrent is None:
+                    if string_equal(parsing_result[0][1], ('A', 'А'), True):
+                        component.DIODE_forwardCurrent = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #обратное напряжение
+                if component.DIODE_reverseVoltage is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.DIODE_reverseVoltage = parsing_result[0][0]
+                        #допуск
+                        if parsing_result[1] is not None:
+                            component.DIODE_reverseVoltage_tolerance = parsing_result[1]
+                        else:
+                            if component.DIODE_type is component.Type.ZENER:
                                 component.flag = component.FlagType.ERROR
-                                errors += 1
+                                stats[0] += 1
                                 print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #ток
-                    if component.EMIF_current is None:
-                        if string_equal(parsing_result[0][1], ('A', 'А'), True):
-                            component.EMIF_current = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #напряжение
-                    if component.EMIF_voltage is None:
-                        if string_equal(parsing_result[0][1], ('V', 'В'), True):
-                            component.EMIF_voltage = parsing_result[0][0]
-                            #clear parsed parameter and go to next param
-                            descriptionParams[j] = ''
-                            continue
-
-                    #активное сопротивление
-                    if component.EMIF_resistance is None:
-                        if string_equal(parsing_result[2][0], ("DC", )):
-                            if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
-                                component.EMIF_resistance = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-             
-        #Осциллятор (Резонатор)
-        elif type(component) is components.ComponentTypes.Oscillator:
-            #Определяем тип по разновидности компонента
-            if string_equal(component.GENERIC_kind, ("Oscillator", "Осциллятор"), False):
-                component.OSC_type = component.Type.OSCILLATOR
-            elif string_equal(component.GENERIC_kind, ("Resonator", "Резонатор", ), False):
-                component.OSC_type = component.Type.RESONATOR
-            
-            #Parsing params
-            for j in range(len(descriptionParams)):
-                #тип резонатора
-                if component.OSC_structure is None:
-                    if string_equal(descriptionParams[j], ('кварцевый', 'кварц.'), False):
-                        component.OSC_structure = component.Structure.QUARTZ
-                    elif string_equal(descriptionParams[j], ('керамический', 'керам.'), False):
-                        component.OSC_structure = component.Structure.CERAMIC
-                    #завершаем обработку если нашли нужный параметр
-                    if component.OSC_structure is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
 
-                #тип монтажа и типоразмер (поидее не надо, но пусть будет)
-                if component.GENERIC_mount is None:
-                    if _parse_param_mountandsize(descriptionParams[j], component):
-                        descriptionParams[j] = '' #clear parsed parameter
+                #максимальная мощность
+                if component.DIODE_power is None:
+                    if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
+                        component.DIODE_power = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
 
-                #диапазон рабочих температур
-                if component.GENERIC_temperature_range is None:
-                    parsing_result = _parse_param_temperatureRange(descriptionParams[j], decimalPoint)
-                    if parsing_result is not None:
-                        component.GENERIC_temperature_range = parsing_result
-                        descriptionParams[j] = '' #clear parsed parameter
+                #ёмкость перехода
+                if component.DIODE_capacitance is None:
+                    if string_equal(parsing_result[0][1], ('F', 'Ф'), True):
+                        component.DIODE_capacitance = parsing_result[0][0]
+                        #допуск
+                        if parsing_result[1] is not None:
+                            component.EMIF_capacitance_tolerance = parsing_result[1]
+                        #условия измерения
+                        if parsing_result[2] is not None:
+                            for k in range(len(parsing_result[2])):
+                                condition = _parse_param_value(parsing_result[2][k], decimalPoint)
+                                if condition is not None:
+                                    #напряжение
+                                    if string_equal(condition[1], ('V', 'В'), True):
+                                        component.DIODE_capacitance_voltage = condition[0]
+                                        parsing_result[2][k] = ''
+                                        continue
+                                    #частота
+                                    if string_equal(condition[1], ('Hz', 'Гц'), True):
+                                        component.DIODE_capacitance_frequency = condition[0]
+                                        parsing_result[2][k] = ''
+                                        continue
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
 
-                parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
-                if parsing_result is not None:
-                    if parsing_result[0] is not None:
-                        #частота и допуск
-                        if component.OSC_frequency is None:
-                            if string_equal(parsing_result[0][1], ('Hz', 'Гц'), True):
-                                component.OSC_frequency = parsing_result[0][0]
-                                #допуск
-                                if parsing_result[1] is not None:
-                                    component.OSC_tolerance = parsing_result[1]
-                                else:
-                                    component.flag = component.FlagType.ERROR
-                                    errors += 1
-                                    print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
 
-                        #ёмкость нагрузки
-                        if component.OSC_loadCapacitance is None:
-                            if string_equal(parsing_result[0][1], ('F', 'Ф'), True):
-                                component.OSC_loadCapacitance = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
+    #Тиристор
+    elif type(component) is component.types.Thyristor:
+        pass
 
-                        #эквивалентное последовательное сопротивление
-                        if component.OSC_ESR is None:
-                            if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
-                                component.OSC_ESR = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
+    #Транзистор
+    elif type(component) is component.types.Transistor:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #сборка
+            parsing_result = _parse_param_array(descriptionParams[j])
+            if parsing_result is not None:
+                component.GENERIC_array = parsing_result
+                descriptionParams[j] = '' #clear parsed parameter
+                continue
 
-                        #уровень возбуждения
-                        if component.OSC_driveLevel is None:
-                            if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
-                                component.OSC_driveLevel = parsing_result[0][0]
-                                #clear parsed parameter and go to next param
-                                descriptionParams[j] = ''
-                                continue
-                    else:
-                        #стабильность частоты
-                        if component.OSC_frequency is not None:
-                            if parsing_result[1] is not None:
-                                if parsing_result[1][2] is None:
-                                    component.OSC_stability = parsing_result[1]
+    #Оптоизолятор
+    elif type(component) is component.types.Optoisolator:
+        #Определяем тип по разновидности компонента
+        if string_equal(component.GENERIC_kind, ("Optocoupler", "Оптопара"), False):
+            component.OPTOISO_outputType = component.OutputType.TRANSISTOR
+        elif string_equal(component.GENERIC_kind, ("Phototriac", "Оптосимистор"), False):
+            component.OPTOISO_outputType = component.OutputType.TRIAC
+
+    #Соединитель
+    elif type(component) is component.types.Connector:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #пол
+            if component.CON_gender is None:
+                if string_equal(descriptionParams[j], ('plug', 'вилка', 'male', 'папа'), False):
+                    component.CON_gender = component.Gender.PLUG
+                elif string_equal(descriptionParams[j], ('receptacle', 'socket', 'розетка', 'female', 'мама'), False):
+                    component.CON_gender = component.Gender.RECEPTACLE
+                #завершаем обработку если нашли нужный параметр
+                if component.CON_gender is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+    #Фильтр ЭМП
+    elif type(component) is component.types.EMIFilter:
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип фильтра
+            if component.EMIF_type is None:
+                if string_equal(descriptionParams[0], ('ферритовая бусина', 'фер. бус.'), False):
+                    component.EMIF_type = component.Type.FERRITE_BEAD
+                elif string_equal(descriptionParams[0], ('синфазный дроссель', 'синф. дроссель', 'синф. др.'), False):
+                    component.EMIF_type = component.Type.COMMON_MODE_CHOKE
+                #завершаем обработку если нашли нужный параметр
+                if component.EMIF_type is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            #тип монтажа и типоразмер
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            parsing_result = _parse_param_valueWithToleranceAtConditions(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                #импеданс
+                if component.EMIF_impedance is None:
+                    if parsing_result[2] is not None:
+                        conditions = _parse_param_value(parsing_result[2][0], decimalPoint)
+                        if conditions is not None:
+                            if string_equal(conditions[1], ('Hz', 'Гц'), True):
+                                if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
+                                    component.EMIF_impedance = parsing_result[0][0]
+                                    component.EMIF_impedance_frequency = conditions[0]
+                                    #допуск
+                                    if parsing_result[1] is not None:
+                                        component.EMIF_impedance_tolerance = parsing_result[1]
+                                    else:
+                                        component.flag = component.FlagType.ERROR
+                                        stats[0] += 1
+                                        print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
                                     #clear parsed parameter and go to next param
                                     descriptionParams[j] = ''
                                     continue
 
-                #гармоника
-                if component.OSC_overtone is None:
-                    if string_equal(descriptionParams[j], ('фунд.', 'fundamental'), False):
-                        component.OSC_overtone = 1
-                    elif string_equal(descriptionParams[j], ('3 гарм.', '3rd overtone'), False):
-                        component.OSC_overtone = 3
-                    #завершаем обработку если нашли нужный параметр
-                    if component.OSC_overtone is not None:   
-                        descriptionParams[j] = '' #clear parsed parameter
+                #индуктивность
+                if component.EMIF_inductance is None:
+                    if string_equal(parsing_result[0][1], ('H', 'Гн'), True):
+                        component.EMIF_inductance = parsing_result[0][0]
+                        #допуск
+                        if parsing_result[1] is not None:
+                            component.EMIF_inductance_tolerance = parsing_result[1]
+                        else:
+                            component.flag = component.FlagType.ERROR
+                            stats[0] += 1
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
                         continue
 
-        #Неопознанный элемент
-        else:
-            pass
+                #ток
+                if component.EMIF_current is None:
+                    if string_equal(parsing_result[0][1], ('A', 'А'), True):
+                        component.EMIF_current = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
 
-        #Move remaining unparsed parameters to misc array
-        for param in descriptionParams:
-            if len(param) > 0: component.GENERIC_misc.append(param)
+                #напряжение
+                if component.EMIF_voltage is None:
+                    if string_equal(parsing_result[0][1], ('V', 'В'), True):
+                        component.EMIF_voltage = parsing_result[0][0]
+                        #clear parsed parameter and go to next param
+                        descriptionParams[j] = ''
+                        continue
+
+                #активное сопротивление
+                if component.EMIF_resistance is None:
+                    if string_equal(parsing_result[2][0], ("DC", )):
+                        if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
+                            component.EMIF_resistance = parsing_result[0][0]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
+            
+    #Осциллятор (Резонатор)
+    elif type(component) is component.types.Oscillator:
+        #Определяем тип по разновидности компонента
+        if string_equal(component.GENERIC_kind, ("Oscillator", "Осциллятор"), False):
+            component.OSC_type = component.Type.OSCILLATOR
+        elif string_equal(component.GENERIC_kind, ("Resonator", "Резонатор", ), False):
+            component.OSC_type = component.Type.RESONATOR
         
-        #добавление элемента в массив
-        components.entries.append(component)
-    
-    if warnings + errors == 0: 
-        print('done (' + str(len(components.entries)) + ' components created)')
-    else:
-        print('\n' + ' ' * 12 + 'completed with ' + str(errors) + ' errors and ' +  str(warnings) + ' warnings.')
+        #Parsing params
+        for j in range(len(descriptionParams)):
+            #тип резонатора
+            if component.OSC_structure is None:
+                if string_equal(descriptionParams[j], ('кварцевый', 'кварц.'), False):
+                    component.OSC_structure = component.Structure.QUARTZ
+                elif string_equal(descriptionParams[j], ('керамический', 'керам.'), False):
+                    component.OSC_structure = component.Structure.CERAMIC
+                #завершаем обработку если нашли нужный параметр
+                if component.OSC_structure is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
 
-    designer_check(components)
+            #тип монтажа и типоразмер (поидее не надо, но пусть будет)
+            if component.GENERIC_mount is None:
+                if _parse_param_mountandsize(descriptionParams[j], component):
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            #диапазон рабочих температур
+            if component.GENERIC_temperature_range is None:
+                parsing_result = _parse_param_temperatureRange(descriptionParams[j], decimalPoint)
+                if parsing_result is not None:
+                    component.GENERIC_temperature_range = parsing_result
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+            parsing_result = _parse_param_valueWithTolerance(descriptionParams[j], decimalPoint)
+            if parsing_result is not None:
+                if parsing_result[0] is not None:
+                    #частота и допуск
+                    if component.OSC_frequency is None:
+                        if string_equal(parsing_result[0][1], ('Hz', 'Гц'), True):
+                            component.OSC_frequency = parsing_result[0][0]
+                            #допуск
+                            if parsing_result[1] is not None:
+                                component.OSC_tolerance = parsing_result[1]
+                            else:
+                                component.flag = component.FlagType.ERROR
+                                stats[0] += 1
+                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
+
+                    #ёмкость нагрузки
+                    if component.OSC_loadCapacitance is None:
+                        if string_equal(parsing_result[0][1], ('F', 'Ф'), True):
+                            component.OSC_loadCapacitance = parsing_result[0][0]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
+
+                    #эквивалентное последовательное сопротивление
+                    if component.OSC_ESR is None:
+                        if string_equal(parsing_result[0][1], ('Ohm', 'Ом'), True):
+                            component.OSC_ESR = parsing_result[0][0]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
+
+                    #уровень возбуждения
+                    if component.OSC_driveLevel is None:
+                        if string_equal(parsing_result[0][1], ('W', 'Вт'), True):
+                            component.OSC_driveLevel = parsing_result[0][0]
+                            #clear parsed parameter and go to next param
+                            descriptionParams[j] = ''
+                            continue
+                else:
+                    #стабильность частоты
+                    if component.OSC_frequency is not None:
+                        if parsing_result[1] is not None:
+                            if parsing_result[1][2] is None:
+                                component.OSC_stability = parsing_result[1]
+                                #clear parsed parameter and go to next param
+                                descriptionParams[j] = ''
+                                continue
+
+            #гармоника
+            if component.OSC_overtone is None:
+                if string_equal(descriptionParams[j], ('фунд.', 'fundamental'), False):
+                    component.OSC_overtone = 1
+                elif string_equal(descriptionParams[j], ('3 гарм.', '3rd overtone'), False):
+                    component.OSC_overtone = 3
+                #завершаем обработку если нашли нужный параметр
+                if component.OSC_overtone is not None:   
+                    descriptionParams[j] = '' #clear parsed parameter
+                    continue
+
+    #Неопознанный элемент
+    else:
+        pass
+
+    #Move remaining unparsed parameters to misc array
+    for param in descriptionParams:
+        if len(param) > 0: component.GENERIC_misc.append(param)
+
+    #--- сопутсвующие компоненты
+    if 'BOM_accessory' in bom_entry:
+        accessories = bom_entry['BOM_accessory']
+        if len(accessories) > 0:                                            #проверяем пустое ли поле
+            component.GENERIC_accessory_child = []                              #создаём пустой список чтобы добавлять в него элементы
+            accessories = accessories.split(';')
+            for accessory in accessories:
+                accessory_bom = {
+                    'Designator': "",
+                    'BOM_type': "",
+                    'BOM_value': "",
+                    'BOM_description': "",
+                    'BOM_manufacturer': "",
+                    'BOM_explicit': "",
+                    'BOM_substitute': "",
+                    'BOM_note': "",
+                    'Footprint': "",
+                    'Quantity': "1",
+                    'Fitted': "Fitted",
+                    'BOM_accessory': ""
+                    }
+                
+                accessory = string_extract_enclosed(accessory, ['(', ')'], 0, -1, 1, True)
+                if len(accessory) > 1: accessory_bom['BOM_description'] = accessory[1].strip(' ')
+                accessory = accessory[0]
+
+                accessory = string_extract_enclosed(accessory, ['[', ']'], 0, -1, 1, True)
+                if len(accessory) > 1: accessory_bom['BOM_substitute'] = accessory[1].strip(' ')
+                accessory = accessory[0]
+
+                if '*' in accessory:
+                    accessory = accessory.split('*', 1)
+                    accessory_bom['BOM_note'] = accessory[1].strip(' ')
+                    accessory = accessory[0]
+
+                if '#' in accessory:
+                    accessory = accessory.split('#', 1)
+                    accessory_bom['Quantity'] = accessory[1].strip(' ')
+                    accessory = accessory[0]
+
+                if '^' in accessory:
+                    accessory = accessory.split('^', 1)
+                    accessory_bom['BOM_explicit'] = accessory[1].strip(' ')
+                    accessory = accessory[0]
+
+                if '@' in accessory:
+                    accessory = accessory.split('@', 1)
+                    accessory_bom['BOM_manufacturer'] = accessory[1].strip(' ')
+                    accessory = accessory[0]
+
+                if ':' in accessory:
+                    accessory = accessory.split(':', 1)
+                    accessory_bom['BOM_type'] = accessory[0].strip(' ')
+                    accessory_bom['BOM_value'] = accessory[1].strip(' ')
+                else: 
+                    accessory_bom['BOM_value'] = accessory
+                    stats[0] += 1
+                    print('error')
+
+                accessory_component = _parse_component(accessory_bom, component, stats)
+                accessory_component.GENERIC_quantity *= component.GENERIC_quantity          #количество дочернего компонента умножается на количество родительского
+                component.GENERIC_accessory_child.append(accessory_component)
+
+    return component
 
 #разбор параметра: тип монтажа и типоразмер
 def _parse_param_mountandsize(param, component):
@@ -1692,10 +1819,10 @@ def _parse_param_array(param):
         asm_elements = 0
         asm_type = Components_typeDef.ComponentTypes.Generic.ArrayType.UNKNOWN
         
-        param = param.split(' ')
+        param = param.split(' ', 1)
         if len(param) > 1:
             #тип
-            asm_formula = param[1]
+            asm_formula = param[1].replace(' ', '')
             asm_type = ''
             pos = len(asm_formula) - 1
             while pos >= 0:
@@ -1783,7 +1910,7 @@ def designer_check(components):
                 if components.entries[i].GENERIC_value == components.entries[j].GENERIC_value and (components.entries[i].GENERIC_description != components.entries[j].GENERIC_description or components.entries[i].GENERIC_package != components.entries[j].GENERIC_package):
                     components.entries[i].flag = components.entries[i].FlagType.WARNING
                     components.entries[j].flag = components.entries[j].FlagType.WARNING
-                    print('\n' + ' ' * 12 + 'warning! ' + components.entries[i].GENERIC_designator + ' | ' + components.entries[j].GENERIC_designator  + ' - data mismatch', end = '')
+                    print('\n' + ' ' * 12 + 'warning! ' + str(components.entries[i].GENERIC_designator) + ' | ' + str(components.entries[j].GENERIC_designator)  + ' - data mismatch', end = '')
                     warnings += 1
 
     #проверяем соответствие типоразмера в описании и корпуса для определённых типов компонентов
@@ -1812,7 +1939,7 @@ def designer_check(components):
                     flag_packageSizeMismatch = True
         if flag_packageSizeMismatch:
             component.flag = component.FlagType.ERROR
-            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - size and package mismatch', end = '', flush = True)
+            print('\n' + ' ' * 12 + 'error! ' + str(component.GENERIC_designator) + ' - size and package mismatch', end = '', flush = True)
             errors += 1
 
     #проверяем пустые поля в допустимых заменах
