@@ -23,8 +23,9 @@ def export(data, address, **kwargs):
     data_tmpAddress  = os.path.join(outputDirectory, script_baseName + '-data' + os.extsep + 'csv')
     tb_tmpAddress   = os.path.join(outputDirectory, script_baseName + '-tb' + os.extsep + 'csv')
 
+    titleblock = data.titleblock if data.titleblock is not None else {}
     #фикс бага что если имя документа пустое то MiKTeX не может собрать комбинированную строку
-    tb01a_DocumentName = data.titleBlock.tb01a_DocumentName
+    tb01a_DocumentName = titleblock.get('01a_product_name', '')
     if len(tb01a_DocumentName) == 0: tb01a_DocumentName = '-'
 
     #экспортируем данные в CSV для передачи в MiKTeX
@@ -57,29 +58,29 @@ def export(data, address, **kwargs):
         writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerow({'Document name': tb01a_DocumentName,
-                        'Document type': data.titleBlock.tb01b_DocumentType,
-                        'Document designator': data.titleBlock.tb02_DocumentDesignator,
-                        'Letter (left)': data.titleBlock.tb04_Letter_left, 'Letter (middle)': data.titleBlock.tb04_Letter_middle, 'Letter (right)': data.titleBlock.tb04_Letter_right,
-                        'Sheet index': data.titleBlock.tb07_SheetIndex, 'Sheets total': data.titleBlock.tb08_SheetsTotal,
-                        'Organization': data.titleBlock.tb09_Organization,
-                        'Extra activity type': data.titleBlock.tb10d_ActivityType_Extra,
-                        'Designer name': data.titleBlock.tb11a_Name_Designer,
-                        'Checker name': data.titleBlock.tb11b_Name_Checker,
-                        'Technical supervisor name': data.titleBlock.tb11c_Name_TechnicalSupervisor,
-                        'Extra activity name': data.titleBlock.tb11d_Name_Extra,
-                        'Normative supervisor name': data.titleBlock.tb11e_Name_NormativeSupervisor,
-                        'Approver name': data.titleBlock.tb11f_Name_Approver,
-                        'Designer signature date': data.titleBlock.tb13a_SignatureDate_Designer,
-                        'Checker signature date': data.titleBlock.tb13b_SignatureDate_Checker,
-                        'Technical supervisor signature date': data.titleBlock.tb13c_SignatureDate_TechnicalSupervisor,
-                        'Extra activity signature date': data.titleBlock.tb13d_SignatureDate_Extra,
-                        'Normative supervisor signature date': data.titleBlock.tb13e_SignatureDate_NormativeSupervisor,
-                        'Approver signature date': data.titleBlock.tb13f_SignatureDate_Approver,
-                        'Original inventory number': data.titleBlock.tb19_OriginalInventoryNumber, 
-                        'Replaced original inventory number': data.titleBlock.tb21_ReplacedOriginalInventoryNumber, 
-                        'Duplicate inventory number': data.titleBlock.tb22_DuplicateInventoryNumber, 
-                        'Base document designator': data.titleBlock.tb24_BaseDocumentDesignator,
-                        'First reference document designator': data.titleBlock.tb25_FirstReferenceDocumentDesignator})
+                        'Document type': titleblock.get('01b_document_type', ''),
+                        'Document designator': titleblock.get('02_document_designator', ''),
+                        'Letter (left)': titleblock.get('04_letter_left', ''), 'Letter (middle)': titleblock.get('04_letter_middle', ''), 'Letter (right)': titleblock.get('04_letter_right', ''),
+                        'Sheet index': titleblock.get('07_sheet_index', ''), 'Sheets total': titleblock.get('08_sheet_total', ''),
+                        'Organization': titleblock.get('09_organization', ''),
+                        'Extra activity type': titleblock.get('10d_activityType_extra', ''),
+                        'Designer name': titleblock.get('11a_name_designer', ''),
+                        'Checker name': titleblock.get('11b_name_checker', ''),
+                        'Technical supervisor name': titleblock.get('11c_name_technicalSupervisor', ''),
+                        'Extra activity name': titleblock.get('11d_name_extra', ''),
+                        'Normative supervisor name': titleblock.get('11e_name_normativeSupervisor', ''),
+                        'Approver name': titleblock.get('11f_name_approver', ''),
+                        'Designer signature date': titleblock.get('13a_signatureDate_designer', ''),
+                        'Checker signature date': titleblock.get('13b_signatureDate_checker', ''),
+                        'Technical supervisor signature date': titleblock.get('13c_signatureDate_technicalSupervisor', ''),
+                        'Extra activity signature date': titleblock.get('13d_signatureDate_extra', ''),
+                        'Normative supervisor signature date': titleblock.get('13e_signatureDate_normativeSupervisor', ''),
+                        'Approver signature date': titleblock.get('13f_signatureDate_approver', ''),
+                        'Original inventory number': titleblock.get('19_original_inventoryNumber', ''), 
+                        'Replaced original inventory number': titleblock.get('21_replacedOriginal_inventoryNumber', ''), 
+                        'Duplicate inventory number': titleblock.get('22_duplicate_inventoryNumber', ''), 
+                        'Base document designator': titleblock.get('24_baseDocument_designator', ''),
+                        'First reference document designator': titleblock.get('25_firstReferenceDocument_designator', '')})
         csvFile.close()
     #--- перечень элементов
     with open(data_tmpAddress, 'w', encoding='utf-8', newline='') as csvFile:

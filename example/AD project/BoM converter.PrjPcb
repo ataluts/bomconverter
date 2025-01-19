@@ -3,7 +3,7 @@ Version=1.0
 HierarchyMode=0
 ChannelRoomNamingStyle=0
 ReleasesFolder=
-ChannelDesignatorFormatString=$Component_$RoomName
+ChannelDesignatorFormatString=$Component$ChannelAlpha
 ChannelRoomLevelSeperator=_
 OpenOutputs=1
 ArchiveProject=0
@@ -56,6 +56,91 @@ GenerateClassCluster=0
 DocumentUniqueId=BTEUFDFS
 
 [Document2]
+DocumentPath=inventory.SchDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=1
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=GKLPIFJJ
+
+[Document3]
+DocumentPath=grouping.SchDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=2
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=KQFUBPLF
+
+[Document4]
+DocumentPath=multichannel.SchDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=3
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=VNUAYIVY
+
+[Document5]
+DocumentPath=LPF.SchDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=4
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=YPCXUTMW
+
+[Document6]
+DocumentPath=HPF.SchDoc
+AnnotationEnabled=1
+AnnotateStartValue=1
+AnnotationIndexControlEnabled=0
+AnnotateSuffix=
+AnnotateScope=All
+AnnotateOrder=5
+DoLibraryUpdate=1
+DoDatabaseUpdate=1
+ClassGenCCAutoEnabled=1
+ClassGenCCAutoRoomEnabled=1
+ClassGenNCAutoScope=None
+DItemRevisionGUID=
+GenerateClassCluster=0
+DocumentUniqueId=HDDBSCHP
+
+[Document7]
 DocumentPath=PCB.PcbDoc
 AnnotationEnabled=1
 AnnotateStartValue=1
@@ -85,21 +170,991 @@ UniqueID=139685CA-D300-4AC0-ADC2-3BD86F549F61
 Description=config 1
 AllowFabrication=0
 ParameterCount=0
-VariationCount=2
-Variation1=Designator=J3|UniqueId=\IDSYTGYV|Kind=1|AlternatePart= 
-Variation2=Designator=J4|UniqueId=\BJEUGEFR|Kind=1|AlternatePart= 
-ParamVariationCount=0
+VariationCount=70
+Variation1=Designator=R10|UniqueId=\UAOCNQIK\BUQVVIEB|Kind=0|AlternatePart= 
+ParamVariation1=ParameterName=BOM_description|VariantValue=чип 0603, 300кќм ±1%
+ParamDesignator1=R10
+ParamVariation2=ParameterName=BOM_value|VariantValue=RC0603FR-07300KL
+ParamDesignator2=R10
+Variation2=Designator=R12|UniqueId=\UAOCNQIK\URSDQOVO|Kind=0|AlternatePart= 
+ParamVariation3=ParameterName=BOM_description|VariantValue=чип 0603, 300кќм ±1%
+ParamDesignator3=R12
+ParamVariation4=ParameterName=BOM_value|VariantValue=RC0603FR-07300KL
+ParamDesignator4=R12
+Variation3=Designator=R7|UniqueId=\UAOCNQIK\DAEAAAYE|Kind=0|AlternatePart= 
+ParamVariation5=ParameterName=BOM_description|VariantValue=чип 0603, 100кќм ±1%
+ParamDesignator5=R7
+ParamVariation6=ParameterName=BOM_value|VariantValue=RC0603FR-07100KL
+ParamDesignator6=R7
+Variation4=Designator=R8|UniqueId=\UAOCNQIK\GAFOQQUJ|Kind=0|AlternatePart= 
+ParamVariation7=ParameterName=BOM_description|VariantValue=чип 0603, 200кќм ±1%
+ParamDesignator7=R8
+ParamVariation8=ParameterName=BOM_value|VariantValue=RC0603FR-07200KL
+ParamDesignator8=R8
+Variation5=Designator=C19A|UniqueId=\HWAQRLSS\1XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation9=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator9=C19A
+ParamVariation10=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator10=C19A
+ParamVariation11=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator11=C19A
+ParamVariation12=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator12=C19A
+Variation6=Designator=C19B|UniqueId=\HWAQRLSS\2XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation13=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator13=C19B
+ParamVariation14=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator14=C19B
+ParamVariation15=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator15=C19B
+ParamVariation16=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator16=C19B
+Variation7=Designator=C19C|UniqueId=\HWAQRLSS\3XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation17=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator17=C19C
+ParamVariation18=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator18=C19C
+ParamVariation19=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator19=C19C
+ParamVariation20=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator20=C19C
+Variation8=Designator=C19D|UniqueId=\HWAQRLSS\4XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation21=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator21=C19D
+ParamVariation22=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator22=C19D
+ParamVariation23=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator23=C19D
+ParamVariation24=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator24=C19D
+Variation9=Designator=C19E|UniqueId=\HWAQRLSS\5XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation25=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator25=C19E
+ParamVariation26=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator26=C19E
+ParamVariation27=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator27=C19E
+ParamVariation28=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator28=C19E
+Variation10=Designator=C19F|UniqueId=\HWAQRLSS\6XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation29=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator29=C19F
+ParamVariation30=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator30=C19F
+ParamVariation31=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator31=C19F
+ParamVariation32=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator32=C19F
+Variation11=Designator=C19G|UniqueId=\HWAQRLSS\7XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation33=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator33=C19G
+ParamVariation34=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator34=C19G
+ParamVariation35=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator35=C19G
+ParamVariation36=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator36=C19G
+Variation12=Designator=C19H|UniqueId=\HWAQRLSS\8XVOCRVMY\QYPBTSMT|Kind=0|AlternatePart==SCH_value
+ParamVariation37=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator37=C19H
+ParamVariation38=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator38=C19H
+ParamVariation39=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator39=C19H
+ParamVariation40=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator40=C19H
+Variation13=Designator=C20A|UniqueId=\HWAQRLSS\1XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation41=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator41=C20A
+ParamVariation42=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator42=C20A
+ParamVariation43=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator43=C20A
+ParamVariation44=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator44=C20A
+Variation14=Designator=C20B|UniqueId=\HWAQRLSS\2XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation45=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator45=C20B
+ParamVariation46=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator46=C20B
+ParamVariation47=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator47=C20B
+ParamVariation48=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator48=C20B
+Variation15=Designator=C20C|UniqueId=\HWAQRLSS\3XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation49=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator49=C20C
+ParamVariation50=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator50=C20C
+ParamVariation51=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator51=C20C
+ParamVariation52=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator52=C20C
+Variation16=Designator=C20D|UniqueId=\HWAQRLSS\4XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation53=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator53=C20D
+ParamVariation54=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator54=C20D
+ParamVariation55=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator55=C20D
+ParamVariation56=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator56=C20D
+Variation17=Designator=C20E|UniqueId=\HWAQRLSS\5XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation57=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator57=C20E
+ParamVariation58=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator58=C20E
+ParamVariation59=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator59=C20E
+ParamVariation60=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator60=C20E
+Variation18=Designator=C20F|UniqueId=\HWAQRLSS\6XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation61=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator61=C20F
+ParamVariation62=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator62=C20F
+ParamVariation63=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator63=C20F
+ParamVariation64=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator64=C20F
+Variation19=Designator=C20G|UniqueId=\HWAQRLSS\7XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation65=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator65=C20G
+ParamVariation66=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator66=C20G
+ParamVariation67=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator67=C20G
+ParamVariation68=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator68=C20G
+Variation20=Designator=C20H|UniqueId=\HWAQRLSS\8XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation69=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator69=C20H
+ParamVariation70=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator70=C20H
+ParamVariation71=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator71=C20H
+ParamVariation72=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator72=C20H
+Variation21=Designator=C21B|UniqueId=\HWAQRLSS\2XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation73=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator73=C21B
+ParamVariation74=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator74=C21B
+ParamVariation75=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator75=C21B
+ParamVariation76=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator76=C21B
+Variation22=Designator=C21A|UniqueId=\HWAQRLSS\1XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation77=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator77=C21A
+ParamVariation78=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator78=C21A
+ParamVariation79=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator79=C21A
+ParamVariation80=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator80=C21A
+Variation23=Designator=C21C|UniqueId=\HWAQRLSS\3XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation81=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator81=C21C
+ParamVariation82=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator82=C21C
+ParamVariation83=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator83=C21C
+ParamVariation84=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator84=C21C
+Variation24=Designator=C21D|UniqueId=\HWAQRLSS\4XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation85=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator85=C21D
+ParamVariation86=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator86=C21D
+ParamVariation87=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator87=C21D
+ParamVariation88=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator88=C21D
+Variation25=Designator=C21E|UniqueId=\HWAQRLSS\5XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation89=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator89=C21E
+ParamVariation90=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator90=C21E
+ParamVariation91=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator91=C21E
+ParamVariation92=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator92=C21E
+Variation26=Designator=C21F|UniqueId=\HWAQRLSS\6XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation93=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator93=C21F
+ParamVariation94=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator94=C21F
+ParamVariation95=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator95=C21F
+ParamVariation96=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator96=C21F
+Variation27=Designator=C21G|UniqueId=\HWAQRLSS\7XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation97=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator97=C21G
+ParamVariation98=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator98=C21G
+ParamVariation99=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator99=C21G
+ParamVariation100=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator100=C21G
+Variation28=Designator=C21H|UniqueId=\HWAQRLSS\8XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation101=ParameterName=SCH_value|VariantValue=1u
+ParamDesignator101=C21H
+ParamVariation102=ParameterName=BOM_value|VariantValue=CC0603KRX7R7BB105
+ParamDesignator102=C21H
+ParamVariation103=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator103=C21H
+ParamVariation104=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 1мк‘ ±10%, 16¬
+ParamDesignator104=C21H
+Variation29=Designator=R17E|UniqueId=\HWAQRLSS\5WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation105=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator105=R17E
+ParamVariation106=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator106=R17E
+ParamVariation107=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator107=R17E
+ParamVariation108=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator108=R17E
+Variation30=Designator=R17F|UniqueId=\HWAQRLSS\6WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation109=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator109=R17F
+ParamVariation110=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator110=R17F
+ParamVariation111=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator111=R17F
+ParamVariation112=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator112=R17F
+Variation31=Designator=R17G|UniqueId=\HWAQRLSS\7WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation113=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator113=R17G
+ParamVariation114=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator114=R17G
+ParamVariation115=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator115=R17G
+ParamVariation116=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator116=R17G
+Variation32=Designator=R17H|UniqueId=\HWAQRLSS\8WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation117=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator117=R17H
+ParamVariation118=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator118=R17H
+ParamVariation119=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator119=R17H
+ParamVariation120=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator120=R17H
+Variation33=Designator=R18E|UniqueId=\HWAQRLSS\5WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation121=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator121=R18E
+ParamVariation122=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator122=R18E
+ParamVariation123=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator123=R18E
+ParamVariation124=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator124=R18E
+Variation34=Designator=R18F|UniqueId=\HWAQRLSS\6WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation125=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator125=R18F
+ParamVariation126=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator126=R18F
+ParamVariation127=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator127=R18F
+ParamVariation128=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator128=R18F
+Variation35=Designator=R18G|UniqueId=\HWAQRLSS\7WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation129=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator129=R18G
+ParamVariation130=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator130=R18G
+ParamVariation131=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator131=R18G
+ParamVariation132=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator132=R18G
+Variation36=Designator=R18H|UniqueId=\HWAQRLSS\8WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation133=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator133=R18H
+ParamVariation134=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator134=R18H
+ParamVariation135=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator135=R18H
+ParamVariation136=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator136=R18H
+Variation37=Designator=R19E|UniqueId=\HWAQRLSS\5WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation137=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator137=R19E
+ParamVariation138=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator138=R19E
+ParamVariation139=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator139=R19E
+ParamVariation140=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator140=R19E
+Variation38=Designator=R19F|UniqueId=\HWAQRLSS\6WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation141=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator141=R19F
+ParamVariation142=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator142=R19F
+ParamVariation143=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator143=R19F
+ParamVariation144=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator144=R19F
+Variation39=Designator=R19G|UniqueId=\HWAQRLSS\7WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation145=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator145=R19G
+ParamVariation146=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator146=R19G
+ParamVariation147=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator147=R19G
+ParamVariation148=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator148=R19G
+Variation40=Designator=R19H|UniqueId=\HWAQRLSS\8WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation149=ParameterName=BOM_description|VariantValue=чип 0603, 4.7кќм ±1%
+ParamDesignator149=R19H
+ParamVariation150=ParameterName=BOM_value|VariantValue=RC0603FR-074K7L
+ParamDesignator150=R19H
+ParamVariation151=ParameterName=SCH_value|VariantValue=4.7k
+ParamDesignator151=R19H
+ParamVariation152=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator152=R19H
+Variation41=Designator=C14|UniqueId=\UAOCNQIK\GVHQTMSO|Kind=1|AlternatePart= 
+Variation42=Designator=C15|UniqueId=\UAOCNQIK\DYBCEFYO|Kind=1|AlternatePart= 
+Variation43=Designator=C16|UniqueId=\UAOCNQIK\KNXFNKER|Kind=1|AlternatePart= 
+Variation44=Designator=C17|UniqueId=\UAOCNQIK\FUMCFEKR|Kind=1|AlternatePart= 
+Variation45=Designator=C18|UniqueId=\UAOCNQIK\PLEYBOCQ|Kind=1|AlternatePart= 
+Variation46=Designator=L12|UniqueId=\UAOCNQIK\QWDYADUD|Kind=1|AlternatePart= 
+Variation47=Designator=C22E|UniqueId=\HWAQRLSS\5WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation153=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.056мк‘ ±10%, 50¬
+ParamDesignator153=C22E
+ParamVariation154=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB563
+ParamDesignator154=C22E
+ParamVariation155=ParameterName=SCH_value|VariantValue=56n
+ParamDesignator155=C22E
+ParamVariation156=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator156=C22E
+Variation48=Designator=C22A|UniqueId=\HWAQRLSS\1WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation157=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB103
+ParamDesignator157=C22A
+ParamVariation158=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.01мк‘ ±10%, 50¬
+ParamDesignator158=C22A
+ParamVariation159=ParameterName=SCH_value|VariantValue=10n
+ParamDesignator159=C22A
+ParamVariation160=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator160=C22A
+Variation49=Designator=C23A|UniqueId=\HWAQRLSS\1WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation161=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.01мк‘ ±10%, 50¬
+ParamDesignator161=C23A
+ParamVariation162=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB103
+ParamDesignator162=C23A
+ParamVariation163=ParameterName=SCH_value|VariantValue=10n
+ParamDesignator163=C23A
+ParamVariation164=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator164=C23A
+Variation50=Designator=C23H|UniqueId=\HWAQRLSS\8WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation165=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.082мк‘ ±10%, 50¬
+ParamDesignator165=C23H
+ParamVariation166=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB823
+ParamDesignator166=C23H
+ParamVariation167=ParameterName=SCH_value|VariantValue=82n
+ParamDesignator167=C23H
+ParamVariation168=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator168=C23H
+Variation51=Designator=C24A|UniqueId=\HWAQRLSS\1WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation169=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.01мк‘ ±10%, 50¬
+ParamDesignator169=C24A
+ParamVariation170=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB103
+ParamDesignator170=C24A
+ParamVariation171=ParameterName=SCH_value|VariantValue=10n
+ParamDesignator171=C24A
+ParamVariation172=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator172=C24A
+Variation52=Designator=C22C|UniqueId=\HWAQRLSS\3WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation173=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.033мк‘ ±10%, 50¬
+ParamDesignator173=C22C
+ParamVariation174=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB333
+ParamDesignator174=C22C
+ParamVariation175=ParameterName=SCH_value|VariantValue=33n
+ParamDesignator175=C22C
+ParamVariation176=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator176=C22C
+Variation53=Designator=C22B|UniqueId=\HWAQRLSS\2WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation177=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.022мк‘ ±10%, 50¬
+ParamDesignator177=C22B
+ParamVariation178=ParameterName=SCH_value|VariantValue=22n
+ParamDesignator178=C22B
+ParamVariation179=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB223
+ParamDesignator179=C22B
+ParamVariation180=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator180=C22B
+Variation54=Designator=C23B|UniqueId=\HWAQRLSS\2WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation181=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.022мк‘ ±10%, 50¬
+ParamDesignator181=C23B
+ParamVariation182=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB223
+ParamDesignator182=C23B
+ParamVariation183=ParameterName=SCH_value|VariantValue=22n
+ParamDesignator183=C23B
+ParamVariation184=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator184=C23B
+Variation55=Designator=C24B|UniqueId=\HWAQRLSS\2WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation185=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB223
+ParamDesignator185=C24B
+ParamVariation186=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.022мк‘ ±10%, 50¬
+ParamDesignator186=C24B
+ParamVariation187=ParameterName=SCH_value|VariantValue=22n
+ParamDesignator187=C24B
+ParamVariation188=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator188=C24B
+Variation56=Designator=C23C|UniqueId=\HWAQRLSS\3WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation189=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.033мк‘ ±10%, 50¬
+ParamDesignator189=C23C
+ParamVariation190=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB333
+ParamDesignator190=C23C
+ParamVariation191=ParameterName=SCH_value|VariantValue=33n
+ParamDesignator191=C23C
+ParamVariation192=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator192=C23C
+Variation57=Designator=C24E|UniqueId=\HWAQRLSS\5WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation193=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.056мк‘ ±10%, 50¬
+ParamDesignator193=C24E
+ParamVariation194=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB563
+ParamDesignator194=C24E
+ParamVariation195=ParameterName=SCH_value|VariantValue=56n
+ParamDesignator195=C24E
+ParamVariation196=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator196=C24E
+Variation58=Designator=C24C|UniqueId=\HWAQRLSS\3WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation197=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.033мк‘ ±10%, 50¬
+ParamDesignator197=C24C
+ParamVariation198=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB333
+ParamDesignator198=C24C
+ParamVariation199=ParameterName=SCH_value|VariantValue=33n
+ParamDesignator199=C24C
+ParamVariation200=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator200=C24C
+Variation59=Designator=C22D|UniqueId=\HWAQRLSS\4WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation201=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.047мк‘ ±10%, 50¬
+ParamDesignator201=C22D
+ParamVariation202=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB473
+ParamDesignator202=C22D
+ParamVariation203=ParameterName=SCH_value|VariantValue=47n
+ParamDesignator203=C22D
+ParamVariation204=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator204=C22D
+Variation60=Designator=C23E|UniqueId=\HWAQRLSS\5WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation205=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.056мк‘ ±10%, 50¬
+ParamDesignator205=C23E
+ParamVariation206=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB563
+ParamDesignator206=C23E
+ParamVariation207=ParameterName=SCH_value|VariantValue=56n
+ParamDesignator207=C23E
+ParamVariation208=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator208=C23E
+Variation61=Designator=C23D|UniqueId=\HWAQRLSS\4WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation209=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.047мк‘ ±10%, 50¬
+ParamDesignator209=C23D
+ParamVariation210=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB473
+ParamDesignator210=C23D
+ParamVariation211=ParameterName=SCH_value|VariantValue=47n
+ParamDesignator211=C23D
+ParamVariation212=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator212=C23D
+Variation62=Designator=C24D|UniqueId=\HWAQRLSS\4WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation213=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.047мк‘ ±10%, 50¬
+ParamDesignator213=C24D
+ParamVariation214=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB473
+ParamDesignator214=C24D
+ParamVariation215=ParameterName=SCH_value|VariantValue=47n
+ParamDesignator215=C24D
+ParamVariation216=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator216=C24D
+Variation63=Designator=C22F|UniqueId=\HWAQRLSS\6WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation217=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.068мк‘ ±10%, 50¬
+ParamDesignator217=C22F
+ParamVariation218=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB683
+ParamDesignator218=C22F
+ParamVariation219=ParameterName=SCH_value|VariantValue=68n
+ParamDesignator219=C22F
+ParamVariation220=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator220=C22F
+Variation64=Designator=C23F|UniqueId=\HWAQRLSS\6WFVINQYM\VUDPERHP|Kind=0|AlternatePart==SCH_value
+ParamVariation221=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.068мк‘ ±10%, 50¬
+ParamDesignator221=C23F
+ParamVariation222=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB683
+ParamDesignator222=C23F
+ParamVariation223=ParameterName=SCH_value|VariantValue=68n
+ParamDesignator223=C23F
+ParamVariation224=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator224=C23F
+Variation65=Designator=C22G|UniqueId=\HWAQRLSS\7WFVINQYM\QYJNLARE|Kind=1|AlternatePart= 
+Variation66=Designator=C23G|UniqueId=\HWAQRLSS\7WFVINQYM\VUDPERHP|Kind=1|AlternatePart= 
+Variation67=Designator=C24F|UniqueId=\HWAQRLSS\6WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation225=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB683
+ParamDesignator225=C24F
+ParamVariation226=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.068мк‘ ±10%, 50¬
+ParamDesignator226=C24F
+ParamVariation227=ParameterName=SCH_value|VariantValue=68n
+ParamDesignator227=C24F
+ParamVariation228=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator228=C24F
+Variation68=Designator=C24G|UniqueId=\HWAQRLSS\7WFVINQYM\VMHKASBQ|Kind=1|AlternatePart= 
+Variation69=Designator=C22H|UniqueId=\HWAQRLSS\8WFVINQYM\QYJNLARE|Kind=0|AlternatePart==SCH_value
+ParamVariation229=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.082мк‘ ±10%, 50¬
+ParamDesignator229=C22H
+ParamVariation230=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB823
+ParamDesignator230=C22H
+ParamVariation231=ParameterName=SCH_value|VariantValue=82n
+ParamDesignator231=C22H
+ParamVariation232=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator232=C22H
+Variation70=Designator=C24H|UniqueId=\HWAQRLSS\8WFVINQYM\VMHKASBQ|Kind=0|AlternatePart==SCH_value
+ParamVariation233=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.082мк‘ ±10%, 50¬
+ParamDesignator233=C24H
+ParamVariation234=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB823
+ParamDesignator234=C24H
+ParamVariation235=ParameterName=SCH_value|VariantValue=82n
+ParamDesignator235=C24H
+ParamVariation236=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator236=C24H
+ParamVariationCount=236
 
 [ProjectVariant3]
 UniqueID=70A80DF6-AC4E-47E5-B849-1158A083C3C1
 Description=config 2
 AllowFabrication=0
 ParameterCount=0
-VariationCount=3
-Variation1=Designator=J2|UniqueId=\OHTVCKKC|Kind=1|AlternatePart= 
-Variation2=Designator=J4|UniqueId=\BJEUGEFR|Kind=1|AlternatePart= 
-Variation3=Designator=J6|UniqueId=\TJFQAOJJ|Kind=1|AlternatePart= 
-ParamVariationCount=0
+VariationCount=65
+Variation1=Designator=R14H|UniqueId=\HWAQRLSS\8XVOCRVMY\EJFNRRTR|Kind=1|AlternatePart= 
+Variation2=Designator=R15H|UniqueId=\HWAQRLSS\8XVOCRVMY\BQYDVNLN|Kind=1|AlternatePart= 
+Variation3=Designator=R16H|UniqueId=\HWAQRLSS\8XVOCRVMY\PJTPEQQV|Kind=1|AlternatePart= 
+Variation4=Designator=C22H|UniqueId=\HWAQRLSS\8WFVINQYM\QYJNLARE|Kind=1|AlternatePart= 
+Variation5=Designator=C23H|UniqueId=\HWAQRLSS\8WFVINQYM\VUDPERHP|Kind=1|AlternatePart= 
+Variation6=Designator=R17H|UniqueId=\HWAQRLSS\8WFVINQYM\BXUHRLFI|Kind=1|AlternatePart= 
+Variation7=Designator=C24H|UniqueId=\HWAQRLSS\8WFVINQYM\VMHKASBQ|Kind=1|AlternatePart= 
+Variation8=Designator=R18H|UniqueId=\HWAQRLSS\8WFVINQYM\FCXHISUV|Kind=1|AlternatePart= 
+Variation9=Designator=R19H|UniqueId=\HWAQRLSS\8WFVINQYM\XKEJMGWO|Kind=1|AlternatePart= 
+Variation10=Designator=R14G|UniqueId=\HWAQRLSS\7XVOCRVMY\EJFNRRTR|Kind=0|AlternatePart==SCH_value
+ParamVariation1=ParameterName=BOM_description|VariantValue=чип 0603, 7.5кќм ±1%
+ParamDesignator1=R14G
+ParamVariation2=ParameterName=BOM_value|VariantValue=RC0603FR-077K5L
+ParamDesignator2=R14G
+ParamVariation3=ParameterName=SCH_value|VariantValue=7.5k
+ParamDesignator3=R14G
+ParamVariation4=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator4=R14G
+Variation11=Designator=R15G|UniqueId=\HWAQRLSS\7XVOCRVMY\BQYDVNLN|Kind=0|AlternatePart==SCH_value
+ParamVariation5=ParameterName=BOM_description|VariantValue=чип 0603, 7.5кќм ±1%
+ParamDesignator5=R15G
+ParamVariation6=ParameterName=BOM_value|VariantValue=RC0603FR-077K5L
+ParamDesignator6=R15G
+ParamVariation7=ParameterName=SCH_value|VariantValue=7.5k
+ParamDesignator7=R15G
+ParamVariation8=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator8=R15G
+Variation12=Designator=R16G|UniqueId=\HWAQRLSS\7XVOCRVMY\PJTPEQQV|Kind=0|AlternatePart==SCH_value
+ParamVariation9=ParameterName=BOM_description|VariantValue=чип 0603, 7.5кќм ±1%
+ParamDesignator9=R16G
+ParamVariation10=ParameterName=BOM_value|VariantValue=RC0603FR-077K5L
+ParamDesignator10=R16G
+ParamVariation11=ParameterName=SCH_value|VariantValue=7.5k
+ParamDesignator11=R16G
+ParamVariation12=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator12=R16G
+Variation13=Designator=R14B|UniqueId=\HWAQRLSS\2XVOCRVMY\EJFNRRTR|Kind=0|AlternatePart==SCH_value
+ParamVariation13=ParameterName=BOM_description|VariantValue=чип 0603, 2кќм ±1%
+ParamDesignator13=R14B
+ParamVariation14=ParameterName=BOM_value|VariantValue=RC0603FR-072KL
+ParamDesignator14=R14B
+ParamVariation15=ParameterName=SCH_value|VariantValue=2k
+ParamDesignator15=R14B
+ParamVariation16=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator16=R14B
+Variation14=Designator=R15B|UniqueId=\HWAQRLSS\2XVOCRVMY\BQYDVNLN|Kind=0|AlternatePart==SCH_value
+ParamVariation17=ParameterName=BOM_description|VariantValue=чип 0603, 2кќм ±1%
+ParamDesignator17=R15B
+ParamVariation18=ParameterName=BOM_value|VariantValue=RC0603FR-072KL
+ParamDesignator18=R15B
+ParamVariation19=ParameterName=SCH_value|VariantValue=2k
+ParamDesignator19=R15B
+ParamVariation20=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator20=R15B
+Variation15=Designator=R16B|UniqueId=\HWAQRLSS\2XVOCRVMY\PJTPEQQV|Kind=0|AlternatePart==SCH_value
+ParamVariation21=ParameterName=BOM_description|VariantValue=чип 0603, 2кќм ±1%
+ParamDesignator21=R16B
+ParamVariation22=ParameterName=BOM_value|VariantValue=RC0603FR-072KL
+ParamDesignator22=R16B
+ParamVariation23=ParameterName=SCH_value|VariantValue=2k
+ParamDesignator23=R16B
+ParamVariation24=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator24=R16B
+Variation16=Designator=R14C|UniqueId=\HWAQRLSS\3XVOCRVMY\EJFNRRTR|Kind=0|AlternatePart==SCH_value
+ParamVariation25=ParameterName=BOM_description|VariantValue=чип 0603, 3кќм ±1%
+ParamDesignator25=R14C
+ParamVariation26=ParameterName=BOM_value|VariantValue=RC0603FR-073KL
+ParamDesignator26=R14C
+ParamVariation27=ParameterName=SCH_value|VariantValue=3k
+ParamDesignator27=R14C
+ParamVariation28=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator28=R14C
+Variation17=Designator=R15C|UniqueId=\HWAQRLSS\3XVOCRVMY\BQYDVNLN|Kind=0|AlternatePart==SCH_value
+ParamVariation29=ParameterName=BOM_description|VariantValue=чип 0603, 3кќм ±1%
+ParamDesignator29=R15C
+ParamVariation30=ParameterName=BOM_value|VariantValue=RC0603FR-073KL
+ParamDesignator30=R15C
+ParamVariation31=ParameterName=SCH_value|VariantValue=3k
+ParamDesignator31=R15C
+ParamVariation32=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator32=R15C
+Variation18=Designator=R14D|UniqueId=\HWAQRLSS\4XVOCRVMY\EJFNRRTR|Kind=0|AlternatePart==SCH_value
+ParamVariation33=ParameterName=BOM_description|VariantValue=чип 0603, 4.3кќм ±1%
+ParamDesignator33=R14D
+ParamVariation34=ParameterName=BOM_value|VariantValue=RC0603FR-074K3L
+ParamDesignator34=R14D
+ParamVariation35=ParameterName=SCH_value|VariantValue=4.3k
+ParamDesignator35=R14D
+ParamVariation36=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator36=R14D
+Variation19=Designator=R14E|UniqueId=\HWAQRLSS\5XVOCRVMY\EJFNRRTR|Kind=0|AlternatePart==SCH_value
+ParamVariation37=ParameterName=BOM_description|VariantValue=чип 0603, 5.1кќм ±1%
+ParamDesignator37=R14E
+ParamVariation38=ParameterName=BOM_value|VariantValue=RC0603FR-075K1L
+ParamDesignator38=R14E
+ParamVariation39=ParameterName=SCH_value|VariantValue=5.1k
+ParamDesignator39=R14E
+ParamVariation40=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator40=R14E
+Variation20=Designator=R14F|UniqueId=\HWAQRLSS\6XVOCRVMY\EJFNRRTR|Kind=0|AlternatePart==SCH_value
+ParamVariation41=ParameterName=BOM_description|VariantValue=чип 0603, 6.2кќм ±1%
+ParamDesignator41=R14F
+ParamVariation42=ParameterName=BOM_value|VariantValue=RC0603FR-076K2L
+ParamDesignator42=R14F
+ParamVariation43=ParameterName=SCH_value|VariantValue=6.2k
+ParamDesignator43=R14F
+ParamVariation44=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator44=R14F
+Variation21=Designator=R16C|UniqueId=\HWAQRLSS\3XVOCRVMY\PJTPEQQV|Kind=0|AlternatePart==SCH_value
+ParamVariation45=ParameterName=BOM_description|VariantValue=чип 0603, 3кќм ±1%
+ParamDesignator45=R16C
+ParamVariation46=ParameterName=BOM_value|VariantValue=RC0603FR-073KL
+ParamDesignator46=R16C
+ParamVariation47=ParameterName=SCH_value|VariantValue=3k
+ParamDesignator47=R16C
+ParamVariation48=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator48=R16C
+Variation22=Designator=R15D|UniqueId=\HWAQRLSS\4XVOCRVMY\BQYDVNLN|Kind=0|AlternatePart==SCH_value
+ParamVariation49=ParameterName=BOM_description|VariantValue=чип 0603, 4.3кќм ±1%
+ParamDesignator49=R15D
+ParamVariation50=ParameterName=BOM_value|VariantValue=RC0603FR-074K3L
+ParamDesignator50=R15D
+ParamVariation51=ParameterName=SCH_value|VariantValue=4.3k
+ParamDesignator51=R15D
+ParamVariation52=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator52=R15D
+Variation23=Designator=R16D|UniqueId=\HWAQRLSS\4XVOCRVMY\PJTPEQQV|Kind=0|AlternatePart==SCH_value
+ParamVariation53=ParameterName=BOM_description|VariantValue=чип 0603, 4.3кќм ±1%
+ParamDesignator53=R16D
+ParamVariation54=ParameterName=BOM_value|VariantValue=RC0603FR-074K3L
+ParamDesignator54=R16D
+ParamVariation55=ParameterName=SCH_value|VariantValue=4.3k
+ParamDesignator55=R16D
+ParamVariation56=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator56=R16D
+Variation24=Designator=R15E|UniqueId=\HWAQRLSS\5XVOCRVMY\BQYDVNLN|Kind=0|AlternatePart==SCH_value
+ParamVariation57=ParameterName=BOM_description|VariantValue=чип 0603, 5.1кќм ±1%
+ParamDesignator57=R15E
+ParamVariation58=ParameterName=BOM_value|VariantValue=RC0603FR-075K1L
+ParamDesignator58=R15E
+ParamVariation59=ParameterName=SCH_value|VariantValue=5.1k
+ParamDesignator59=R15E
+ParamVariation60=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator60=R15E
+Variation25=Designator=R16E|UniqueId=\HWAQRLSS\5XVOCRVMY\PJTPEQQV|Kind=0|AlternatePart==SCH_value
+ParamVariation61=ParameterName=BOM_description|VariantValue=чип 0603, 5.1кќм ±1%
+ParamDesignator61=R16E
+ParamVariation62=ParameterName=BOM_value|VariantValue=RC0603FR-075K1L
+ParamDesignator62=R16E
+ParamVariation63=ParameterName=SCH_value|VariantValue=5.1k
+ParamDesignator63=R16E
+ParamVariation64=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator64=R16E
+Variation26=Designator=R15F|UniqueId=\HWAQRLSS\6XVOCRVMY\BQYDVNLN|Kind=0|AlternatePart==SCH_value
+ParamVariation65=ParameterName=BOM_description|VariantValue=чип 0603, 6.2кќм ±1%
+ParamDesignator65=R15F
+ParamVariation66=ParameterName=BOM_value|VariantValue=RC0603FR-076K2L
+ParamDesignator66=R15F
+ParamVariation67=ParameterName=SCH_value|VariantValue=6.2k
+ParamDesignator67=R15F
+ParamVariation68=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator68=R15F
+Variation27=Designator=R16F|UniqueId=\HWAQRLSS\6XVOCRVMY\PJTPEQQV|Kind=0|AlternatePart==SCH_value
+ParamVariation69=ParameterName=BOM_description|VariantValue=чип 0603, 6.2кќм ±1%
+ParamDesignator69=R16F
+ParamVariation70=ParameterName=BOM_value|VariantValue=RC0603FR-076K2L
+ParamDesignator70=R16F
+ParamVariation71=ParameterName=SCH_value|VariantValue=6.2k
+ParamDesignator71=R16F
+ParamVariation72=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator72=R16F
+Variation28=Designator=R18B|UniqueId=\HWAQRLSS\2WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation73=ParameterName=BOM_description|VariantValue=чип 0603, 2кќм ±1%
+ParamDesignator73=R18B
+ParamVariation74=ParameterName=BOM_value|VariantValue=RC0603FR-072KL
+ParamDesignator74=R18B
+ParamVariation75=ParameterName=SCH_value|VariantValue=2k
+ParamDesignator75=R18B
+ParamVariation76=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator76=R18B
+Variation29=Designator=R19B|UniqueId=\HWAQRLSS\2WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation77=ParameterName=BOM_description|VariantValue=чип 0603, 2кќм ±1%
+ParamDesignator77=R19B
+ParamVariation78=ParameterName=BOM_value|VariantValue=RC0603FR-072KL
+ParamDesignator78=R19B
+ParamVariation79=ParameterName=SCH_value|VariantValue=2k
+ParamDesignator79=R19B
+ParamVariation80=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator80=R19B
+Variation30=Designator=R18C|UniqueId=\HWAQRLSS\3WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation81=ParameterName=BOM_description|VariantValue=чип 0603, 3кќм ±1%
+ParamDesignator81=R18C
+ParamVariation82=ParameterName=BOM_value|VariantValue=RC0603FR-073KL
+ParamDesignator82=R18C
+ParamVariation83=ParameterName=SCH_value|VariantValue=3k
+ParamDesignator83=R18C
+ParamVariation84=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator84=R18C
+Variation31=Designator=R17C|UniqueId=\HWAQRLSS\3WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation85=ParameterName=BOM_description|VariantValue=чип 0603, 3кќм ±1%
+ParamDesignator85=R17C
+ParamVariation86=ParameterName=BOM_value|VariantValue=RC0603FR-073KL
+ParamDesignator86=R17C
+ParamVariation87=ParameterName=SCH_value|VariantValue=3k
+ParamDesignator87=R17C
+ParamVariation88=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator88=R17C
+Variation32=Designator=R19C|UniqueId=\HWAQRLSS\3WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation89=ParameterName=BOM_description|VariantValue=чип 0603, 3кќм ±1%
+ParamDesignator89=R19C
+ParamVariation90=ParameterName=BOM_value|VariantValue=RC0603FR-073KL
+ParamDesignator90=R19C
+ParamVariation91=ParameterName=SCH_value|VariantValue=3k
+ParamDesignator91=R19C
+ParamVariation92=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator92=R19C
+Variation33=Designator=R17D|UniqueId=\HWAQRLSS\4WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation93=ParameterName=BOM_description|VariantValue=чип 0603, 4.3кќм ±1%
+ParamDesignator93=R17D
+ParamVariation94=ParameterName=BOM_value|VariantValue=RC0603FR-074K3L
+ParamDesignator94=R17D
+ParamVariation95=ParameterName=SCH_value|VariantValue=4.3k
+ParamDesignator95=R17D
+ParamVariation96=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator96=R17D
+Variation34=Designator=R18D|UniqueId=\HWAQRLSS\4WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation97=ParameterName=BOM_description|VariantValue=чип 0603, 4.3кќм ±1%
+ParamDesignator97=R18D
+ParamVariation98=ParameterName=BOM_value|VariantValue=RC0603FR-074K3L
+ParamDesignator98=R18D
+ParamVariation99=ParameterName=SCH_value|VariantValue=4.3k
+ParamDesignator99=R18D
+ParamVariation100=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator100=R18D
+Variation35=Designator=R19D|UniqueId=\HWAQRLSS\4WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation101=ParameterName=BOM_description|VariantValue=чип 0603, 4.3кќм ±1%
+ParamDesignator101=R19D
+ParamVariation102=ParameterName=BOM_value|VariantValue=RC0603FR-074K3L
+ParamDesignator102=R19D
+ParamVariation103=ParameterName=SCH_value|VariantValue=4.3k
+ParamDesignator103=R19D
+ParamVariation104=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator104=R19D
+Variation36=Designator=R17E|UniqueId=\HWAQRLSS\5WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation105=ParameterName=BOM_description|VariantValue=чип 0603, 5.1кќм ±1%
+ParamDesignator105=R17E
+ParamVariation106=ParameterName=BOM_value|VariantValue=RC0603FR-075K1L
+ParamDesignator106=R17E
+ParamVariation107=ParameterName=SCH_value|VariantValue=5.1k
+ParamDesignator107=R17E
+ParamVariation108=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator108=R17E
+Variation37=Designator=R18E|UniqueId=\HWAQRLSS\5WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation109=ParameterName=BOM_description|VariantValue=чип 0603, 5.1кќм ±1%
+ParamDesignator109=R18E
+ParamVariation110=ParameterName=BOM_value|VariantValue=RC0603FR-075K1L
+ParamDesignator110=R18E
+ParamVariation111=ParameterName=SCH_value|VariantValue=5.1k
+ParamDesignator111=R18E
+ParamVariation112=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator112=R18E
+Variation38=Designator=R19E|UniqueId=\HWAQRLSS\5WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation113=ParameterName=BOM_description|VariantValue=чип 0603, 5.1кќм ±1%
+ParamDesignator113=R19E
+ParamVariation114=ParameterName=BOM_value|VariantValue=RC0603FR-075K1L
+ParamDesignator114=R19E
+ParamVariation115=ParameterName=SCH_value|VariantValue=5.1k
+ParamDesignator115=R19E
+ParamVariation116=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator116=R19E
+Variation39=Designator=R17F|UniqueId=\HWAQRLSS\6WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation117=ParameterName=BOM_description|VariantValue=чип 0603, 6.2кќм ±1%
+ParamDesignator117=R17F
+ParamVariation118=ParameterName=BOM_value|VariantValue=RC0603FR-076K2L
+ParamDesignator118=R17F
+ParamVariation119=ParameterName=SCH_value|VariantValue=6.2k
+ParamDesignator119=R17F
+ParamVariation120=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator120=R17F
+Variation40=Designator=R18F|UniqueId=\HWAQRLSS\6WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation121=ParameterName=BOM_description|VariantValue=чип 0603, 6.2кќм ±1%
+ParamDesignator121=R18F
+ParamVariation122=ParameterName=BOM_value|VariantValue=RC0603FR-076K2L
+ParamDesignator122=R18F
+ParamVariation123=ParameterName=SCH_value|VariantValue=6.2k
+ParamDesignator123=R18F
+ParamVariation124=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator124=R18F
+Variation41=Designator=R19F|UniqueId=\HWAQRLSS\6WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation125=ParameterName=BOM_description|VariantValue=чип 0603, 6.2кќм ±1%
+ParamDesignator125=R19F
+ParamVariation126=ParameterName=BOM_value|VariantValue=RC0603FR-076K2L
+ParamDesignator126=R19F
+ParamVariation127=ParameterName=SCH_value|VariantValue=6.2k
+ParamDesignator127=R19F
+ParamVariation128=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator128=R19F
+Variation42=Designator=R17G|UniqueId=\HWAQRLSS\7WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation129=ParameterName=BOM_description|VariantValue=чип 0603, 7.5кќм ±1%
+ParamDesignator129=R17G
+ParamVariation130=ParameterName=BOM_value|VariantValue=RC0603FR-077K5L
+ParamDesignator130=R17G
+ParamVariation131=ParameterName=SCH_value|VariantValue=7.5k
+ParamDesignator131=R17G
+ParamVariation132=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator132=R17G
+Variation43=Designator=R18G|UniqueId=\HWAQRLSS\7WFVINQYM\FCXHISUV|Kind=0|AlternatePart==SCH_value
+ParamVariation133=ParameterName=BOM_description|VariantValue=чип 0603, 7.5кќм ±1%
+ParamDesignator133=R18G
+ParamVariation134=ParameterName=BOM_value|VariantValue=RC0603FR-077K5L
+ParamDesignator134=R18G
+ParamVariation135=ParameterName=SCH_value|VariantValue=7.5k
+ParamDesignator135=R18G
+ParamVariation136=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator136=R18G
+Variation44=Designator=R19G|UniqueId=\HWAQRLSS\7WFVINQYM\XKEJMGWO|Kind=0|AlternatePart==SCH_value
+ParamVariation137=ParameterName=BOM_description|VariantValue=чип 0603, 7.5кќм ±1%
+ParamDesignator137=R19G
+ParamVariation138=ParameterName=BOM_value|VariantValue=RC0603FR-077K5L
+ParamDesignator138=R19G
+ParamVariation139=ParameterName=SCH_value|VariantValue=7.5k
+ParamDesignator139=R19G
+ParamVariation140=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator140=R19G
+Variation45=Designator=R17B|UniqueId=\HWAQRLSS\2WFVINQYM\BXUHRLFI|Kind=0|AlternatePart==SCH_value
+ParamVariation141=ParameterName=BOM_description|VariantValue=чип 0603, 2кќм ±1%
+ParamDesignator141=R17B
+ParamVariation142=ParameterName=BOM_value|VariantValue=RC0603FR-072KL
+ParamDesignator142=R17B
+ParamVariation143=ParameterName=SCH_value|VariantValue=2k
+ParamDesignator143=R17B
+ParamVariation144=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator144=R17B
+Variation46=Designator=C19H|UniqueId=\HWAQRLSS\8XVOCRVMY\QYPBTSMT|Kind=1|AlternatePart= 
+Variation47=Designator=C20H|UniqueId=\HWAQRLSS\8XVOCRVMY\VQQPHNGO|Kind=1|AlternatePart= 
+Variation48=Designator=C21H|UniqueId=\HWAQRLSS\8XVOCRVMY\NLEGUFKK|Kind=1|AlternatePart= 
+Variation49=Designator=C21B|UniqueId=\HWAQRLSS\2XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation145=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.068мк‘ ±10%, 50¬
+ParamDesignator145=C21B
+ParamVariation146=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB683
+ParamDesignator146=C21B
+ParamVariation147=ParameterName=SCH_value|VariantValue=68n
+ParamDesignator147=C21B
+ParamVariation148=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator148=C21B
+Variation50=Designator=C21C|UniqueId=\HWAQRLSS\3XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation149=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.047мк‘ ±10%, 50¬
+ParamDesignator149=C21C
+ParamVariation150=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB473
+ParamDesignator150=C21C
+ParamVariation151=ParameterName=SCH_value|VariantValue=47n
+ParamDesignator151=C21C
+ParamVariation152=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator152=C21C
+Variation51=Designator=C21D|UniqueId=\HWAQRLSS\4XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation153=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.033мк‘ ±10%, 50¬
+ParamDesignator153=C21D
+ParamVariation154=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB333
+ParamDesignator154=C21D
+ParamVariation155=ParameterName=SCH_value|VariantValue=33n
+ParamDesignator155=C21D
+ParamVariation156=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator156=C21D
+Variation52=Designator=C21E|UniqueId=\HWAQRLSS\5XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation157=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.022мк‘ ±10%, 50¬
+ParamDesignator157=C21E
+ParamVariation158=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB223
+ParamDesignator158=C21E
+ParamVariation159=ParameterName=SCH_value|VariantValue=22n
+ParamDesignator159=C21E
+ParamVariation160=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator160=C21E
+Variation53=Designator=C21F|UniqueId=\HWAQRLSS\6XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation161=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.015мк‘ ±10%, 50¬
+ParamDesignator161=C21F
+ParamVariation162=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB153
+ParamDesignator162=C21F
+ParamVariation163=ParameterName=SCH_value|VariantValue=15n
+ParamDesignator163=C21F
+ParamVariation164=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator164=C21F
+Variation54=Designator=C21G|UniqueId=\HWAQRLSS\7XVOCRVMY\NLEGUFKK|Kind=0|AlternatePart==SCH_value
+ParamVariation165=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.01мк‘ ±10%, 50¬
+ParamDesignator165=C21G
+ParamVariation166=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB103
+ParamDesignator166=C21G
+ParamVariation167=ParameterName=SCH_value|VariantValue=10n
+ParamDesignator167=C21G
+ParamVariation168=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator168=C21G
+Variation55=Designator=C12|UniqueId=\UAOCNQIK\BJTOJCAI|Kind=1|AlternatePart= 
+Variation56=Designator=C13|UniqueId=\UAOCNQIK\FCRGSWKK|Kind=1|AlternatePart= 
+Variation57=Designator=C16|UniqueId=\UAOCNQIK\KNXFNKER|Kind=1|AlternatePart= 
+Variation58=Designator=C20E|UniqueId=\HWAQRLSS\5XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation169=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.22мк‘ ±10%, 50¬
+ParamDesignator169=C20E
+ParamVariation170=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB224
+ParamDesignator170=C20E
+ParamVariation171=ParameterName=SCH_value|VariantValue=220n
+ParamDesignator171=C20E
+ParamVariation172=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator172=C20E
+Variation59=Designator=C20D|UniqueId=\HWAQRLSS\4XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation173=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.22мк‘ ±10%, 50¬
+ParamDesignator173=C20D
+ParamVariation174=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB224
+ParamDesignator174=C20D
+ParamVariation175=ParameterName=SCH_value|VariantValue=220n
+ParamDesignator175=C20D
+ParamVariation176=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator176=C20D
+Variation60=Designator=C20F|UniqueId=\HWAQRLSS\6XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation177=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.22мк‘ ±10%, 50¬
+ParamDesignator177=C20F
+ParamVariation178=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB224
+ParamDesignator178=C20F
+ParamVariation179=ParameterName=SCH_value|VariantValue=220n
+ParamDesignator179=C20F
+ParamVariation180=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator180=C20F
+Variation61=Designator=C20G|UniqueId=\HWAQRLSS\7XVOCRVMY\VQQPHNGO|Kind=0|AlternatePart==SCH_value
+ParamVariation181=ParameterName=BOM_description|VariantValue=керам., чип 0603, X7R, 0.22мк‘ ±10%, 50¬
+ParamDesignator181=C20G
+ParamVariation182=ParameterName=BOM_value|VariantValue=CC0603KRX7R9BB224
+ParamDesignator182=C20G
+ParamVariation183=ParameterName=SCH_value|VariantValue=220n
+ParamDesignator183=C20G
+ParamVariation184=ParameterName=Comment|VariantValue==SCH_value
+ParamDesignator184=C20G
+Variation62=Designator=L7|UniqueId=\UAOCNQIK\FTFHISJC|Kind=1|AlternatePart= 
+Variation63=Designator=L11|UniqueId=\UAOCNQIK\YGAWVYME|Kind=1|AlternatePart= 
+Variation64=Designator=R11|UniqueId=\UAOCNQIK\OONFFOCC|Kind=1|AlternatePart= 
+Variation65=Designator=R5|UniqueId=\UAOCNQIK\VWRJJMVJ|Kind=1|AlternatePart= 
+ParamVariationCount=184
 
 [GeneratedDocument1]
 DocumentPath=project outputs\Bill of Materials\BoM [config 1].csv
@@ -451,7 +1506,7 @@ Configuration4_Item1=CaptionAsName
 Configuration4_Name2=Filter
 Configuration4_Item2=545046300E5446696C74657257726170706572000D46696C7465722E416374697665090F46696C7465722E43726974657269610A04000000000000000000
 Configuration4_Name3=General
-Configuration4_Item3=OpenExported=False|AddToProject=True|ForceFit=False|NotFitted=True|Database=False|DatabasePriority=False|IncludePCBData=False|IncludeVaultData=False|IncludeAlternatives=False|ShowExportOptions=True|TemplateFilename=|BatchMode=0|FormWidth=1884|FormHeight=1315|SupplierProdQty=1|SupplierAutoQty=False|SupplierUseCachedPricing=False|SupplierCurrency=<none>
+Configuration4_Item3=OpenExported=False|AddToProject=True|ForceFit=False|NotFitted=True|Database=False|DatabasePriority=False|IncludePCBData=False|IncludeVaultData=False|IncludeAlternatives=False|ShowExportOptions=True|TemplateFilename=|BatchMode=0|FormWidth=2950|FormHeight=1653|SupplierProdQty=1|SupplierAutoQty=False|SupplierUseCachedPricing=False|SupplierCurrency=<none>
 Configuration4_Name4=GroupOrder
 Configuration4_Item4=
 Configuration4_Name5=SortOrder

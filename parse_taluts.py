@@ -1,8 +1,8 @@
 import os
 import datetime
+import re
 from typedef_bom import BoM_typeDef                                                             #класс BoM
 from typedef_components import Components_typeDef                                               #класс базы данных компонентов
-from typedef_titleBlock import TitleBlock_typeDef                                               #класс основной надписи
 
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
@@ -139,59 +139,65 @@ def parse_project(data, **kwargs):
         keys[key] = keys[key].casefold()
 
     #читаем нужные поля основной надписи из соответствующих полей схемного файла
+    titleblock = {}
     for line in schematic.lines:
         #анализируем словарь параметров
         if keys['RECORD'] in line and keys['OWNERPARTID'] in line and keys['NAME'] in line and keys['TEXT'] in line:
             if line[keys['RECORD']] == '41' and line[keys['OWNERPARTID']] == '-1':
-                if   line[keys['NAME']] == 'TitleBlock_01a_DocumentName': data.titleBlock.tb01a_DocumentName += line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_01a_DocumentName_line1': data.titleBlock.tb01a_DocumentName = line[keys['TEXT']] + data.titleBlock.tb01a_DocumentName
-                elif line[keys['NAME']] == 'TitleBlock_01a_DocumentName_line2': data.titleBlock.tb01a_DocumentName = data.titleBlock.tb01a_DocumentName + ' ' + line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType': data.titleBlock.tb01b_DocumentType += line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType_line1': data.titleBlock.tb01b_DocumentType = line[keys['TEXT']] + data.titleBlock.tb01b_DocumentType
-                #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType_line2': data.titleBlock.tb01b_DocumentType =data.titleBlock.tb01b_DocumentType + ' ' + line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_02_DocumentDesignator': data.titleBlock.tb02_DocumentDesignator = line[keys['TEXT']].rsplit(' ', 1)[0]
-                elif line[keys['NAME']] == 'TitleBlock_04_Letter_left': data.titleBlock.tb04_Letter_left = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_04_Letter_middle': data.titleBlock.tb04_Letter_middle = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_04_Letter_right': data.titleBlock.tb04_Letter_right = line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_07_SheetNumber': data.titleBlock.tb07_SheetIndex = line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_08_SheetTotal': data.titleBlock.tb08_SheetsTotal = line[keys['TEXT']]        
-                elif line[keys['NAME']] == 'TitleBlock_09_Organization': data.titleBlock.tb09_Organization = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_10d_ActivityType_Extra': data.titleBlock.tb10d_ActivityType_Extra = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_11a_Name_Designer': data.titleBlock.tb11a_Name_Designer = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_11b_Name_Checker': data.titleBlock.tb11b_Name_Checker = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_11c_Name_TechnicalSupervisor': data.titleBlock.tb11c_Name_TechnicalSupervisor = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_11d_Name_Extra': data.titleBlock.tb11d_Name_Extra = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_11e_Name_NormativeSupervisor': data.titleBlock.tb11e_Name_NormativeSupervisor = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_11f_Name_Approver': data.titleBlock.tb11f_Name_Approver = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_13a_SignatureDate_Designer': data.titleBlock.tb13a_SignatureDate_Designer = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_13b_SignatureDate_Checker': data.titleBlock.tb13b_SignatureDate_Checker = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_13c_SignatureDate_TechnicalSupervisor': data.titleBlock.tb13c_SignatureDate_TechnicalSupervisor = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_13d_SignatureDate_Extra': data.titleBlock.tb13d_SignatureDate_Extra = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_13e_SignatureDate_NormativeSupervisor': data.titleBlock.tb13e_SignatureDate_NormativeSupervisor = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_13f_SignatureDate_Approver': data.titleBlock.tb13f_SignatureDate_Approver = line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_19_OriginalInventoryNumber': data.titleBlock.tb19_OriginalInventoryNumber = line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_21_ReplacedOriginalInventoryNumber': data.titleBlock.tb21_ReplacedOriginalInventoryNumber = line[keys['TEXT']]
-                #elif line[keys['NAME']] == 'TitleBlock_22_DuplicateInventoryNumber': data.titleBlock.tb22_DuplicateInventoryNumber = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_24_BaseDocumentDesignator': data.titleBlock.tb24_BaseDocumentDesignator = line[keys['TEXT']]
-                elif line[keys['NAME']] == 'TitleBlock_25_FirstReferenceDocumentDesignator': data.titleBlock.tb25_FirstReferenceDocumentDesignator = line[keys['TEXT']]
+                if   line[keys['NAME']] == 'TitleBlock_01a_DocumentName': titleblock['01a_product_name'] += line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_01a_DocumentName_line1': titleblock['01a_product_name'] = line[keys['TEXT']] + titleblock.get('01a_product_name', '')
+                elif line[keys['NAME']] == 'TitleBlock_01a_DocumentName_line2': titleblock['01a_product_name'] = titleblock.get('01a_product_name', '') + ' ' + line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType': titleblock['01b_document_type'] += line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType_line1': titleblock['01b_document_type'] = line[keys['TEXT']] + titleblock.get('01b_document_type', '')
+                #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType_line2': titleblock['01b_document_type'] = titleblock.get('01b_document_type', '') + ' ' + line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_02_DocumentDesignator': titleblock['02_document_designator'] = line[keys['TEXT']].rsplit(' ', 1)[0]
+                elif line[keys['NAME']] == 'TitleBlock_04_Letter_left': titleblock['04_letter_left'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_04_Letter_middle': titleblock['04_letter_middle'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_04_Letter_right': titleblock['04_letter_right'] = line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_07_SheetNumber': titleblock['07_sheet_index'] = line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_08_SheetTotal': titleblock['08_sheet_total'] = line[keys['TEXT']]        
+                elif line[keys['NAME']] == 'TitleBlock_09_Organization': titleblock['09_organization'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_10d_ActivityType_Extra': titleblock['10d_activityType_Extra'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_11a_Name_Designer': titleblock['11a_name_designer'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_11b_Name_Checker': titleblock['11b_name_checker'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_11c_Name_TechnicalSupervisor': titleblock['11c_name_technicalSupervisor'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_11d_Name_Extra': titleblock['11d_name_extra'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_11e_Name_NormativeSupervisor': titleblock['11e_name_normativeSupervisor'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_11f_Name_Approver': titleblock['11f_name_approver'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_13a_SignatureDate_Designer': titleblock['13a_signatureDate_designer'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_13b_SignatureDate_Checker': titleblock['13b_signatureDate_checker'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_13c_SignatureDate_TechnicalSupervisor': titleblock['13c_signatureDate_technicalSupervisor'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_13d_SignatureDate_Extra': titleblock['13d_signatureDate_extra'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_13e_SignatureDate_NormativeSupervisor': titleblock['13e_signatureDate_normativeSupervisor'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_13f_SignatureDate_Approver': titleblock['13f_signatureDate_approver'] = line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_19_OriginalInventoryNumber': titleblock['19_original_inventoryNumber'] = line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_21_ReplacedOriginalInventoryNumber': titleblock['21_replacedOriginal_inventoryNumber'] = line[keys['TEXT']]
+                #elif line[keys['NAME']] == 'TitleBlock_22_DuplicateInventoryNumber': titleblock['22_duplicate_inventoryNumber'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_24_BaseDocumentDesignator': titleblock['24_baseDocument_designator'] = line[keys['TEXT']]
+                elif line[keys['NAME']] == 'TitleBlock_25_FirstReferenceDocumentDesignator': titleblock['25_firstReferenceDocument_designator'] = line[keys['TEXT']]
+    if titleblock:
+        if '02_document_designator' in titleblock:
+            designator = titleblock.get('02_document_designator', '').strip()
+            if designator.endswith('Э3'):
+                designator = data.designator[:-2].strip()
+                titleblock['02_document_designator'] = designator
+        data.titleblock = titleblock
     
     #заполняем свойства проекта
-    data.designator = data.titleBlock.tb02_DocumentDesignator
-    if data.designator.endswith('Э3'): data.designator = data.designator[:-2]
-    data.designator = data.designator.strip()
-    data.name = data.titleBlock.tb01a_DocumentName
-    data.author = data.titleBlock.tb11a_Name_Designer
+    data.designator = titleblock.get('02_document_designator', '')
+    data.name       = titleblock.get('01a_product_name', '')
+    data.author     = titleblock.get('11a_name_designer', '')
     print("done.")
 
 #Создание базы данных компонентов из BoM
-def parse_components(components, BoM, **kwargs):
+def parse_bom(components, BoM, **kwargs):
     print(' ' * 12 + 'designer: ' +  designer_name + ' (' + script_baseName + ')')
 
     stats = [0, 0]      #статистика [errors, warnings]
 
     print("INFO >> Parsing BoM data", end ="... ", flush = True)
     for i in range(len(BoM.entries)):
-        component = _parse_component(BoM.entries[i], None, stats)
+        component = _parse_entry(BoM.entries[i], None, stats)
         if isinstance(component, Components_typeDef.ComponentTypes.Generic):
             components.entries.append(component)
             if component.GENERIC_accessory_child is not None:
@@ -206,10 +212,8 @@ def parse_components(components, BoM, **kwargs):
     else:
         print('\n' + ' ' * 12 + 'completed with ' + str(stats[0]) + ' errors and ' +  str(stats[1]) + ' warnings.')
 
-    designer_check(components)
-
 #разбор компонента
-def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
+def _parse_entry(bom_entry, parent = None, stats = [0, 0], **kwargs):
     decimalPoint = '.'
 
     #определяем тип элемента
@@ -271,23 +275,12 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
     
     #--- десигнатор
     if 'Designator' in bom_entry:
-        if len(bom_entry['Designator'].strip(' ')) > 0:
-            component.GENERIC_designator = bom_entry['Designator']
-            if len(component.GENERIC_designator) > 0:
-                tmp = component.GENERIC_designator.rsplit('.', 1)
-                if len(tmp) > 1:
-                    component.GENERIC_designator_channel = tmp[0]
-                    tmp = tmp[1]
-                else:
-                    component.GENERIC_designator_channel = ''
-                    tmp = tmp[0]
-                component.GENERIC_designator_prefix = ''
-                for char in tmp:
-                    if not char.isdigit():
-                        component.GENERIC_designator_prefix += char
-                    else:
-                        break
-                component.GENERIC_designator_index = int(''.join([s for s in tmp if s.isdigit()]))
+        designator = bom_entry['Designator'].strip(' ')
+        if len(designator) > 0:
+            component.GENERIC_designator = _parse_designator(designator)
+            if component.GENERIC_designator is None:
+                stats[0] += 1
+                print('\n' + ' ' * 12 + 'error! ' + designator + " - can't parse designator", end = '', flush = True)
     
     #--- номинал
     if 'BOM_value' in bom_entry:
@@ -443,7 +436,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                         else:
                             component.flag = component.FlagType.ERROR
                             stats[0] += 1
-                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
@@ -956,7 +949,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                         else:
                             component.flag = component.FlagType.ERROR
                             stats[0] += 1
-                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
@@ -1027,7 +1020,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                         else:
                             component.flag = component.FlagType.ERROR
                             stats[0] += 1
-                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
@@ -1137,7 +1130,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                             if component.DIODE_type is component.Type.ZENER:
                                 component.flag = component.FlagType.ERROR
                                 stats[0] += 1
-                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
@@ -1259,7 +1252,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                                     else:
                                         component.flag = component.FlagType.ERROR
                                         stats[0] += 1
-                                        print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                                        print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                                     #clear parsed parameter and go to next param
                                     descriptionParams[j] = ''
                                     continue
@@ -1274,7 +1267,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                         else:
                             component.flag = component.FlagType.ERROR
                             stats[0] += 1
-                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                            print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                         #clear parsed parameter and go to next param
                         descriptionParams[j] = ''
                         continue
@@ -1352,7 +1345,7 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                             else:
                                 component.flag = component.FlagType.ERROR
                                 stats[0] += 1
-                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator + ' - tolerance absent or can not be parsed', end = '', flush = True)
+                                print('\n' + ' ' * 12 + 'error! ' + component.GENERIC_designator.full + ' - tolerance absent or can not be parsed', end = '', flush = True)
                             #clear parsed parameter and go to next param
                             descriptionParams[j] = ''
                             continue
@@ -1468,11 +1461,52 @@ def _parse_component(bom_entry, parent = None, stats = [0, 0], **kwargs):
                     stats[0] += 1
                     print('error')
 
-                accessory_component = _parse_component(accessory_bom, component, stats)
+                accessory_component = _parse_entry(accessory_bom, component, stats)
                 accessory_component.GENERIC_quantity *= component.GENERIC_quantity          #количество дочернего компонента умножается на количество родительского
                 component.GENERIC_accessory_child.append(accessory_component)
 
     return component
+
+#разбор десигнатора
+def _parse_designator(designator):
+    #разделяем десигнатор на префикс (заглавные латинские буквы), индекс (число) и канал (всё остальное)
+    match = re.match(r"^([A-Z]+)(\d+)(.*)$", designator)
+    if match: 
+        prefix, index, channel = match.groups()
+        #преобразуем индекс десигнатора в числовой
+        if index.isdigit():
+            number = int(index)
+        else:
+            number = 0
+        if len(channel) > 0:
+            #канал не пустой, разделяем его на индекс (либо 1 или 2 латинские заглавные буквы либо число), начальное обрамление (всё до индекса) и конечное обрамление (непрерывные не буквенно-цифровые символы в конце)
+            match = re.match(r"^(.*?)([A-Z]{1,2}|\d+)([^A-Za-z\d]*)$", channel)
+            if match:
+                channel_prefix, channel_index, channel_enclosure_end, = match.groups()
+                #выделяем из префикса начальное обрамление (непрерывные не буквенно-цифровые символы в начале) и оставляем в нём всё остальное
+                match = re.match(r"^([^A-Za-z\d]*)(.*)$", channel_prefix)
+                if match:
+                    channel_enclosure_start, channel_prefix = match.groups()
+                else:
+                    channel_enclosure_start = ""
+                #преобразуем индекс канала в числовой
+                if channel_index.isdigit():
+                    channel_number = int(channel_index)
+                elif channel_index.isalpha() and channel_index.isupper() and len(channel_index) <= 2:
+                    channel_number = 0
+                    for char in channel_index:
+                        channel_number = channel_number * 26 + (ord(char) - ord('A') + 1)
+                else:
+                    channel_number = 0
+                #создаём канал
+                channel = Components_typeDef.Designator.Channel(channel, channel_prefix, channel_index, channel_number, [channel_enclosure_start, channel_enclosure_end])
+            else:
+                channel = None
+        else:
+            channel = None
+        return Components_typeDef.Designator(designator, prefix, index, number, channel)
+    else:
+        return None
 
 #разбор параметра: тип монтажа и типоразмер
 def _parse_param_mountandsize(param, component):
@@ -1482,11 +1516,17 @@ def _parse_param_mountandsize(param, component):
         component.GENERIC_mount = component.Mounting.Type.THROUGHHOLE
     elif string_find_any(param, ('аксиальный', 'акс.')):
         component.GENERIC_mount = component.Mounting.Type.THROUGHHOLE
-        component.GENERIC_THtype = component.Mounting.ThroughHole.AXIAL
+        component.GENERIC_mount_th = component.Mounting.ThroughHole.AXIAL
     elif string_find_any(param, ('радиальный', 'рад.')):
         component.GENERIC_mount = component.Mounting.Type.THROUGHHOLE
-        component.GENERIC_THtype = component.Mounting.ThroughHole.RADIAL
-    
+        component.GENERIC_mount_th = component.Mounting.ThroughHole.RADIAL
+    elif string_find_any(param, ('циллиндрический', 'цил.')):
+        component.GENERIC_mount = component.Mounting.Type.HOLDER
+        component.GENERIC_mount_holder = component.Mounting.Holder.CYLINDRICAL
+    elif string_find_any(param, ('ножевой', 'нож.')):
+        component.GENERIC_mount = component.Mounting.Type.HOLDER
+        component.GENERIC_mount_holder = component.Mounting.Holder.BLADE
+
     if component.GENERIC_mount is not None:
         tmp = param.rsplit(' ', 1)
         if len(tmp) > 1:
@@ -1897,11 +1937,9 @@ def _parse_param_color(param):
     return None
 
 #Проверка базы данных компонентов
-def designer_check(components):
-    print("INFO >> Checking data", end ="... ")
-    
-    warnings = 0
-    errors = 0
+def check(components, **kwargs):
+    print("INFO >> Checking data (designer)", end ="... ")
+    complaints = Components_typeDef.Complaints()
 
     #проверяем чтобы у одинаковых номиналов одного типа элементов были одинаковые остальные поля
     for i in range(len(components.entries)):
@@ -1910,8 +1948,8 @@ def designer_check(components):
                 if components.entries[i].GENERIC_value == components.entries[j].GENERIC_value and (components.entries[i].GENERIC_description != components.entries[j].GENERIC_description or components.entries[i].GENERIC_package != components.entries[j].GENERIC_package):
                     components.entries[i].flag = components.entries[i].FlagType.WARNING
                     components.entries[j].flag = components.entries[j].FlagType.WARNING
-                    print('\n' + ' ' * 12 + 'warning! ' + str(components.entries[i].GENERIC_designator) + ' | ' + str(components.entries[j].GENERIC_designator)  + ' - data mismatch', end = '')
-                    warnings += 1
+                    print('\n' + ' ' * 12 + 'warning! ' + str(components.entries[i].GENERIC_designator.full) + ' | ' + str(components.entries[j].GENERIC_designator.full)  + ' - data mismatch', end = '')
+                    complaints.warning += 1
 
     #проверяем соответствие типоразмера в описании и корпуса для определённых типов компонентов
     for component in components.entries:
@@ -1939,8 +1977,8 @@ def designer_check(components):
                     flag_packageSizeMismatch = True
         if flag_packageSizeMismatch:
             component.flag = component.FlagType.ERROR
-            print('\n' + ' ' * 12 + 'error! ' + str(component.GENERIC_designator) + ' - size and package mismatch', end = '', flush = True)
-            errors += 1
+            print('\n' + ' ' * 12 + 'error! ' + str(component.GENERIC_designator.full) + ' - size and package mismatch', end = '', flush = True)
+            complaints.error += 1
 
     #проверяем пустые поля в допустимых заменах
     for component in components.entries:
@@ -1957,14 +1995,15 @@ def designer_check(components):
                     if len(entry.note.strip(' ')) == 0: flag_emptySubsituteData = True
         if flag_emptySubsituteData:
             component.flag = component.FlagType.WARNING
-            print('\n' + ' ' * 12 + 'warning! ' + component.GENERIC_designator + ' - empty fields in substitute data', end = '', flush = True)
-            warnings += 1
+            print('\n' + ' ' * 12 + 'warning! ' + component.GENERIC_designator.full + ' - empty fields in substitute data', end = '', flush = True)
+            complaints.warning += 1
 
-    if warnings + errors == 0: 
+    if complaints.none(): 
         print("ok.")  
     else:
-        print('\n' + ' ' * 12 + 'completed: ' + str(errors) + ' errors, ' +  str(warnings) + ' warnings.')
-
+        print(f"\n{' ' * 12}completed: {complaints.critical} critical, {complaints.error} errors, {complaints.warning} warnings.")
+    return complaints
+        
 #========================================================== END Designer functions =================================================
 
 # --------------------------------------------------------------- Dictionaties -----------------------------------------------------

@@ -12,7 +12,7 @@ class eskdValue():
     def __init__(self, designator = '', label = '', quantity = 0, annotation = ''):
         self.designator = designator
         self.label      = label
-        self.quantity   = quantity
+        self.quantity   = int(quantity)
         self.annotation = annotation
 
 #Метрические множители
@@ -98,33 +98,22 @@ def assemble_eskd(component, **kwargs):
     content_manufacturer   = kwargs.get('content_mfr', True)
     content_parameters     = kwargs.get('content_param', True)
     content_substitutes    = kwargs.get('content_subst', True)
+    content_annot          = kwargs.get('content_annot', True)
 
     #параметры формата
+    format_annot_enclosure = kwargs.get('format_annot_enclosure', ['', ''])
     format_value_enclosure = kwargs.get('format_value_enclosure', ['', ''])
     format_mfr_enclosure   = kwargs.get('format_mfr_enclosure',   [' ф.\xa0', ''])
     format_param_enclosure = kwargs.get('format_param_enclosure', ['', ''])
     format_subst_enclosure = kwargs.get('format_subst_enclosure', ['', ''])
-    format_annot_enclosure = kwargs.get('format_annot_enclosure', ['', ''])
-    format_annot_delimiter = kwargs.get('format_annot_delimiter', ';\n')
-    format_fitted_label    = kwargs.get('format_fitted_label', [lcl.assemble_eskd.DO_PLACE.value[locale_index], lcl.assemble_eskd.DO_NOT_PLACE.value[locale_index]])
 
     #инициализируем переменные
     result = eskdValue()
 
-    #Basic fields
-    designator = component.GENERIC_designator
-    if designator is None: designator = ''
-    result.designator = designator
-    result.quantity   = component.GENERIC_quantity
-    if component.GENERIC_note is not None: result.annotation = component.GENERIC_note
-    if component.GENERIC_fitted:
-        result.annotation += format_annot_delimiter + format_fitted_label[0]
-    else:
-        result.quantity   = 1     #фикс нулей в перечне когда элемент не устанавливается
-        result.annotation += format_annot_delimiter + format_fitted_label[1]
-    result.annotation = string_strip_word(result.annotation, format_annot_delimiter)
-    if len(result.annotation) > 0: result.annotation = format_annot_enclosure[0] + result.annotation + format_annot_enclosure[1]
-
+    #Базовые поля
+    result.designator = assemble_designator(component.GENERIC_designator, **kwargs)
+    result.quantity   = assemble_quantity(component, **kwargs)
+    
     #Наименование
     #--- номинал
     if content_value:
@@ -150,7 +139,49 @@ def assemble_eskd(component, **kwargs):
         if len(substitutes) > 0:
             result.label += format_subst_enclosure[0] + substitutes + format_subst_enclosure[1]
 
+    #Примечание
+    if content_annot:
+        result.annotation = assemble_annotation(component, **kwargs)
+        if len(result.annotation) > 0: result.annotation = format_annot_enclosure[0] + result.annotation + format_annot_enclosure[1]
+
     return result
+
+#сборка десигнатора
+def assemble_designator(designator, **kwargs):
+    #locale
+    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+
+    #параметры сборки
+    assemble_desig = kwargs.get('assemble_desig', False)
+
+    result = ''
+    if designator is not None:
+        if assemble_desig:
+            result += designator.prefix + designator.index
+            if designator.channel is not None:
+                result += designator.channel.enclosure[0] + designator.channel.prefix + designator.channel.index + designator.channel.enclosure[1]
+        else:
+            result += designator.full
+    return result
+
+#сборка количества
+def assemble_quantity(component, **kwargs):
+    #locale
+    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+
+    #параметры формата
+    format_fitted_quantity = kwargs.get('format_fitted_quantity', [-1, -1])
+
+    if component.GENERIC_fitted:
+        if format_fitted_quantity[0] < 0:
+            return component.GENERIC_quantity
+        else:
+            return format_fitted_quantity[0]
+    else:
+        if format_fitted_quantity[1] < 0:
+            return component.GENERIC_quantity
+        else:
+            return format_fitted_quantity[1]
 
 #сборка типа компонента
 def assemble_kind(component, **kwargs):
@@ -296,6 +327,31 @@ def assemble_kind(component, **kwargs):
 
     return result
 
+#сборка примечания
+def assemble_annotation(component, **kwargs):
+    #locale
+    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+
+    #параметры содержимого
+    content_annot_value = kwargs.get('content_annot_value', True)
+    content_annot_fitted = kwargs.get('content_annot_fitted', True)
+
+    #параметры формата
+    format_annot_delimiter = kwargs.get('format_annot_delimiter', ';\n')
+    format_fitted_label    = kwargs.get('format_fitted_label', [lcl.assemble_eskd.DO_PLACE.value[locale_index], lcl.assemble_eskd.DO_NOT_PLACE.value[locale_index]])
+
+    result = ""
+    if content_annot_value:
+        if component.GENERIC_note is not None:
+            result = component.GENERIC_note
+    if content_annot_fitted:
+        if component.GENERIC_fitted:
+            result += format_annot_delimiter + format_fitted_label[0]
+        else:
+            result += format_annot_delimiter + format_fitted_label[1]
+    result = string_strip_word(result, format_annot_delimiter)
+    return result
+
 #сборка номинала
 def assemble_value(component, **kwargs):
     #locale
@@ -382,10 +438,10 @@ def assemble_parameters(component, **kwargs):
                 if component.GENERIC_mount == component.Mounting.Type.SURFACE:
                     result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index]
                 elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
-                    if component.GENERIC_THtype == component.Mounting.ThroughHole.AXIAL:
-                        result += lcl.assemble_parameters.MOUNT_AXIAL.value[locale_index]
-                    elif component.GENERIC_THtype == component.Mounting.ThroughHole.RADIAL:
-                        result += lcl.assemble_parameters.MOUNT_RADIAL.value[locale_index]
+                    if component.GENERIC_mount_th == component.Mounting.ThroughHole.AXIAL:
+                        result += lcl.assemble_parameters.MOUNT_THROUGHHOLE_AXIAL.value[locale_index]
+                    elif component.GENERIC_mount_th == component.Mounting.ThroughHole.RADIAL:
+                        result += lcl.assemble_parameters.MOUNT_THROUGHHOLE_RADIAL.value[locale_index]
                 result += "\xa0"
                 if component.GENERIC_size is not None: result += component.GENERIC_size
                 result = result.strip('\xa0')
@@ -445,8 +501,16 @@ def assemble_parameters(component, **kwargs):
 
                 #тип монтажа + размер
                 if component.GENERIC_mount == component.Mounting.Type.SURFACE: result += lcl.assemble_parameters.MOUNT_SURFACE.value[locale_index] + '\xa0'
-                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE: result += lcl.assemble_parameters.MOUNT_THROUGHHOLE.value[locale_index] + '\xa0'
-                elif component.GENERIC_mount == component.Mounting.Type.HOLDER: result += lcl.assemble_parameters.MOUNT_HOLDER.value[locale_index] + '\xa0'
+                elif component.GENERIC_mount == component.Mounting.Type.THROUGHHOLE:
+                    if component.GENERIC_mount_th == component.Mounting.ThroughHole.AXIAL:
+                        result += lcl.assemble_parameters.MOUNT_THROUGHHOLE_AXIAL.value[locale_index] + '\xa0'
+                    elif component.GENERIC_mount_th == component.Mounting.ThroughHole.RADIAL:
+                        result += lcl.assemble_parameters.MOUNT_THROUGHHOLE_RADIAL.value[locale_index] + '\xa0'
+                elif component.GENERIC_mount == component.Mounting.Type.HOLDER:
+                    if component.GENERIC_mount_holder == component.Mounting.Holder.CYLINDRICAL:
+                        result += lcl.assemble_parameters.MOUNT_HOLDER_CYLINDRICAL.value[locale_index] + '\xa0'
+                    elif component.GENERIC_mount_holder == component.Mounting.Holder.BLADE:
+                        result += lcl.assemble_parameters.MOUNT_HOLDER_BLADE.value[locale_index] + '\xa0'
                 if component.GENERIC_size is not None: result += component.GENERIC_size
                 result = result.strip('\xa0')
                 result += format_param_delimiter
@@ -1020,8 +1084,8 @@ def assemble_parameters(component, **kwargs):
         #дополнительные параметры
         if content_misc:
             for item in component.GENERIC_misc:
-                result += item
                 result += format_param_delimiter
+                result += item
 
         #удаляем лишние разделители
         result = string_strip_word(result, format_param_delimiter)
@@ -1037,22 +1101,22 @@ def assemble_substitutes(component, **kwargs):
     locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
 
     #параметры содержимого
-    content_value        = kwargs.get('content_subst_value', True)
-    content_manufacturer = kwargs.get('content_subst_manufacturer', True)
-    content_note         = kwargs.get('content_subst_note', True)
+    content_value = kwargs.get('content_subst_value', True)
+    content_mfr   = kwargs.get('content_subst_mfr', True)
+    content_note  = kwargs.get('content_subst_note', True)
 
     #параметры формата
-    format_entry_enclosure        = kwargs.get('format_subst_entry_enclosure', ['\nдоп.\xa0замена ', ''])
-    format_value_enclosure        = kwargs.get('format_subst_value_enclosure', ['', ''])
-    format_manufacturer_enclosure = kwargs.get('format_subst_manufacturer_enclosure', [' ф.\xa0', ''])
-    format_note_enclosure         = kwargs.get('format_subst_note_enclosure', [' (', ')'])
+    format_entry_enclosure = kwargs.get('format_subst_entry_enclosure', ['\nдоп.\xa0замена ', ''])
+    format_value_enclosure = kwargs.get('format_subst_value_enclosure', ['', ''])
+    format_mfr_enclosure   = kwargs.get('format_subst_mfr_enclosure', [' ф.\xa0', ''])
+    format_note_enclosure  = kwargs.get('format_subst_note_enclosure', [' (', ')'])
 
     result = ''
     if component.GENERIC_substitute is not None:
         for substitute in component.GENERIC_substitute:
             result += format_entry_enclosure[0]
             if content_value and substitute.value is not None: result += format_value_enclosure[0] + substitute.value + format_value_enclosure[1]
-            if content_manufacturer and substitute.manufacturer is not None: result += format_manufacturer_enclosure[0] + substitute.manufacturer + format_manufacturer_enclosure[1]
+            if content_mfr and substitute.manufacturer is not None: result += format_mfr_enclosure[0] + substitute.manufacturer + format_mfr_enclosure[1]
             if content_note and substitute.note is not None: result += format_note_enclosure[0] + substitute.note + format_note_enclosure[1]
             result += format_entry_enclosure[1]
     return result

@@ -5,31 +5,32 @@ import copy
 import datetime
 import re
 import enum
+import types
+from string import Template
 
 import typedef_bom                      #класс BoM
 import typedef_components               #класс базы данных компонентов
-import typedef_titleBlock               #класс основной надписи
 
 import import_adproject                 #импорт данных проекта Altium Designer
 import import_bom_csv as import_bom     #импорт данных из Bill of Materials
-import parse_taluts as parse            #анализ данных под конкретного разработчика
-import optimize_mfrNames                #оптимизация имён производителей
-import optimize_restol5to1              #оптимизация номиналов резисторов по точности (5%->1%)
+import optimize_mfr_name                #оптимизация имени производителя
+import optimize_res_tol                 #оптимизация номиналов резисторов по точности
 import build_cl                         #сборка списка компонентов
 import build_pe3                        #сборка перечня элементов
 import build_sp                         #сборка спецификации
 import export_cl_xlsx                   #экспорт списка компонентов в Excel
 import export_pe3_docx                  #экспорт перечня элементов в Word
 import export_pe3_pdf                   #экспорт перечня элементов в PDF
+import export_pe3_csv                   #экспорт перечня элементов в CSV
 import export_sp_csv                    #экспорт спецификации в CSV
 from dict_locale import LocaleIndex     #словарь с локализациями
 
-script_dirName = os.path.dirname(__file__)                     #адрес папки со скриптом
-script_version = '3.4'
-script_date    = datetime.datetime(2024, 6, 7)
+_module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
+_module_version = '3.5'
+_module_date    = datetime.datetime(2025, 1, 19)
 
-#todo: пересмотреть логику группировки компонентов в одну запись во всех сборщиках, например добавлены данные о заменах и это надо учитывать
-#todo: CL - в допустимых заменах работа с флагами толком не реализована
+default_parser   = "parse_taluts.py"
+default_settings = "dict_settings.py"
 
 # -------------------------------------------------------- Generic functions --------------------------------------------------------
 
@@ -47,35 +48,44 @@ class OutputID(enum.Enum):
     CL_XLSX  = 'cl-xlsx'
     PE3_DOCX = 'pe3-docx'
     PE3_PDF  = 'pe3-pdf'
+    PE3_CSV  = 'pe3-csv'
     SP_CSV   = 'sp-csv'
     NONE     = 'none'
 
 class OptimizationID(enum.Enum):
-    ALL        = 'all'
-    MFRNAMES   = 'mfrnames'
-    RESTOL5TO1 = 'restol5to1'
-    NONE       = 'none'
+    ALL       = 'all'
+    MFR_NAMES = 'mfr-name'
+    RES_TOL   = 'res-tol'
+    NONE      = 'none'
 
 #====================================================== END Class definitions =======================================================
 
 #-------------------------------------------------------- Specific functions --------------------------------------------------------
 
 #обрабатываем файл проекта Altium
-def process_adproject(address, output_directory = None, **kwargs):
+def process_adproject(address, output_directory = None, parser = None, settings = None, **kwargs):
     print(('INFO >> Processing AD project: "' + os.path.basename(address) + '" ').ljust(80, '-'))
     print(' ' * 12 + 'output: ' +  os.path.basename(address))
 
     #получаем параметры
-    noquestions = kwargs.pop('noquestions',  False)
+    noquestions = kwargs.get('noquestions',  False)
+
+    #загружаем настройки
+    settings = _import_settings(settings)
+
+    #загружаем анализатор данных (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
+    if parser is None: parser = settings.get('parse', {}).get('parser', None)
+    parser = _import_parser(parser)
 
     #импорт проекта Altium Designer
-    ADProject = import_adproject.importz(address)
-    ADProject.titleBlock = typedef_titleBlock.TitleBlock_typeDef()
+    params = settings.get('input', {}).get('adproject', {})
+    ADProject = import_adproject.importz(address, **params)
     print('')
 
     #отдаём разработчику проект чтобы он заполнил его параметры
     print("INFO >> Filling project data using designer's parser:")
-    parse.parse_project(ADProject)
+    params = settings.get('parse', {}).get('project', {})
+    parser.parse_project(ADProject, **params)
     print('INFO >> BoMs found: ' + str(len(ADProject.BoMs)))
     for i in range(len(ADProject.BoMs)):
         print(' ' * 12 + str(i + 1).rjust(2)  + ': "' + os.path.basename(ADProject.BoMs[i]) + '" / "' + ADProject.BoMVariantNames[i] + '"')
@@ -85,370 +95,286 @@ def process_adproject(address, output_directory = None, **kwargs):
     if len(ADProject.BoMs) == 1 or noquestions:
         activeBomIndexes = list(range(len(ADProject.BoMs)))
     elif len(ADProject.BoMs) > 1:
-        validAnswer = False
+        answer_valid = False
         #запрашиваем данные пока нет правильного ответа 
-        while not validAnswer:
+        while not answer_valid:
             answer = input("REQUEST >> Choose which BoMs to process (0 or <empty> for all, q for abort): ")
             if answer == 'q': exit()
             elif answer == '0' or answer == '':
                 activeBomIndexes = list(range(len(ADProject.BoMs)))
-                validAnswer = True
+                answer_valid = True
             else:
                 for idx in filter(None, re.split('[ ,.]', answer)):
                     if idx.isdigit():
                         index = int(idx) - 1
                         if index >= 0 and index < len(ADProject.BoMs):
                             activeBomIndexes.append(index)
-                            validAnswer = True
+                            answer_valid = True
                     else:
-                        validAnswer = False
+                        answer_valid = False
                         break
-            if not validAnswer: print("REQUEST >> error: invalid indexes.")
+            if not answer_valid: print("REQUEST >> error: invalid indexes.")
         activeBomIndexes = list(set(activeBomIndexes))   #убираем дубликаты
     print("INFO >> BoM files to process: " + str(len(activeBomIndexes)))
 
     #обрабатываем все выбранные BoM из проекта
-    kwargs['output_name_prefix'] = ADProject.designator
     for i in activeBomIndexes:
-        kwargs['output_name_postfix'] = ADProject.BoMVariantNames[i]
-        process_bom(os.path.join(ADProject.directory, ADProject.BoMs[i]), ADProject.titleBlock, output_directory, **kwargs)
+        process_bom(os.path.join(ADProject.directory, ADProject.BoMs[i]), ADProject.titleblock, output_directory, ADProject.designator, ADProject.BoMVariantNames[i], parser, settings, **kwargs)
 
     print((' ' * 8).ljust(80, '='))
 
 #обрабатываем BoM файлы
-def process_bom(address, titleBlock = None, output_directory = None, **kwargs):
-    if titleBlock is None: titleBlock = typedef_titleBlock.TitleBlock_typeDef()
-    make_cl_xlsx     = False
-    make_pe3_docx    = False
-    make_pe3_pdf     = False
-    make_sp_csv      = False
-    optmz_mfrnames   = False
-    optmz_restol5to1 = False
+def process_bom(address, titleblock = None, output_directory = None, output_basename = None, output_postfix = None, parser = None, settings = None, **kwargs):
+    #загружаем настройки
+    settings = _import_settings(settings)
 
-    #параметры
-    output_name_enclosure = kwargs.get('output_name_enclosure', [' ', ' '])
-    output_name_prefix    = kwargs.get('output_name_prefix', '')
-    output_name_postfix   = kwargs.get('output_name_postfix', '')
-    output    = kwargs.get('output', [OutputID.ALL.value])   #какие документы создавать
-    if OutputID.ALL.value      in output: output = [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value]
-    if OutputID.NONE.value     in output: output = []
-    if OutputID.CL_XLSX.value  in output: make_cl_xlsx  = True
-    if OutputID.PE3_DOCX.value in output: make_pe3_docx = True
-    if OutputID.PE3_PDF.value  in output: make_pe3_pdf  = True
-    if OutputID.SP_CSV.value   in output: make_sp_csv   = True
-    optimize  = kwargs.get('optimize', OptimizationID.NONE.value)   #какие оптимизации выполнять
-    if OptimizationID.ALL.value        in optimize: optimize = [OptimizationID.MFRNAMES.value, OptimizationID.RESTOL5TO1.value]
-    if OptimizationID.NONE.value       in optimize: optimize = []
-    if OptimizationID.MFRNAMES.value   in optimize: optmz_mfrnames   = True
-    if OptimizationID.RESTOL5TO1.value in optimize: optmz_restol5to1 = True
+    #загружаем анализатор данных (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
+    if parser is None: parser = settings.get('parse', {}).get('parser', None)
+    parser = _import_parser(parser)
+    
+    #загружаем данные основной надписи
+    titleblock = _import_titleblock(titleblock)
 
-    make_cl  = make_cl_xlsx
-    make_pe3 = make_pe3_docx or make_pe3_pdf
-    make_sp  = make_sp_csv
+    #какие документы создавать (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
+    make_cl_xlsx  = settings.get('output', {}).get('cl-xlsx',  {}).get('enabled', True)
+    make_pe3_docx = settings.get('output', {}).get('pe3-docx', {}).get('enabled', True)
+    make_pe3_pdf  = settings.get('output', {}).get('pe3-pdf',  {}).get('enabled', True)
+    make_pe3_csv  = settings.get('output', {}).get('pe3-csv',  {}).get('enabled', True)
+    make_sp_csv   = settings.get('output', {}).get('sp-csv',   {}).get('enabled', True)
+    output        = kwargs.get('output')
+    if output is not None:
+        if   OutputID.ALL.value    in output: output = [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.PE3_CSV.value, OutputID.SP_CSV.value]
+        elif OutputID.NONE.value   in output: output = []
+        make_cl_xlsx  = OutputID.CL_XLSX.value  in output
+        make_pe3_docx = OutputID.PE3_DOCX.value in output
+        make_pe3_pdf  = OutputID.PE3_PDF.value  in output
+        make_pe3_csv  = OutputID.PE3_CSV.value  in output
+        make_sp_csv   = OutputID.SP_CSV.value   in output
+    
+    #какие оптимизации проводить (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
+    optmz_mfr_name = settings.get('optimize', {}).get('mfr-name', {}).get('enabled', False)
+    optmz_res_tol   = settings.get('optimize', {}).get('res-tol', {}).get('enabled', False)
+    optimize        = kwargs.get('optimize')
+    if optimize is not None:
+        if   OptimizationID.ALL.value    in optimize: optimize = [OptimizationID.MFR_NAMES.value, OptimizationID.RES_TOL.value]
+        elif OptimizationID.NONE.value   in optimize: optimize = []
+        optmz_mfr_name = OptimizationID.MFR_NAMES.value in optimize
+        optmz_res_tol  = OptimizationID.RES_TOL.value   in optimize
+
+    #имена файлов и папок
+    if output_directory is None: output_directory = os.path.dirname(address)
+    if output_basename is None: output_basename = os.path.splitext(os.path.basename(address))[0]
+    if output_postfix is None: output_postfix = ''
 
     print('')
     print(('INFO >> Processing BoM: "' + os.path.basename(address) + '" ').ljust(80, '-'))
 
-    #рабочая папка
-    if output_directory is None: output_directory = os.path.dirname(address)
-
     #импорт BoM
     print("INFO >> Importing BoM:")
-    bom = import_bom.importz(address, prefix = output_name_prefix, postfix = output_name_postfix)
+    params = settings.get('input', {}).get('bom-csv', {})
+    bom = import_bom.importz(address, **params)
     print('')
 
     #создаём базу данных компонентов
     print("INFO >> Creating components database using designer's parser:")
+    params = settings.get('parse', {}).get('bom', {})
     components = typedef_components.Components_typeDef()                    #создаём объект базы
-    parse.parse_components(components, bom)                                 #отдаём разработчику BoM чтобы он заполнил базу данных
+    parser.parse_bom(components, bom, **params)                             #отдаём разработчику BoM чтобы он заполнил базу данных
+
+    #проверяем базу данных компонентов
+    print("INFO >> Checking components database.")
+    params = settings.get('parse', {}).get('check', {})
+    check_complaints = parser.check(components, **params)                   #проверяем методами разработчика
+    check_complaints.add(components.check())                                #проверяем методами системы
+    if check_complaints.critical > 0:
+        print("ERROR >> further execution halted due to critical errors in the database.")
+        raise RuntimeError("Input data may cause a program crash or corrupted output.")
+
     print("INFO >> Sorting components database.")
     components.sort()                                                       #сортируем элементы базы данных (методом по-умолчанию)
 
-    #заменяем имена производителей
-    if optmz_mfrnames:
+    #оптимизируем имена производителей
+    if optmz_mfr_name:
         print("INFO >> Optimizing manufacturers names:")
-        optimize_mfrNames.optimize(components,
-            #dict_groups    = 'dict_mfrNames.py'                                 #словарь с названиями производителей; либо адрес файла, либо сам словарь
-        )
+        params = settings.get('optimize', {}).get('mfr-name', {})
+        optimize_mfr_name.optimize(components, **params)
     
     #оптимизируем номиналы резисторов по точности
-    if optmz_restol5to1:
+    if optmz_res_tol:
         print("INFO >> Optimizing resistors tolerances:")
-        optimize_restol5to1.optimize(components)
+        params = settings.get('optimize', {}).get('res-tol', {})
+        optimize_res_tol.optimize(components, **params)
 
-    #создание списка компонентов
-    if make_cl:
-        print('')
-        print("INFO >> Building cl:")
-        cl = build_cl.build(components,
-            locale_index                                = LocaleIndex.RU.value,     #локализация
-            #title_book                                 = 'Список компонентов',      #название книги
-            #title_list_components                      = 'Компоненты',              #название листа со списком компонентов
-            #title_list_accessories                     = 'Аксессуары',              #название листа со списком сопутствующих компонентов
-            #title_list_substitutes                     = 'Допустимые замены',       #название листа со списком допустимых замен
-            sorting_method                              = 'params',                 #метод сортировки компонентов
-            sorting_reverse                             = False,                    #сортировать компоненты в обратном порядке
-            content_accessories                         = True,                     #добавлять аксессуары
-            content_accessories_segregate               = True,                     #выделить аксессуары в отдельную группу
-            content_substitutes                         = True,                     #добавлять список допустимых замен
-            assemble_kind                               = False,                    #пересобирать тип элемента (аргументы ниже относятся к этому сборщику)
-                format_kind_capitalize                  = True,                         #типы элементов с заглавной буквы
-            assemble_param                              = False,                    #пересобирать параметрическое описание (аргументы ниже относятся к этому сборщику)
-                content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
-                content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
-                format_param_enclosure                  = ['', ''],                     #обрамление параметров
-                format_param_decimalPoint               = '.',                          #десятичный разделитель
-                format_param_rangeSymbol                = '\u2026',                     #символ диапазона
-                format_param_delimiter                  = ', ',                         #разделитель параметров
-                format_param_unit_enclosure             = ['', ''],                     #обрамление единиц измерения
-                format_param_multivalue_delimiter       = '/',                          #разделитель значений многозначного параметра
-                format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
-                format_param_tolerance_signDelimiter    = '',                           #разделитель между значением допуска и его знаком
-                format_param_conditions_enclosure       = ['\xa0[', ']'],               #обрамление условий измерения параметра
-                format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
-                format_param_temperature_positiveSign   = True                          #указывать знак для положительных значений температуры
-        )
-    #экспорт СК в xlsx
+    #список компонентов в xlsx
     if make_cl_xlsx:
         print('')
+        print("INFO >> Building cl:")
+        params = settings.get('output', {}).get('cl-xlsx', {}).get('build', {})
+        cl = build_cl.build(components, **params)
+        print('')
         print("INFO >> Exporting cl as xlsx:")
-        file_name = (bom.prefix + output_name_enclosure[0] + 'СК' + output_name_enclosure[1] + bom.postfix).strip() + os.extsep + 'xlsx'
-        export_cl_xlsx.export([cl], os.path.join(output_directory, file_name),
-            locale_index                                = LocaleIndex.RU.value,     #локализация
-            #book_title                                  = '',                       #свойства книги:    название
-            #book_subject                                = '',                       #                   тема
-            #book_author                                 = '',                       #                   автор, кем изменено
-            #book_manager                                = '',                       #                   руководитель
-            #book_company                                = '',                       #                   организация
-            #book_category                               = '',                       #                   категории
-            #book_keywords                               = '',                       #                   теги
-            #book_created                                = datetime.datetime.now(pytz.timezone('UTC')),# создан, изменён
-            #book_comments                               = '',                       #                   примечания
-            #book_status                                 = '',                       #                   состояние
-            #book_hyperlink                              = '',                       #                   база гиперссылки
-            content_accessories_location                = 'sheet',                  #расположение аксессуаров {'end' - в конце общего списка | 'sheet' - на отдельном листе}
-            content_accessories_indent                  = 1,                        #отступ (в строках) списка аксесуаров от списка компонентов при размещении на одном листе
-            format_groupvalue_delimiter                 = ', ',                     #разделитель значений в полях с группировкой значений
-            format_singlevalue_delimiter                = '|'                       #разделитель значений в полях с одиночным значением
-        )
+        file_name_template = Template(settings.get('output', {}).get('cl-xlsx', {}).get('filename', "$basename СК $postfix" + os.extsep + "xlsx"))
+        file_name = os.path.splitext(file_name_template.substitute(basename = output_basename, postfix = output_postfix))
+        file_name = file_name[0].strip() + file_name[1]
+        params = settings.get('output', {}).get('cl-xlsx', {}).get('export', {})
+        export_cl_xlsx.export([cl], os.path.join(output_directory, file_name), **params)
 
-    #создание спецификации
-    if make_sp:
-        #изменяем данные основной надписи для спецификации
-        sp_titleBlock = copy.deepcopy(titleBlock)
-        #sp_titleBlock.tb01a_DocumentName = ''
-        sp_titleBlock.tb01b_DocumentType = 'Спецификация'
-        #sp_titleBlock.tb02_DocumentDesignator = ''
-        #sp_titleBlock.tb04_Letter_left = ''
-        #sp_titleBlock.tb04_Letter_middle = ''
-        #sp_titleBlock.tb04_Letter_right = ''
-        sp_titleBlock.tb07_SheetIndex = ''
-        sp_titleBlock.tb08_SheetsTotal = ''
-        #sp_titleBlock.tb09_Organization = ''
-        sp_titleBlock.tb10d_ActivityType_Extra = ''
-        #sp_titleBlock.tb11a_Name_Designer = ''
-        #sp_titleBlock.tb11b_Name_Checker = ''
-        sp_titleBlock.tb11c_Name_TechnicalSupervisor = ''
-        sp_titleBlock.tb11d_Name_Extra = ''
-        #sp_titleBlock.tb11e_Name_NormativeSupervisor = ''
-        #sp_titleBlock.tb11f_Name_Approver = ''
-        sp_titleBlock.tb13a_SignatureDate_Designer = ''
-        sp_titleBlock.tb13b_SignatureDate_Checker = ''
-        sp_titleBlock.tb13c_SignatureDate_TechnicalSupervisor = ''
-        sp_titleBlock.tb13d_SignatureDate_Extra = ''
-        sp_titleBlock.tb13e_SignatureDate_NormativeSupervisor = ''
-        sp_titleBlock.tb13f_SignatureDate_Approver = ''
-        sp_titleBlock.tb19_OriginalInventoryNumber = ''
-        sp_titleBlock.tb21_ReplacedOriginalInventoryNumber = ''
-        sp_titleBlock.tb22_DuplicateInventoryNumber = ''
-        #sp_titleBlock.tb24_BaseDocumentDesignator = ''
-        #sp_titleBlock.tb25_FirstReferenceDocumentDesignator = ''
-
-        print('')
-        print("INFO >> Building sp:")
-        sp = build_sp.build([components, sp_titleBlock],
-            locale_index                            = LocaleIndex.RU.value,         #локализация
-            content_accessories                     = True,                         #добавлять аксессуары
-            content_value                           = True,                         #добавлять номинал
-            content_value_value                     = True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
-            content_value_explicit                  = False,                        #принудительно сделать номиналы явными
-            content_mfr                             = True,                         #добавлять производителя
-            content_mfr_value                       = True,                         #добавлять значение производителя (такая же ситуация как с value)
-            content_param                           = True,                         #добавлять параметрическое описание
-            content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
-            content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
-            content_subst                           = True,                         #добавлять допустимые замены
-            content_subst_value                     = True,                         #добавлять номинал допустимой замены
-            content_subst_manufacturer              = True,                         #добавлять производителя допустимой замены
-            content_subst_note                      = True,                         #добавлять примечение для допустимой замены
-            format_value_enclosure                  = ['', ''],                     #обрамление номинала
-            format_mfr_enclosure                    = [' ф.\xa0', ''],              #обрамление производителя
-            format_param_enclosure                  = [' (', ')'],                  #обрамление параметров
-            format_param_decimalPoint               = ',',                          #десятичный разделитель
-            format_param_rangeSymbol                = '\xa0\u2026\xa0',             #символ диапазона
-            format_param_delimiter                  = ' \u2013 ',                   #разделитель параметров
-            format_param_unit_enclosure             = ['\xa0', ''],                 #обрамление единиц измерения
-            format_param_multivalue_delimiter       = '\xa0/\xa0',                  #разделитель значений многозначного параметра
-            format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
-            format_param_tolerance_signDelimiter    = '\xa0',                       #разделитель между значением допуска и его знаком
-            format_param_conditions_enclosure       = ['\xa0(', ')'],               #обрамление условий измерения параметра
-            format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
-            format_param_temperature_positiveSign   = True,                         #указывать знак для положительных значений температуры
-            format_subst_enclosure                  = ['', ''],                     #обрамление блока с допустимыми заменами
-            format_subst_entry_enclosure            = ['|доп.\xa0замена ', ''],     #обрамление допустимой замены
-            format_subst_value_enclosure            = ['', ''],                     #обрамление номинала допустимой замены
-            format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],              #обрамление производителя допустимой замены
-            format_subst_note_enclosure             = [' (', ')'],                  #обрамление примечения допустимой замены
-            format_annot_enclosure                  = ['|прим. ', ''],              #обрамление примечания
-            format_annot_delimiter                  = ', ',                         #разделитель значений в примечании
-            format_fitted_label                     = ['', '']                      #метка (не) установки компонента ['устанавливать', 'не устанавливать']
-        )
-
-    #экспорт спецификации в CSV
-    if make_sp_csv:
-        print('')
-        print("INFO >> Exporting sp as CSV:")
-        file_name = (bom.prefix + output_name_enclosure[0] + 'СП' + output_name_enclosure[1] + bom.postfix).strip() + os.extsep + 'csv'
-        export_sp_csv.export(sp, os.path.join(output_directory, file_name))
-
-    #создание перечня элементов
-    if make_pe3:
-        #изменяем данные основной надписи для перечня элементов
-        pe3_titleBlock = copy.deepcopy(titleBlock)
-        #pe3_titleBlock.tb01a_DocumentName = ''
-        pe3_titleBlock.tb01b_DocumentType = 'Перечень элементов'
-        pe3_titleBlock.tb02_DocumentDesignator += " ПЭ3"
-        #pe3_titleBlock.tb04_Letter_left = ''
-        #pe3_titleBlock.tb04_Letter_middle = ''
-        #pe3_titleBlock.tb04_Letter_right = ''
-        pe3_titleBlock.tb07_SheetIndex = ''
-        pe3_titleBlock.tb08_SheetsTotal = ''
-        #pe3_titleBlock.tb09_Organization = ''
-        pe3_titleBlock.tb10d_ActivityType_Extra = ''
-        #pe3_titleBlock.tb11a_Name_Designer = ''
-        #pe3_titleBlock.tb11b_Name_Checker = ''
-        pe3_titleBlock.tb11c_Name_TechnicalSupervisor = ''
-        pe3_titleBlock.tb11d_Name_Extra = ''
-        #pe3_titleBlock.tb11e_Name_NormativeSupervisor = ''
-        #pe3_titleBlock.tb11f_Name_Approver = ''
-        pe3_titleBlock.tb13a_SignatureDate_Designer = ''
-        pe3_titleBlock.tb13b_SignatureDate_Checker = ''
-        pe3_titleBlock.tb13c_SignatureDate_TechnicalSupervisor = ''
-        pe3_titleBlock.tb13d_SignatureDate_Extra = ''
-        pe3_titleBlock.tb13e_SignatureDate_NormativeSupervisor = ''
-        pe3_titleBlock.tb13f_SignatureDate_Approver = ''
-        pe3_titleBlock.tb19_OriginalInventoryNumber = ''
-        pe3_titleBlock.tb21_ReplacedOriginalInventoryNumber = ''
-        pe3_titleBlock.tb22_DuplicateInventoryNumber = ''
-        #pe3_titleBlock.tb24_BaseDocumentDesignator = ''
-        #pe3_titleBlock.tb25_FirstReferenceDocumentDesignator = ''
-
-    #экспорт ПЭ3 в docx
+    #перечень элементов в docx
     if make_pe3_docx:
-        #создание перечня элементов для docx
         print('')
         print("INFO >> Building pe3:")
-        pe3 = build_pe3.build([components, pe3_titleBlock],
-            locale_index                            = LocaleIndex.RU.value,         #локализация
-            content_accessories                     = False,                        #добавлять аксессуары
-            content_value                           = True,                         #добавлять номинал
-            content_value_value                     = True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
-            content_value_explicit                  = False,                        #принудительно сделать номиналы явными
-            content_mfr                             = True,                         #добавлять производителя
-            content_mfr_value                       = True,                         #добавлять значение производителя (такая же ситуация как с value)
-            content_param                           = True,                         #добавлять параметрическое описание
-            content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
-            content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
-            content_subst                           = True,                         #добавлять допустимые замены
-            content_subst_value                     = True,                         #добавлять номинал допустимой замены
-            content_subst_manufacturer              = True,                         #добавлять производителя допустимой замены
-            content_subst_note                      = True,                         #добавлять примечение для допустимой замены
-            assemble_kind                           = True,                         #пересобирать тип элемента (для аксессуаров и не распознанных)
-            assemble_param                          = True,                         #пересобирать параметрическое описание
-            format_kind_capitalize                  = True,                         #типы элементов с заглавной буквы
-            format_desig_delimiter                  = [', ', '\u2013'],             #разделитель позиционных обозначений [<перечисление>, <диапазон>]
-            format_value_enclosure                  = ['', ''],                     #обрамление номинала
-            format_mfr_enclosure                    = [' ф.\xa0', ''],              #обрамление производителя
-            format_param_enclosure                  = [' (', ')'],                  #обрамление параметров
-            format_param_decimalPoint               = ',',                          #десятичный разделитель
-            format_param_rangeSymbol                = '\xa0\u2026\xa0',             #символ диапазона
-            format_param_delimiter                  = ' \u2013 ',                   #разделитель параметров
-            format_param_unit_enclosure             = ['\xa0', ''],                 #обрамление единиц измерения
-            format_param_multivalue_delimiter       = '\xa0/\xa0',                  #разделитель значений многозначного параметра
-            format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
-            format_param_tolerance_signDelimiter    = '\xa0',                       #разделитель между значением допуска и его знаком
-            format_param_conditions_enclosure       = ['\xa0(', ')'],               #обрамление условий измерения параметра
-            format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
-            format_param_temperature_positiveSign   = True,                         #указывать знак для положительных значений температуры
-            format_subst_enclosure                  = ['', ''],                     #обрамление блока с допустимыми заменами
-            format_subst_entry_enclosure            = ['\nдоп.\xa0замена ', ''],    #обрамление допустимой замены
-            format_subst_value_enclosure            = ['', ''],                     #обрамление номинала допустимой замены
-            format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],              #обрамление производителя допустимой замены
-            format_subst_note_enclosure             = [' (', ')'],                  #обрамление примечения допустимой замены
-            format_annot_enclosure                  = ['', ''],                     #обрамление примечания
-            format_annot_delimiter                  = ';\n'                         #разделитель значений в примечании
-            #format_fitted_label                     = ['', 'не устанавливать'],     #метка (не) установки компонента ['устанавливать', 'не устанавливать']
-            #dict_groups                             = 'dict_pe3.py'                 #словарь с названиями групп элементов; либо адрес файла, либо сам словарь
-        )
-        #экспорт
+        params = settings.get('output', {}).get('pe3-docx', {}).get('build', {})
+        pe3 = build_pe3.build([components, titleblock], **params)
         print('')
         print("INFO >> Exporting pe3 as docx:")
-        file_name = (bom.prefix + output_name_enclosure[0] + 'ПЭ3' + output_name_enclosure[1] + bom.postfix).strip() + os.extsep + 'docx'
-        export_pe3_docx.export(pe3, os.path.join(output_directory, file_name), wrapDesignator = False, reSplitLabel = ' \u2013')
+        file_name_template = Template(settings.get('output', {}).get('pe3-docx', {}).get('filename', "$basename ПЭ3 $postfix" + os.extsep + "docx"))
+        file_name = os.path.splitext(file_name_template.substitute(basename = output_basename, postfix = output_postfix))
+        file_name = file_name[0].strip() + file_name[1]
+        params = settings.get('output', {}).get('pe3-docx', {}).get('export', {})
+        export_pe3_docx.export(pe3, os.path.join(output_directory, file_name), **params)
 
-    #экспорт ПЭ3 в pdf
+    #перечень элементов в pdf
     if make_pe3_pdf:
-        #создание перечня элементов для pdf
         print('')
         print("INFO >> Building pe3:")
-        pe3 = build_pe3.build([components, pe3_titleBlock],
-            locale_index                            = LocaleIndex.RU.value,         #локализация
-            content_accessories                     = False,                        #добавлять аксессуары
-            content_value                           = True,                         #добавлять номинал
-            content_value_value                     = True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
-            content_value_explicit                  = False,                        #принудительно сделать номиналы явными
-            content_mfr                             = True,                         #добавлять производителя
-            content_mfr_value                       = True,                         #добавлять значение производителя (такая же ситуация как с value)
-            content_param                           = True,                         #добавлять параметрическое описание
-            content_param_basic                     = True,                         #добавлять базовые (распознанные) параметры в описание
-            content_param_misc                      = True,                         #добавлять дополнительные (не распознанные) параметры в описание
-            content_subst                           = True,                         #добавлять допустимые замены
-            content_subst_value                     = True,                         #добавлять номинал допустимой замены
-            content_subst_manufacturer              = True,                         #добавлять производителя допустимой замены
-            content_subst_note                      = True,                         #добавлять примечение для допустимой замены
-            assemble_kind                           = True,                         #пересобирать тип элемента (для аксессуаров и не распознанных)
-            assemble_param                          = True,                         #пересобирать параметрическое описание
-            format_kind_capitalize                  = True,                         #типы элементов с заглавной буквы
-            format_desig_delimiter                  = [', ', '\u2013'],             #разделитель позиционных обозначений [<перечисление>, <диапазон>]
-            format_value_enclosure                  = ['', ''],                     #обрамление номинала
-            format_mfr_enclosure                    = [' ф.\xa0', ''],              #обрамление производителя
-            format_param_enclosure                  = [' (', ')'],                  #обрамление параметров
-            format_param_decimalPoint               = '.',                          #десятичный разделитель
-            format_param_rangeSymbol                = '\u2026',                     #символ диапазона
-            format_param_delimiter                  = ', ',                         #разделитель параметров
-            format_param_unit_enclosure             = ['', ''],                     #обрамление единиц измерения
-            format_param_multivalue_delimiter       = '/',                          #разделитель значений многозначного параметра
-            format_param_tolerance_enclosure        = ['\xa0', ''],                 #обрамление допуска
-            format_param_tolerance_signDelimiter    = '',                           #разделитель между значением допуска и его знаком
-            format_param_conditions_enclosure       = ['\xa0[', ']'],               #обрамление условий измерения параметра
-            format_param_conditions_delimiter       = '; ',                         #разделитель условий измерения параметра
-            format_param_temperature_positiveSign   = True,                         #указывать знак для положительных значений температуры
-            format_subst_enclosure                  = ['', ''],                     #обрамление блока с допустимыми заменами
-            format_subst_entry_enclosure            = ['\nдоп.\xa0замена ', ''],    #обрамление допустимой замены
-            format_subst_value_enclosure            = ['', ''],                     #обрамление номинала допустимой замены
-            format_subst_manufacturer_enclosure     = [' ф.\xa0', ''],              #обрамление производителя допустимой замены
-            format_annot_enclosure                  = ['', ''],                     #обрамление примечания
-            format_annot_delimiter                  = ';\n'                         #разделитель значений в примечании
-            #format_fitted_label                     = ['', 'не устанавливать']      #метка (не) установки компонента ['устанавливать', 'не устанавливать']
-            #dict_groups                             = 'dict_pe3.py'                 #словарь с названиями групп элементов; либо адрес файла, либо сам словарь
-        )
-        #экспорт
+        params = settings.get('output', {}).get('pe3-pdf', {}).get('build', {})
+        pe3 = build_pe3.build([components, titleblock], **params)
         print('')
         print("INFO >> Exporting pe3 as PDF:")
-        file_name = (bom.prefix + output_name_enclosure[0] + 'ПЭ3' + output_name_enclosure[1] + bom.postfix).strip() + os.extsep + 'pdf'
-        export_pe3_pdf.export(pe3, os.path.join(output_directory, file_name))
+        file_name_template = Template(settings.get('output', {}).get('pe3-pdf', {}).get('filename', "$basename ПЭ3 $postfix" + os.extsep + "pdf"))
+        file_name = os.path.splitext(file_name_template.substitute(basename = output_basename, postfix = output_postfix))
+        file_name = file_name[0].strip() + file_name[1]
+        params = settings.get('output', {}).get('pe3-pdf', {}).get('export', {})
+        export_pe3_pdf.export(pe3, os.path.join(output_directory, file_name), **params)
+
+    #перечень элементов в csv
+    if make_pe3_csv:
+        print('')
+        print("INFO >> Building pe3:")
+        params = settings.get('output', {}).get('pe3-csv', {}).get('build', {})
+        pe3 = build_pe3.build([components, None], **params)
+        print('')
+        print("INFO >> Exporting pe3 as CSV:")
+        file_name_template = Template(settings.get('output', {}).get('pe3-csv', {}).get('filename', "$basename ПЭ3 $postfix" + os.extsep + "csv"))
+        file_name = os.path.splitext(file_name_template.substitute(basename = output_basename, postfix = output_postfix))
+        file_name = file_name[0].strip() + file_name[1]
+        params = settings.get('output', {}).get('pe3-csv', {}).get('export', {})
+        export_pe3_csv.export(pe3, os.path.join(output_directory, file_name), **params)
+
+    #спецификация в csv
+    if make_sp_csv:
+        print('')
+        print("INFO >> Building sp:")
+        params = settings.get('output', {}).get('sp-csv', {}).get('build', {})
+        sp = build_sp.build([components, titleblock], **params)
+        print('')
+        print("INFO >> Exporting sp as CSV:")
+        file_name_template = Template(settings.get('output', {}).get('sp-csv', {}).get('filename', "$basename СП $postfix" + os.extsep + "csv"))
+        file_name = os.path.splitext(file_name_template.substitute(basename = output_basename, postfix = output_postfix))
+        file_name = file_name[0].strip() + file_name[1]
+        params = settings.get('output', {}).get('sp-csv', {}).get('export', {})
+        export_sp_csv.export(sp, os.path.join(output_directory, file_name), **params)
 
     print((' ' * 8).ljust(80, '='))
+
+
+#импортирует анализатор данных
+def _import_parser(parser):
+    print("INFO >> Importing designer's parser", end ="... ")
+    if parser is None: parser = default_parser
+    if isinstance(parser, types.ModuleType):
+        #на входе сразу модуль -> его и возвращаем
+        print("ok, already imported.")
+        return parser
+    elif isinstance(parser, str):
+        #на входе строка -> загружаем модуль по адресу в ней
+        print(f"from file '{parser}'", end ="... ")
+        path = os.path.join(_module_dirname, parser)
+        if os.path.exists(path):
+            name = os.path.splitext(os.path.basename(path))[0]
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(name, path)
+            parser = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(parser)
+            print("ok.")
+            return parser
+        else:
+            print("error! file doesn't exist.")
+            raise FileExistsError
+    else:
+        print("error! invalid input.")
+        raise ValueError
+
+#импортирует данные основной надписи
+def _import_titleblock(titleblock):
+    print("INFO >> Importing titleblock data", end ="... ")
+    if titleblock is None:
+        print("nothing to import.")
+        return None
+    if isinstance(titleblock, dict):
+        #на входе сразу словарь -> его и возвращаем
+        print(f"ok, already in dictionary ({len(titleblock)} entries).")
+        return titleblock
+    elif isinstance(titleblock, str):
+        #на входе строка -> загружаем модуль по адресу в ней
+        print(f"from file '{titleblock}'", end ="... ")
+        path = os.path.join(_module_dirname, titleblock)
+        if os.path.exists(path):
+            name = os.path.splitext(os.path.basename(path))[0]
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(name, path)
+            titleblock = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(titleblock)
+            dictionary = titleblock.data
+            print(f"done ({len(dictionary)} entries).")
+            return dictionary
+        else:
+            print("error! file doesn't exist.")
+            raise FileExistsError
+    else:
+        print("error! invalid input.")
+        raise ValueError
+
+#импортирует настройки
+def _import_settings(settings):
+    print("INFO >> Importing settings", end ="... ")
+    if settings is None: settings = default_settings
+    if isinstance(settings, dict):
+        #на входе сразу словарь -> его и возвращаем
+        print("ok, already imported.")
+        return settings
+    elif isinstance(settings, types.ModuleType):
+        #на входе модуль -> возвращаем словарь из него
+        print("extracting data", end ="... ")
+        if isinstance(settings.data, dict):
+            print("ok.")
+            return settings.data
+        else:
+            print("error! data is not a dictionary.")
+            raise ValueError
+    elif isinstance(settings, str):
+        #на входе строка -> загружаем модуль по адресу в ней
+        print(f"from file '{settings}'", end ="... ")
+        path = os.path.join(_module_dirname, settings)
+        if os.path.exists(path):
+            name = os.path.splitext(os.path.basename(path))[0]
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(name, path)
+            settings = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(settings)
+            print("module loaded, extracting data", end ="... ")
+            if isinstance(settings.data, dict):
+                print("ok.")
+                return settings.data
+            else:
+                print("error! data is not a dictionary.")
+                raise ValueError
+        else:
+            print("error! file doesn't exist.")
+            raise FileExistsError
+    else:
+        print("error! invalid input.")
+        raise ValueError
 
 #===================================================== END Specific functions =====================================================
 
@@ -463,6 +389,8 @@ if __name__ == "__main__":
         #specify custom parameters to function call
         inputfiles = []                                                         #input files
         output_directory = None                                                 #output directory
+        parser = None                                                           #модуль анализа данных [module|file_address]
+        settings = None                                                         #настройки [dictionary|module|file_address]
         params = {#'output':                OutputID.ALL.value,                 #какие файлы делать: [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value] или OutputID.ALL
                   #'noquestions':           False                               #ничего не спрашивать при выполнении программы, при возникновении вопросов делать по-умолчанию
                   #'output_name_enclosure': [' ', ' ']                          #заключение для типа документа в имени выходного файла
@@ -486,33 +414,37 @@ if __name__ == "__main__":
         #<-DEBUG
 
         #parse arguments
-        parser = argparse.ArgumentParser(description='BoM converter v' + script_version + ' (' + script_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
-        parser.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
-        parser.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
-        parser.add_argument('--titleblock',         type=str,                 metavar='file',         help='file with title block data')
-        parser.add_argument('--output-dir',                                   metavar='path',         help='output directory')
-        parser.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',  choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value, OutputID.ALL.value, OutputID.NONE.value])
-        parser.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[OptimizationID.MFRNAMES.value, OptimizationID.RESTOL5TO1.value, OptimizationID.ALL.value, OptimizationID.NONE.value])
-        parser.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
-        parser.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
-        args = parser.parse_args()
+        parse_default = argparse.ArgumentParser(description='BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
+        parse_default.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
+        parse_default.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
+        parse_default.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data (only for BoM files input)')
+        parse_default.add_argument('--output-dir',                                   metavar='path',         help='output directory')
+        parse_default.add_argument('--parser',             type=str,                 metavar='file',         help='parser module to use')
+        parse_default.add_argument('--settings',           type=str,                 metavar='file',         help='settings module to use')
+        parse_default.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',        choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.PE3_CSV.value, OutputID.SP_CSV.value, OutputID.ALL.value, OutputID.NONE.value])
+        parse_default.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[OptimizationID.MFR_NAMES.value, OptimizationID.RES_TOL.value, OptimizationID.ALL.value, OptimizationID.NONE.value])
+        parse_default.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
+        parse_default.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
+        args = parse_default.parse_args()
 
         #take input data files and options from arguments
         inputfiles = args.inputfiles
         if args.output_dir is not None: output_directory = args.output_dir
+        if args.parser is not None: parser = args.parser
+        if args.settings is not None: params['settings'] = args.settings
         if args.output is not None: params['output'] = args.output
         if args.optimize is not None: params['optimize'] = args.optimize
         params['noquestions'] = args.noquestions
- 
+
         #process data
         print('')
-        print('INFO >> BoM converter v' + script_version + ' (' + script_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
+        print('INFO >> BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
         print('')
         for file in inputfiles:
             if args.adproject is True or os.path.splitext(file)[1].lstrip(os.extsep) == 'PrjPcb':
-                process_adproject(file, output_directory, **params)
+                process_adproject(file, output_directory, parser, settings, **params)
             else:
-                process_bom(file, None, output_directory, **params)
+                process_bom(file, args.titleblock, output_directory, None, None, parser, settings, **params)
         print('')
         print("INFO >> Job done.")
 

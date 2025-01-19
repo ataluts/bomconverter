@@ -18,11 +18,11 @@ def optimize(data, **kwargs):
         print(f"from module ({os.path.basename(dict_names)}), importing", end ="... ", flush = True)
         #импортируем словарь из модуля
         import importlib.util
-        spec = importlib.util.spec_from_file_location("dict_mfrNames", dict_names)
-        dict_mfrNames = importlib.util.module_from_spec(spec)
-        sys.modules["dict_mfrNames"] = dict_mfrNames
-        spec.loader.exec_module(dict_mfrNames)
-        dict_names = dict_mfrNames.data
+        spec = importlib.util.spec_from_file_location("dict_mfr_name", dict_names)
+        dict_mfr_name = importlib.util.module_from_spec(spec)
+        sys.modules["dict_mfr_name"] = dict_mfr_name
+        spec.loader.exec_module(dict_mfr_name)
+        dict_names = dict_mfr_name.data
         print(f"done ({len(dict_names)} entries)")
     elif isinstance(dict_names, dict):
         #получили словарь как аргумент

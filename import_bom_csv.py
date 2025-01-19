@@ -11,25 +11,45 @@ def importz(address, **kwargs):
     print(' ' * 12 + 'input: ' +  os.path.basename(address))
 
     #параметры
-    file_encoding     = kwargs.get('encoding',  'cp1251')
-    dialect_delimiter = kwargs.get('delimiter', ',')
-    dialect_quotechar = kwargs.get('quotechar', '"')
-    prefix            = kwargs.get('prefix', '')
-    postfix           = kwargs.get('postfix', '')
-    print(' ' * 12 + 'encoding: ' + file_encoding)
-    print(' ' * 12 + 'delimiter: ' + dialect_delimiter)
-    print(' ' * 12 + 'quotechar: ' + dialect_quotechar)
-    print(' ' * 12 + 'prefix: ' + prefix)
-    print(' ' * 12 + 'postfix: ' + postfix)
+    file_encoding = kwargs.get('encoding',  'cp1251')
+    dialect       = kwargs.get('dialect', {})
+    print(f"{' ' * 12}encoding: {file_encoding}")
+    print(f"{' ' * 12}dialect: {dialect}")
 
     #создаём объект
-    bom = BoM_typeDef(prefix, postfix)
+    bom = BoM_typeDef()
+
+    #регистрируем диалект
+    dialect_name = 'import_bom_csv'
+    default_dialect = {
+        'delimiter'        : ',',            #разделитель значений
+        'doublequote'      : True,           #заменять " на "" в значениях
+        'escapechar'       : '\\',           #символ смены регистра
+        'lineterminator'   : '\r\n',         #окончание строки
+        'quotechar'        : '"',            #"кавычки" для pначений со спецсимволами
+        'quoting'          : csv.QUOTE_ALL,  #метод заключения значений в "кавычки"
+        'skipinitialspace' : False,          #пропускать пробел следующий сразу за разделителем
+        'strict'           : False           #вызывать ошибку при неправильных читаемых данных
+    }
+    if isinstance(dialect, csv.Dialect):
+        #получили диалект в качестве параметра -> его и регистрируем
+        csv.register_dialect(dialect_name, dialect)
+    elif isinstance(dialect, dict):
+        #получили словарь в качестве параметра -> регистрируем диалект по-умолчанию с изменениями из словаря
+        default_dialect.update(dialect)
+        csv.register_dialect(dialect_name, **default_dialect)
+    elif isinstance(dialect, str):
+        #получили название диалекта в качестве параметра -> меняем имя используемого диалекта
+        dialect_name = dialect
+    else:
+        #получили непоятно что -> ошибка
+        raise ValueError("Invalid dialect.")
 
     #читаем данные из файла
     print('INFO >> Reading data from CSV file', end ="... ", flush = True)
     if os.path.isfile(address):
         with open(address, 'r', encoding=file_encoding) as csvFile:
-            BoMreader = csv.DictReader(csvFile, delimiter=dialect_delimiter, quotechar=dialect_quotechar)
+            BoMreader = csv.DictReader(csvFile, dialect=dialect_name)
             bom.fieldNames = BoMreader.fieldnames
             for entry in BoMreader:
                 bom.entries.append(entry)

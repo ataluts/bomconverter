@@ -18,9 +18,9 @@ def build(data, **kwargs):
     title_list_substitutes = kwargs.get('title_list_substitutes', lcl.build_cl.TITLE_SUBSTITUTES_LIST.value[locale_index])
     sorting_method = kwargs.get('sorting_method', 'none')
     sorting_reverse = kwargs.get('sorting_reverse', False)
-    content_accessories = kwargs.get('content_accessories', True)
-    content_accessories_segregate = kwargs.get('content_accessories_segregate', False)
-    content_substitutes = kwargs.get('content_substitutes', True)
+    content_accs = kwargs.get('content_accs', True)
+    content_accs_segregate = kwargs.get('content_accs_segregate', False)
+    content_subst = kwargs.get('content_subst', True)
     print(' ' * 12 + 'book title: "' +  title_book + '"')
     print(' ' * 12 + 'components list title: "' +  title_list_components + '"')
     print(' ' * 12 + 'substitutes list title: "' +  title_list_substitutes + '"')
@@ -28,10 +28,10 @@ def build(data, **kwargs):
     print_txt = 'ascending' if not sorting_reverse else 'descending'
     print(' ' * 12 + 'sorting order: ' +  print_txt)
     print_txt = 'components'
-    if content_accessories:
+    if content_accs:
         print_txt += '+ accessories'
-        if content_accessories_segregate: print_txt += ' (segregated)'
-    if content_substitutes: print_txt += '+ substitutes'
+        if content_accs_segregate: print_txt += ' (segregated)'
+    if content_subst: print_txt += '+ substitutes'
     #print(' ' * 12 + 'content: ' +  print_txt)
     #print_txt = 'original' if not assemble_kind else 'assemble'
     #print(' ' * 12 + 'kind: ' +  print_txt)
@@ -50,22 +50,18 @@ def build(data, **kwargs):
         elif sorting_method == 'kind':       data.sort('kind', sorting_reverse)
         elif sorting_method == 'params':     data.sort('params', sorting_reverse)
 
-        components = data.entries
+        #разделяем основные компоненты и аксессуары
+        components  = []
         accessories = []
-
-        #сопутствующие компоненты
-        if content_accessories:
-            if content_accessories_segregate:
-                #выделяем в отдельный список
-                for component in components:
-                    if component.GENERIC_accessory_parent is not None:
+        for component in data.entries:
+            if component.GENERIC_accessory_parent is not None:
+                if content_accs:
+                    if content_accs_segregate:
                         accessories.append(component)
-                        components.remove(component)
-        else:
-            #удаляем
-            for component in components:
-                if component.GENERIC_accessory_parent is not None:
-                    components.remove(component)
+                    else:
+                        components.append(component)
+            else:
+                components.append(component)
 
         #формируем список компонентов
         if len(components) > 0:
@@ -77,7 +73,7 @@ def build(data, **kwargs):
 
         print_txt = ' ' * 12 + 'component entries: '
         if cl.accessories is not None and len(cl.accessories.entries) > 0:
-            print_txt += str(len(cl.components.entries) + len(cl.accessories.entries)) + ' (' + str(len(cl.components.entries)) + ' + ' + str(len(cl.accessories.entries)) + ')'
+            print_txt += f"{len(cl.components.entries) + len(cl.accessories.entries)} ({len(cl.components.entries)} + {len(cl.accessories.entries)})"
         else:
             print_txt += str(len(cl.components.entries))
         print(print_txt)
@@ -86,7 +82,7 @@ def build(data, **kwargs):
         components.extend(accessories)
 
         #формируем список допустимых замен
-        if content_substitutes:
+        if content_subst:
             #создаём список компонентов у которых указаны замены сгруппированный по основным номиналу и производителю
             grouped_by_primary = []
             for component in components:
@@ -149,7 +145,7 @@ def build(data, **kwargs):
                     for substitute_group in primary_group:
                         subgrp = cl.SubstituteEntry.SubstituteGroup([], 0, [])
                         for component in substitute_group:
-                            subgrp.designator.append(component.GENERIC_designator)
+                            subgrp.designator.append(component.GENERIC_designator.full)
                             subgrp.quantity += component.GENERIC_quantity
                         cl.substitutes.entries[-1].primary_quantity += subgrp.quantity
                         if (substitute_group[0].GENERIC_substitute is None) and (True):
@@ -180,7 +176,7 @@ def _build_sublist(sublist, components, **kwargs):
 
             #проверяем поля
             if component.GENERIC_designator is None and component.GENERIC_accessory_parent is None:
-                #если нет десигнатора и не аксесуар то это подозрительно
+                #если нет десигнатора и не аксессуар то это подозрительно
                 if flag < CL_typeDef.FlagType.WARNING: flag = CL_typeDef.FlagType.WARNING
             if component.GENERIC_value is None:
                 #если нет значения то это подозрительно
@@ -188,9 +184,10 @@ def _build_sublist(sublist, components, **kwargs):
 
             kind = assemble.assemble_kind(component, **kwargs)
             description = assemble.assemble_parameters(component, **kwargs)
+            designator = assemble.assemble_designator(component.GENERIC_designator, **kwargs)
             for entry in sublist.entries:
                 if component.GENERIC_value in entry.value:
-                    entry.add(component.GENERIC_designator, kind, component.GENERIC_value, description, component.GENERIC_package, component.GENERIC_manufacturer, component.GENERIC_quantity, component.GENERIC_note, flag)
+                    entry.add(designator, kind, component.GENERIC_value, description, component.GENERIC_package, component.GENERIC_manufacturer, component.GENERIC_quantity, component.GENERIC_note, flag)
                     break
             else:
-                sublist.entries.append(CL_typeDef.ComponentEntry(component.GENERIC_designator, kind, component.GENERIC_value, description, component.GENERIC_package, component.GENERIC_manufacturer, component.GENERIC_quantity, component.GENERIC_note,  flag))
+                sublist.entries.append(CL_typeDef.ComponentEntry(designator, kind, component.GENERIC_value, description, component.GENERIC_package, component.GENERIC_manufacturer, component.GENERIC_quantity, component.GENERIC_note,  flag))

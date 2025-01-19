@@ -52,10 +52,11 @@ class CL_typeDef():
             if flag == None: flag = CL_typeDef.FlagType.NONE
             if flag > self.flag: self.flag = flag
 
-            if designator in self.designator:
-                #если уже есть такой десигнатор то что-то пошло не так
-                if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
-            self.designator.append(designator)
+            if len(designator) > 0:
+                if designator in self.designator:
+                    #если десигнатор не пустой и такой уже есть то что-то пошло не так
+                    if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
+                self.designator.append(designator)
 
             if kind not in self.kind:
                 if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING     #если поля не совпадают то это подозрительно

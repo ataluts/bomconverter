@@ -23,38 +23,38 @@ def export(data, address, **kwargs):
     print(' ' * 12 + 'template: ' + os.path.basename(template_address))
 
     #параметры переноса строк в полях таблицы перечня 
-    pe3Table_wordWrap_designator = kwargs.get('wrapDesignator', True)
-    pe3Table_wordWrap_label      = kwargs.get('wrapLabel', True)
-    pe3Table_wordWrap_annotation = kwargs.get('wrapAnnotation', True)
+    pe3Table_wordwrap_desig = kwargs.get('format_table_desig_wordwrap', True)
+    pe3Table_wordwrap_label      = kwargs.get('format_table_label_wordwrap', True)
+    pe3Table_wordwrap_annot = kwargs.get('format_table_annot_wordwrap', True)
     print_txt = []
-    if pe3Table_wordWrap_designator: print_txt.append('Designator')
-    if pe3Table_wordWrap_label:      print_txt.append('Label')
-    if pe3Table_wordWrap_annotation: print_txt.append('Annotation')
-    if len(print_txt) == 0:          print_txt.append('disabled')
-    print(' ' * 12 + 'wordWrap: ' + ', '.join(print_txt))
+    if pe3Table_wordwrap_desig: print_txt.append('Designator')
+    if pe3Table_wordwrap_label: print_txt.append('Label')
+    if pe3Table_wordwrap_annot: print_txt.append('Annotation')
+    if len(print_txt) == 0:     print_txt.append('disabled')
+    print(' ' * 12 + 'wordwrap: ' + ', '.join(print_txt))
 
     #параметры разделителей пре переносе строк
-    pe3Table_resplit_designator = kwargs.get('reSplitDesignator', ' ')
-    pe3Table_resplit_label      = kwargs.get('reSplitLabel', ' ')
-    pe3Table_resplit_annotation = kwargs.get('reSplitAnnotation', ' ')
-    print(' ' * 12 + "reSplit: Designator='" + pe3Table_resplit_designator + "', Label='" + pe3Table_resplit_label + "', Annotation='" + pe3Table_resplit_annotation + "'")
+    pe3Table_wordwrap_delimiter_desig = kwargs.get('format_table_desig_wordwrap_delimiter', ' ')
+    pe3Table_wordwrap_delimiter_label = kwargs.get('format_table_label_wordwrap_delimiter', ' ')
+    pe3Table_wordwrap_delimiter_annot = kwargs.get('format_table_annot_wordwrap_delimiter', ' ')
+    print(' ' * 12 + "wordwrap delimiter: Designator='" + pe3Table_wordwrap_delimiter_desig + "', Label='" + pe3Table_wordwrap_delimiter_label + "', Annotation='" + pe3Table_wordwrap_delimiter_annot + "'")
 
     #свойства документа, если не заданы то остаются как в шаблоне
-    document_author         = kwargs.get('docAuthor', None)
-    document_category       = kwargs.get('docCategory', None)
-    document_comments       = kwargs.get('docComments', None)
-    document_contentStatus  = kwargs.get('docContentStatus', None)
-    document_created        = kwargs.get('docCreated', None)
-    document_identifier     = kwargs.get('docIdentifier', None)
-    document_keywords       = kwargs.get('docKeywords', None)
-    document_language       = kwargs.get('docLanguage', None)
-    document_lastModifiedBy = kwargs.get('docLastModifiedBy', None)
-    document_lastPrinted    = kwargs.get('docLastPrinted', None)
-    document_modified       = kwargs.get('docModified', None)
-    document_revision       = kwargs.get('docRevision', None)
-    document_subject        = kwargs.get('docSubject', None)
-    document_title          = kwargs.get('docTitle', None)
-    document_version        = kwargs.get('docVersion', None)
+    document_author         = kwargs.get('document_author', None)
+    document_category       = kwargs.get('document_category', None)
+    document_comments       = kwargs.get('document_comments', None)
+    document_contentStatus  = kwargs.get('document_contentStatus', None)
+    document_created        = kwargs.get('document_created', None)
+    document_identifier     = kwargs.get('document_identifier', None)
+    document_keywords       = kwargs.get('document_keywords', None)
+    document_language       = kwargs.get('document_language', None)
+    document_lastModifiedBy = kwargs.get('document_lastModifiedBy', None)
+    document_lastPrinted    = kwargs.get('document_lastPrinted', None)
+    document_modified       = kwargs.get('document_modified', None)
+    document_revision       = kwargs.get('document_revision', None)
+    document_subject        = kwargs.get('document_subject', None)
+    document_title          = kwargs.get('document_title', None)
+    document_version        = kwargs.get('document_version', None)
     
     '''
     print(' ' * 12 + 'document author: ' +  document_author)
@@ -98,47 +98,51 @@ def export(data, address, **kwargs):
     table_pe3Data          = [document.tables[0].cell(0,1).tables[0], document.tables[1].cell(0,1).tables[0]] #таблица с записями перечня элементов
 
     #заполняем поля основной надписи
-    print('INFO >> Filling title block', end ="... ", flush = True)
-    #--- первый лист
-    table_titleBlock_main[0].cell( 7,  5).paragraphs[0].text = data.titleBlock.tb01a_DocumentName
-    table_titleBlock_main[0].cell( 7,  5).paragraphs[1].text = data.titleBlock.tb01b_DocumentType
-    table_titleBlock_main[0].cell( 2, 10).paragraphs[0].text = data.titleBlock.tb02_DocumentDesignator
-    table_titleBlock_main[0].cell( 4,  6).paragraphs[0].text = data.titleBlock.tb04_Letter_left
-    table_titleBlock_main[0].cell( 4,  7).paragraphs[0].text = data.titleBlock.tb04_Letter_middle
-    table_titleBlock_main[0].cell( 4,  8).paragraphs[0].text = data.titleBlock.tb04_Letter_right
-    #table_titleBlock_main[0].cell( 4,  9).paragraphs[0].text = '1' #порядковый номер листа (на документах, состоящих из одного листа, графу не заполняют)
-    table_titleBlock_main[0].cell( 7, 10).paragraphs[0].text = data.titleBlock.tb09_Organization
-    table_titleBlock_main[0].cell( 5,  1).paragraphs[0].text = data.titleBlock.tb10d_ActivityType_Extra
-    table_titleBlock_main[0].cell( 3,  2).paragraphs[0].text = data.titleBlock.tb11a_Name_Designer
-    table_titleBlock_main[0].cell( 4,  2).paragraphs[0].text = data.titleBlock.tb11b_Name_Checker
-    table_titleBlock_main[0].cell( 5,  2).paragraphs[0].text = data.titleBlock.tb11d_Name_Extra
-    table_titleBlock_main[0].cell( 6,  2).paragraphs[0].text = data.titleBlock.tb11e_Name_NormativeSupervisor
-    table_titleBlock_main[0].cell( 7,  2).paragraphs[0].text = data.titleBlock.tb11f_Name_Approver
-    table_titleBlock_main[0].cell( 3,  4).paragraphs[0].text = data.titleBlock.tb13a_SignatureDate_Designer
-    table_titleBlock_main[0].cell( 4,  4).paragraphs[0].text = data.titleBlock.tb13b_SignatureDate_Checker
-    table_titleBlock_main[0].cell( 5,  4).paragraphs[0].text = data.titleBlock.tb13d_SignatureDate_Extra
-    table_titleBlock_main[0].cell( 6,  4).paragraphs[0].text = data.titleBlock.tb13e_SignatureDate_NormativeSupervisor
-    table_titleBlock_main[0].cell( 7,  4).paragraphs[0].text = data.titleBlock.tb13f_SignatureDate_Approver
-    table_titleBlock_extra[0].cell(7,  1).paragraphs[0].text = data.titleBlock.tb19_OriginalInventoryNumber
-    table_titleBlock_extra[0].cell(5,  1).paragraphs[0].text = data.titleBlock.tb21_ReplacedOriginalInventoryNumber
-    table_titleBlock_extra[0].cell(4,  1).paragraphs[0].text = data.titleBlock.tb22_DuplicateInventoryNumber
-    table_titleBlock_extra[0].cell(1,  1).paragraphs[0].text = data.titleBlock.tb24_BaseDocumentDesignator
-    table_titleBlock_extra[0].cell(0,  1).paragraphs[0].text = data.titleBlock.tb25_FirstReferenceDocumentDesignator
-    #--- второй лист
-    table_titleBlock_main[1].cell( 2,  5).paragraphs[0].text = data.titleBlock.tb02_DocumentDesignator
-    table_titleBlock_extra[1].cell(7,  1).paragraphs[0].text = data.titleBlock.tb19_OriginalInventoryNumber
-    table_titleBlock_extra[1].cell(5,  1).paragraphs[0].text = data.titleBlock.tb21_ReplacedOriginalInventoryNumber
-    table_titleBlock_extra[1].cell(4,  1).paragraphs[0].text = data.titleBlock.tb22_DuplicateInventoryNumber
+    if data.titleblock is not None:
+        print('INFO >> Filling title block', end ="... ", flush = True)
+        if isinstance(data.titleblock, dict):
+            #--- первый лист
+            table_titleBlock_main[0].cell( 7,  5).paragraphs[0].text = data.titleblock.get('01a_product_name', '')
+            table_titleBlock_main[0].cell( 7,  5).paragraphs[1].text = data.titleblock.get('01b_document_type', '')
+            table_titleBlock_main[0].cell( 2, 10).paragraphs[0].text = data.titleblock.get('02_document_designator', '')
+            table_titleBlock_main[0].cell( 4,  6).paragraphs[0].text = data.titleblock.get('04_letter_left', '')
+            table_titleBlock_main[0].cell( 4,  7).paragraphs[0].text = data.titleblock.get('04_letter_middle', '')
+            table_titleBlock_main[0].cell( 4,  8).paragraphs[0].text = data.titleblock.get('04_letter_right', '')
+            #table_titleBlock_main[0].cell( 4,  9).paragraphs[0].text = '1' #порядковый номер листа (на документах, состоящих из одного листа, графу не заполняют)
+            table_titleBlock_main[0].cell( 7, 10).paragraphs[0].text = data.titleblock.get('09_organization', '')
+            table_titleBlock_main[0].cell( 5,  1).paragraphs[0].text = data.titleblock.get('10d_activityType_extra', '')
+            table_titleBlock_main[0].cell( 3,  2).paragraphs[0].text = data.titleblock.get('11a_name_designer', '')
+            table_titleBlock_main[0].cell( 4,  2).paragraphs[0].text = data.titleblock.get('11b_name_checker', '')
+            table_titleBlock_main[0].cell( 5,  2).paragraphs[0].text = data.titleblock.get('11d_name_extra', '')
+            table_titleBlock_main[0].cell( 6,  2).paragraphs[0].text = data.titleblock.get('11e_name_normativeSupervisor', '')
+            table_titleBlock_main[0].cell( 7,  2).paragraphs[0].text = data.titleblock.get('11f_name_approver', '')
+            table_titleBlock_main[0].cell( 3,  4).paragraphs[0].text = data.titleblock.get('13a_signatureDate_designer', '')
+            table_titleBlock_main[0].cell( 4,  4).paragraphs[0].text = data.titleblock.get('13b_signatureDate_checker', '')
+            table_titleBlock_main[0].cell( 5,  4).paragraphs[0].text = data.titleblock.get('13d_signatureDate_extra', '')
+            table_titleBlock_main[0].cell( 6,  4).paragraphs[0].text = data.titleblock.get('13e_signatureDate_normativeSupervisor', '')
+            table_titleBlock_main[0].cell( 7,  4).paragraphs[0].text = data.titleblock.get('13f_signatureDate_approver', '')
+            table_titleBlock_extra[0].cell(7,  1).paragraphs[0].text = data.titleblock.get('19_original_inventoryNumber', '')
+            table_titleBlock_extra[0].cell(5,  1).paragraphs[0].text = data.titleblock.get('21_replacedOriginal_inventoryNumber', '')
+            table_titleBlock_extra[0].cell(4,  1).paragraphs[0].text = data.titleblock.get('22_duplicate_inventoryNumber', '')
+            table_titleBlock_extra[0].cell(1,  1).paragraphs[0].text = data.titleblock.get('24_baseDocument_designator', '')
+            table_titleBlock_extra[0].cell(0,  1).paragraphs[0].text = data.titleblock.get('25_firstReferenceDocument_designator', '')
+            #--- второй лист
+            table_titleBlock_main[1].cell( 2,  5).paragraphs[0].text = data.titleblock.get('02_document_designator', '')
+            table_titleBlock_extra[1].cell(7,  1).paragraphs[0].text = data.titleblock.get('19_original_inventoryNumber', '')
+            table_titleBlock_extra[1].cell(5,  1).paragraphs[0].text = data.titleblock.get('21_replacedOriginal_inventoryNumber', '')
+            table_titleBlock_extra[1].cell(4,  1).paragraphs[0].text = data.titleblock.get('22_duplicate_inventoryNumber', '')
+        else:
+            raise ValueError("Invalid titleblock data.")
 
     #копируем второй лист в качестве шаблона для последующих
     nextPageTemplate = deepcopy(document.tables[1]._tbl)
     print('done.')
 
     #получаем данные о форматировании таблицы с перечнем элементов (подразумеваем что все строки таблицы имеют одинаковое форматирование)
-    pe3Table_cellWidth_designator = getCellЕffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_designator))
-    pe3Table_cellWidth_label      = getCellЕffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_label))
-    pe3Table_cellWidth_quantity   = getCellЕffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_quantity))
-    pe3Table_cellWidth_annotation = getCellЕffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_annotation))
+    pe3Table_cellWidth_designator = getCellEffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_designator))
+    pe3Table_cellWidth_label      = getCellEffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_label))
+    pe3Table_cellWidth_quantity   = getCellEffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_quantity))
+    pe3Table_cellWidth_annotation = getCellEffectiveWidth(table_pe3Data[0].cell(1, pe3Table_colIndex_annotation))
     pe3Table_font_designator = getFont(table_pe3Data[0].cell(1, pe3Table_colIndex_designator).paragraphs[0])
     pe3Table_font_label      = getFont(table_pe3Data[0].cell(1, pe3Table_colIndex_label).paragraphs[0])
     pe3Table_font_quantity   = getFont(table_pe3Data[0].cell(1, pe3Table_colIndex_quantity).paragraphs[0])
@@ -154,13 +158,13 @@ def export(data, address, **kwargs):
     print('page: ' + str(pe3Table_pageIndex + 1), end = ", ", flush = True)
     pe3_rowIndex = 0
     while pe3_rowIndex < len(data.rows):
-        if data.rows[pe3_rowIndex].flag == data.row.FlagType.SPACER:
+        if data.rows[pe3_rowIndex].flag == data.Row.FlagType.SPACER:
             #если строка-отступ то ничего не пишем, а если первая на странице то и индекс не увеличиваем
             pe3_rowIndex += 1
             if pe3Table_rowIndex != pe3Table_rowIndex_start:
                 pe3Table_rowIndex += 1
 
-        elif data.rows[pe3_rowIndex].flag == data.row.FlagType.TITLE:
+        elif data.rows[pe3_rowIndex].flag == data.Row.FlagType.TITLE:
             if pe3Table_rowIndex > pe3Table_rowIndex_end - 1:
                 #если заголовок дальше определённого уровня до конца страницы то пропускаем запись (ждём до начала новой страницы)
                 pass
@@ -177,23 +181,23 @@ def export(data, address, **kwargs):
             pe3Table_text_quantity   = [str(data.rows[pe3_rowIndex].quantity)]
             pe3Table_text_annotation = data.rows[pe3_rowIndex].annotation.split('\n')
 
-            if pe3Table_wordWrap_designator:
+            if pe3Table_wordwrap_desig:
                 for i in range(len(pe3Table_text_designator)):
-                    lines = wrapText(pe3Table_text_designator[i], pe3Table_cellWidth_designator, pe3Table_font_designator, pe3Table_resplit_designator)
+                    lines = wrapText(pe3Table_text_designator[i], pe3Table_cellWidth_designator, pe3Table_font_designator, pe3Table_wordwrap_delimiter_desig)
                     pe3Table_text_designator[i] = lines[0]
                     for j in range(1, len(lines)):
                         pe3Table_text_designator.insert(i + j, lines[j])
             
-            if pe3Table_wordWrap_label:
+            if pe3Table_wordwrap_label:
                 for i in range(len(pe3Table_text_label)):
-                    lines = wrapText(pe3Table_text_label[i], pe3Table_cellWidth_label, pe3Table_font_label, pe3Table_resplit_label)
+                    lines = wrapText(pe3Table_text_label[i], pe3Table_cellWidth_label, pe3Table_font_label, pe3Table_wordwrap_delimiter_label)
                     pe3Table_text_label[i] = lines[0]
                     for j in range(1, len(lines)):
                         pe3Table_text_label.insert(i + j, lines[j])
 
-            if pe3Table_wordWrap_annotation:
+            if pe3Table_wordwrap_annot:
                 for i in range(len(pe3Table_text_annotation)):
-                    lines = wrapText(pe3Table_text_annotation[i], pe3Table_cellWidth_annotation, pe3Table_font_annotation, pe3Table_resplit_annotation)
+                    lines = wrapText(pe3Table_text_annotation[i], pe3Table_cellWidth_annotation, pe3Table_font_annotation, pe3Table_wordwrap_delimiter_annot)
                     pe3Table_text_annotation[i] = lines[0]
                     for j in range(1, len(lines)):
                         pe3Table_text_annotation.insert(i + j, lines[j])
@@ -314,7 +318,7 @@ def getFont(paragraph):
     return font
 
 #Возвращает эффективную ширину ячейки в миллиметрах (ширину доступную для текста т.е заданная ширина за вычетом полей)
-def getCellЕffectiveWidth(cell):
+def getCellEffectiveWidth(cell):
     #проблемы с получением значения ширины полей для ячейки, поэтому задаём поля вручную
     #также размеры таблицы должны быть жёстко заданы вручную
     cellWidth = cell.width / Mm(1.0)

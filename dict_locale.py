@@ -90,9 +90,11 @@ class assemble_eskd(Enum):
 class assemble_parameters(Enum):
     MOUNT_SURFACE = ("SMD", "чип")
     MOUNT_THROUGHHOLE = ("throughhole", "выводной")
-    MOUNT_AXIAL = ("axial", "акс.")
-    MOUNT_RADIAL = ("radial", "рад.")
+    MOUNT_THROUGHHOLE_AXIAL = ("axial", "акс.")
+    MOUNT_THROUGHHOLE_RADIAL = ("radial", "рад.")
     MOUNT_HOLDER = ("in holder", "в держатель")
+    MOUNT_HOLDER_CYLINDRICAL = ("cyl.", "цил.")
+    MOUNT_HOLDER_BLADE = ("blade", "ножевой")
     ARRAY = ("array", "сборка")
     CAP_TYPE_CERAMIC = ("ceramic", "керам.")
     CAP_TYPE_TANTALUM = ("tantalum", "тант.")

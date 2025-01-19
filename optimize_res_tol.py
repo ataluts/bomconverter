@@ -59,7 +59,7 @@ def optimize(data, **kwargs):
                 ((res5[j].RES_voltage == res1[i].RES_voltage) or (res5[j].RES_voltage is None)) and         #напряжение или у 5% не задано
                 (res5[j].GENERIC_package == res1[i].GENERIC_package) and                                    #корпус
                 (res5[j].GENERIC_mount == res1[i].GENERIC_mount) and                                        #тип монтажа
-                (res5[j].GENERIC_THtype == res1[i].GENERIC_THtype) and                                      #тип монтажа в отверстия
+                (res5[j].GENERIC_mount_th == res1[i].GENERIC_mount_th) and                                  #тип монтажа в отверстия
                 (res5[j].GENERIC_size == res1[i].GENERIC_size) and                                          #типоразмер
                 (listedvalue_equal(res5[j].GENERIC_temperature_range, res1[i].GENERIC_temperature_range) or (res5[j].GENERIC_temperature_range is None)) and  #диапазон рабочих температур или у 5% не задан
                 listedvalue_equal(res5[j].GENERIC_array, res1[i].GENERIC_array) and                         #сборка
@@ -76,7 +76,7 @@ def optimize(data, **kwargs):
                 res5[j].RES_voltage = copy.deepcopy(res1[i].RES_voltage)
                 res5[j].GENERIC_temperature_range = copy.deepcopy(res1[i].GENERIC_temperature_range)
 
-                modified.append(res5[j].GENERIC_designator)
+                modified.append(res5[j].GENERIC_designator.full)
                 res5.pop(j)
             else:
                 j += 1
@@ -86,7 +86,7 @@ def optimize(data, **kwargs):
             elif res1[i].RES_resistance >= 1e3: res_str = '{0:.10f}'.format(res1[i].RES_resistance / 1e3).rstrip('0').rstrip('.') + 'k'
             elif res1[i].RES_resistance >= 1e6: res_str = '{0:.10f}'.format(res1[i].RES_resistance / 1e6).rstrip('0').rstrip('.') + 'M'
             else: res_str = '{0:.10f}'.format(res1[i].RES_resistance).rstrip('0').rstrip('.') + 'R'
-            print(' ' * 12 + res1[i].GENERIC_designator + ' (' + res_str + ') -> ' + ', '.join(modified))
+            print(' ' * 12 + res1[i].GENERIC_designator.full + ' (' + res_str + ') -> ' + ', '.join(modified))
         
         i += 1
     

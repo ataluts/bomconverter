@@ -21,7 +21,7 @@ class ADProject_typeDef():
         self.designator = ''
         self.name = ''
         self.author = ''
-        self.titleBlock = None
+        self.titleblock = {}
 
 
 #Схемный файл Altium Designer

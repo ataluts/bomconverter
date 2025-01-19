@@ -1,15 +1,67 @@
 from enum import Enum, IntEnum
+from copy import copy
 
 #База данных с компонентами
 class Components_typeDef():
+    class Designator():
+        def __init__(self, full = "", prefix = None, index = None, number = 0, channel = None):
+            self.full    = full     #полный
+            self.name    = ""       #базовый (префикс + индекс)
+            self.prefix  = prefix   #префикс
+            self.index   = index    #индекс (строковой)
+            self.number  = number   #номер (числовой)
+            self.channel = channel  #канал
+            if prefix is not None and index is not None:
+                self.name = str(prefix) + str(index)
+
+        class Channel():
+            def __init__(self, full = "", prefix = None, index = None, number = 0, enclosure = None):
+                self.full       = full      #полное название канала
+                self.name       = ""        #базовое название канала (префикс + индекс)
+                self.prefix     = prefix    #префикс
+                self.index      = index     #индекс (строковой)
+                self.number     = number    #номер (числовой)
+                self.enclosure  = ["", ""]  #обрамление канала
+                if enclosure is not None: self.enclosure = copy(enclosure)
+                if prefix is not None and index is not None: self.name = str(prefix) + str(index)
+
+            #проверяет канал на целостность
+            def check(self):
+                if self.full != str(self.enclosure[0]) + str(self.prefix) + str(self.index) + str(self.enclosure[1]) or \
+                    self.name != str(self.prefix) + str(self.index) or \
+                    self.number <= 0:
+                    return False
+                return True
+
+            #ключ сортировки
+            def _cmpkey(self):
+                return (self.prefix, self.number)
+
+        #проверяет десигнатор на целостность
+        def check(self):
+            if self.name != str(self.prefix) + str(self.index): return False
+            if self.index.isdigit():
+                if int(self.index) != self.number: return False
+            else:
+                return False
+            if self.channel is None:
+                if self.full != self.name: return False
+            else:
+                if not self.channel.check(): return False
+                if self.full != str(self.name) + str(self.channel.full): return False
+            return True
+
+        #ключ сортировки
+        def _cmpkey(self):
+            key = (self.prefix, self.number)
+            if self.channel is not None: key += self.channel._cmpkey()
+            return key
+
     class ComponentTypes():
         #Общий класс компонента (с базовыми полями для всех классов)
         class Generic():
             def __init__(self):
-                self.GENERIC_designator         = None          #десигнатор (полный)
-                self.GENERIC_designator_channel = None          #десигнатор - канал
-                self.GENERIC_designator_prefix  = None          #десигнатор - префикс
-                self.GENERIC_designator_index   = None          #десигнатор - индекс
+                self.GENERIC_designator         = None          #десигнатор
                 self.GENERIC_accessory_child    = None          #ссылка/ссылки на дочерние компоненты (список)
                 self.GENERIC_accessory_parent   = None          #ссылка на родительский компонент
                 self.GENERIC_kind               = None          #тип элемента
@@ -21,7 +73,8 @@ class Components_typeDef():
                 self.GENERIC_package            = None          #корпус
                 self.GENERIC_explicit           = True          #явно заданный номинал (да/нет)
                 self.GENERIC_mount              = None          #тип монтажа
-                self.GENERIC_THtype             = None          #тип монтажа в отверстия
+                self.GENERIC_mount_th           = None          #тип монтажа в отверстия
+                self.GENERIC_mount_holder       = None          #тип монтажа в держатель
                 self.GENERIC_size               = None          #типоразмер
                 self.GENERIC_temperature_range  = None          #диапазон рабочих температур [<->, <+>], K
                 self.GENERIC_array              = None          #сборка [<кол-во_блоков>, <кол-во_элем_в_блоке>, <ArrayType>] (например [3, 2, SERIES] - 3 пары с последовательным включением)
@@ -60,6 +113,12 @@ class Components_typeDef():
                     AXIAL       = 1
                     RADIAL      = 2
 
+                class Holder(IntEnum):
+                    UNKNOWN     = 0
+                    CYLINDRICAL = 1
+                    BLADE       = 2
+
+
             class Color(IntEnum):
                 UNKNOWN     = 0     #неизвестный
                 INFRARED    = 1     #инфракрасный
@@ -87,9 +146,9 @@ class Components_typeDef():
 
             #ключ сортировки по десигнатору
             def _cmpkey_designator(self):
-                key_desPrefix = self.GENERIC_designator_prefix if self.GENERIC_designator_prefix is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
-                key_desIndex = self.GENERIC_designator_index if self.GENERIC_designator_index is not None else 0
-                key_desChannel = str(self.GENERIC_designator_index).upper() if self.GENERIC_designator_index is not None else  '' #'' или '\ufffd' для сортировки в начало/конец если не указан
+                key_desPrefix = self.GENERIC_designator.prefix if self.GENERIC_designator is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
+                key_desIndex = int(self.GENERIC_designator.index) if self.GENERIC_designator is not None else 0
+                key_desChannel = str(self.GENERIC_designator.channel).upper() if self.GENERIC_designator is not None else  '' #'' или '\ufffd' для сортировки в начало/конец если не указан
                 return (key_desPrefix, key_desIndex, key_desChannel)
 
             #ключ сортировки по номиналу
@@ -105,7 +164,7 @@ class Components_typeDef():
 
             #ключ сортировки по параметрам (заглушка для базового класса)
             def _cmpkey_params(self):
-                key_kind = str(self.GENERIC_designator_prefix).upper() if self.GENERIC_designator_prefix is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
+                key_kind = str(self.GENERIC_designator.prefix).upper() if self.GENERIC_designator.prefix is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
                 key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
                 return (key_kind, key_value) #потенциально опасно так как есть вероятность сравнения второго ключа с несовместимым типом (из-за определения первого ключа по desPrefix, а типа компонента в парсере по kind)
 
@@ -720,8 +779,35 @@ class Components_typeDef():
                 key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
                 return (key_kind, key_type, key_structure, key_frequency, key_tolerance, key_stability, key_loadCapacitance, key_ESR, key_driveLevel, key_value)
 
+    #нарекания (в результате проверки)
+    class Complaints():
+        def __init__(self, critical = 0, error = 0, warning = 0):
+            self.critical = critical
+            self.error    = error
+            self.warning  = warning
+
+        def add(self, other):
+            if not isinstance(other, self.__class__): raise ValueError("incompatiable types")
+            self.critical += other.critical
+            self.error    += other.error
+            self.warning  += other.warning
+
+        def reset(self):
+            self.critical = 0
+            self.error    = 0
+            self.warning  = 0
+
+        def none(self):
+            if self.critical + self.error + self.warning == 0: return True
+            return False
+        
+        def noerrors(self):
+            if self.critical + self.error == 0: return True
+            return False
+
     def __init__(self):
         self.entries = []
+        self.complaints = self.Complaints()
 
     #сортировка базы данных
     def sort(self, method = 'designator', reverse = False):
@@ -735,3 +821,39 @@ class Components_typeDef():
             self.entries.sort(key = lambda entry: entry._cmpkey_params(), reverse = reverse)
         else:
             raise NotImplementedError
+    
+    #проверка базы данных
+    def check(self):
+        print("INFO >> Checking data (system)", end ="... ")
+        complaints = self.Complaints()
+
+        #проверяем целостность десигнаторов
+        for component in self.entries:
+            if component.GENERIC_designator is not None:
+                #десигнатор есть, проверяем целостность
+                if not component.GENERIC_designator.check():
+                    component.flag = component.FlagType.ERROR
+                    print('\n' + ' ' * 12 + 'error! ' + str(component.GENERIC_designator.full) + ' - inconsistent designator', end = '', flush = True)
+                    complaints.error += 1
+            else:
+                #десигнатора нет, проверяем что есть родительский компонент
+                if component.GENERIC_accessory_parent is None:
+                    component.flag = component.FlagType.ERROR
+                    print('\n' + ' ' * 12 + 'critical error! rogue component: ', end = '', flush = True)
+                    complaints.critical += 1
+
+        #проверяем уникальность десигнаторов
+        for i in range(len(self.entries)):
+            for j in range(i + 1, len(self.entries)):
+                if self.entries[i].GENERIC_designator is not None and self.entries[j].GENERIC_designator is not None:
+                    if self.entries[i].GENERIC_designator.full == self.entries[j].GENERIC_designator.full:
+                        self.entries[i].flag = component.FlagType.ERROR
+                        self.entries[j].flag = component.FlagType.ERROR
+                        print('\n' + ' ' * 12 + 'critical error! ' + str(self.entries[i].GENERIC_designator.full) + ' - duplicate designators', end = '', flush = True)
+                        complaints.critical += 1
+
+        if complaints.none(): 
+            print("ok.")  
+        else:
+            print(f"\n{' ' * 12}completed: {complaints.critical} critical, {complaints.error} errors, {complaints.warning} warnings.")
+        return complaints
