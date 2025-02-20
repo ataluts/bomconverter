@@ -132,3 +132,4 @@ dmypy.json
 # User-defined
 _launcher_taluts.py
 _todo.txt
+gui.ini

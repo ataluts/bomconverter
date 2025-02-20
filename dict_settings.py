@@ -383,11 +383,11 @@ data = {
     #оптимизация данных
     'optimize': {
         'mfr-name': {                                                                   #имена производителей
-            'enabled'                                   : False,                            #включено
+            'enabled'                                   : False,                             #включено
             #'dictionary'                                : dict_mfr_names.py"                #адрес словаря
         },
         'res-tol': {                                                                    #точность резиторов
-            'enabled'                                   : False                             #включено
+            'enabled'                                   : False                              #включено
         }
     },
 

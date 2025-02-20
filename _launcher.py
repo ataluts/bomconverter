@@ -16,6 +16,7 @@ argv.append('--adproject')
 #argv.extend(['--optimize', 'all'])
 #argv.append('--noquestions')
 argv.append('--nohalt')
+#argv.append('--debug')
 
 #запускаем основную программу как будто из командной строки
 subprocess.run(argv)

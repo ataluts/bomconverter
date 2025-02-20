@@ -26,20 +26,13 @@ import export_sp_csv                    #экспорт спецификации
 from dict_locale import LocaleIndex     #словарь с локализациями
 
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_version = '3.5'
-_module_date    = datetime.datetime(2025, 1, 19)
+_module_version = '3.6'
+_module_date    = datetime.datetime(2025, 2, 20)
+_halt_on_exit   = True
+_debug          = False
 
 default_parser   = "parse_taluts.py"
 default_settings = "dict_settings.py"
-
-# -------------------------------------------------------- Generic functions --------------------------------------------------------
-
-#exit the program
-def exit():
-    input("Press any key to exit...")
-    sys.exit(0)
-
-#====================================================== END Generic functions =======================================================
 
 #-------------------------------------------------------- Class definitions ---------------------------------------------------------
 
@@ -99,7 +92,7 @@ def process_adproject(address, output_directory = None, parser = None, settings 
         #запрашиваем данные пока нет правильного ответа 
         while not answer_valid:
             answer = input("REQUEST >> Choose which BoMs to process (0 or <empty> for all, q for abort): ")
-            if answer == 'q': exit()
+            if answer == 'q': exit(3)
             elif answer == '0' or answer == '':
                 activeBomIndexes = list(range(len(ADProject.BoMs)))
                 answer_valid = True
@@ -381,79 +374,84 @@ def _import_settings(settings):
 
 #---------------------------------------------------------- Execution -------------------------------------------------------------
 
+def main() -> None:
+    #specify custom parameters to function call
+    inputfiles = []                                                         #input files
+    output_directory = None                                                 #output directory
+    parser = None                                                           #модуль анализа данных [module|file_address]
+    settings = None                                                         #настройки [dictionary|module|file_address]
+    params = {#'output':                OutputID.ALL.value,                 #какие файлы делать: [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value] или OutputID.ALL
+                #'noquestions':           False                               #ничего не спрашивать при выполнении программы, при возникновении вопросов делать по-умолчанию
+                #'output_name_enclosure': [' ', ' ']                          #заключение для типа документа в имени выходного файла
+                #'output_name_prefix':    ''                                  #префикс имени выходного файла
+                #'output_name_postfix':   ''                                  #суффикс имени выходного файла
+    }
+
+    #parse arguments
+    parse_default = argparse.ArgumentParser(description='BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
+    parse_default.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
+    parse_default.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
+    parse_default.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data (only for BoM files input)')
+    parse_default.add_argument('--output-dir',                                   metavar='path',         help='output directory')
+    parse_default.add_argument('--parser',             type=str,                 metavar='file',         help='parser module to use')
+    parse_default.add_argument('--settings',           type=str,                 metavar='file',         help='settings module to use')
+    parse_default.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',        choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.PE3_CSV.value, OutputID.SP_CSV.value, OutputID.ALL.value, OutputID.NONE.value])
+    parse_default.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[OptimizationID.MFR_NAMES.value, OptimizationID.RES_TOL.value, OptimizationID.ALL.value, OptimizationID.NONE.value])
+    parse_default.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
+    parse_default.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
+    args = parse_default.parse_args()
+
+    #take input data files and options from arguments
+    inputfiles = args.inputfiles
+    if args.output_dir is not None: output_directory = args.output_dir
+    if args.parser is not None: parser = args.parser
+    if args.settings is not None: params['settings'] = args.settings
+    if args.output is not None: params['output'] = args.output
+    if args.optimize is not None: params['optimize'] = args.optimize
+    if args.nohalt is not None: 
+        global _halt_on_exit
+        _halt_on_exit = False
+    params['noquestions'] = args.noquestions
+
+    #process data
+    print('')
+    print('INFO >> BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
+    print('')
+    for file in inputfiles:
+        if args.adproject is True or os.path.splitext(file)[1].lstrip(os.extsep) == 'PrjPcb':
+            process_adproject(file, output_directory, parser, settings, **params)
+        else:
+            process_bom(file, args.titleblock, output_directory, None, None, parser, settings, **params)
+    print('')
+    print("INFO >> Job done.")
+
+#exit the program
+def exit(code:int = 0) -> None:
+    print("")
+    if _halt_on_exit: input("Press any key to exit...")
+    print("Exiting...")
+    if code > 0 and _debug:
+        print(f"DEBUG >> Exit code: {code}")
+        sys.exit(0)
+    else:
+        sys.exit(code)
+
 #prevent launch when importing
 if __name__ == "__main__":
-    #catching all errors to display error info and prevent terminal from closing 
-    if True:
-    #try:
-        #specify custom parameters to function call
-        inputfiles = []                                                         #input files
-        output_directory = None                                                 #output directory
-        parser = None                                                           #модуль анализа данных [module|file_address]
-        settings = None                                                         #настройки [dictionary|module|file_address]
-        params = {#'output':                OutputID.ALL.value,                 #какие файлы делать: [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value] или OutputID.ALL
-                  #'noquestions':           False                               #ничего не спрашивать при выполнении программы, при возникновении вопросов делать по-умолчанию
-                  #'output_name_enclosure': [' ', ' ']                          #заключение для типа документа в имени выходного файла
-                  #'output_name_prefix':    ''                                  #префикс имени выходного файла
-                  #'output_name_postfix':   ''                                  #суффикс имени выходного файла
-        }
-
-        #checking launch from IDE - insert predetermined data files and options for debug into arguments
-        #DEBUG->
-        if '--debug' in sys.argv:
-            sys.argv.remove('--debug')
-            #input_basepath = ''
-            #input_files = []
-            #input_files.append(os.path.join(input_basepath, 'test\\project\\test project.PrjPcb'))
-            #sys.argv.extend(input_files)
-            #sys.argv.append('--adproject')
-            #sys.argv.extend(['--output', 'pe3-docx'])
-            #sys.argv.extend(['--optimize', 'all'])
-            #sys.argv.append('--noquestions')
-            #sys.argv.append('--nohalt')
-        #<-DEBUG
-
-        #parse arguments
-        parse_default = argparse.ArgumentParser(description='BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
-        parse_default.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
-        parse_default.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
-        parse_default.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data (only for BoM files input)')
-        parse_default.add_argument('--output-dir',                                   metavar='path',         help='output directory')
-        parse_default.add_argument('--parser',             type=str,                 metavar='file',         help='parser module to use')
-        parse_default.add_argument('--settings',           type=str,                 metavar='file',         help='settings module to use')
-        parse_default.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',        choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.PE3_CSV.value, OutputID.SP_CSV.value, OutputID.ALL.value, OutputID.NONE.value])
-        parse_default.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[OptimizationID.MFR_NAMES.value, OptimizationID.RES_TOL.value, OptimizationID.ALL.value, OptimizationID.NONE.value])
-        parse_default.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
-        parse_default.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
-        args = parse_default.parse_args()
-
-        #take input data files and options from arguments
-        inputfiles = args.inputfiles
-        if args.output_dir is not None: output_directory = args.output_dir
-        if args.parser is not None: parser = args.parser
-        if args.settings is not None: params['settings'] = args.settings
-        if args.output is not None: params['output'] = args.output
-        if args.optimize is not None: params['optimize'] = args.optimize
-        params['noquestions'] = args.noquestions
-
-        #process data
-        print('')
-        print('INFO >> BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
-        print('')
-        for file in inputfiles:
-            if args.adproject is True or os.path.splitext(file)[1].lstrip(os.extsep) == 'PrjPcb':
-                process_adproject(file, output_directory, parser, settings, **params)
-            else:
-                process_bom(file, args.titleblock, output_directory, None, None, parser, settings, **params)
-        print('')
-        print("INFO >> Job done.")
-
-        if not args.nohalt:
-            print('')
-            input("Press any key to exit...")
-
-    #except Exception as err:
-    #    print("ERROR >>", err)
-    #    exit()
+    exit_code = 0
+    #checking launch from IDE
+    if '--debug' in sys.argv:
+        sys.argv.remove('--debug')
+        _debug = True
+        main()
+    else:
+        #catching all errors to display error info and prevent terminal from closing
+        try:
+            main()
+        except Exception as e:
+            exit_code = 1
+            print(f"ERROR >> {e}")
+            
+    exit(exit_code)
 
 #========================================================= END Execution ===========================================================
