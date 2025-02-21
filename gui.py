@@ -893,7 +893,8 @@ class MainFrame(wx.Frame):
             stdin = subprocess.PIPE,
             stderr = subprocess.PIPE,
             text = True,
-            encoding = 'utf-8'
+            encoding = 'utf-8',
+            errors="replace"
         )
         threading.Thread(target = self.cli_read, daemon = True).start()
         

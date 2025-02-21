@@ -82,7 +82,7 @@ def build(data, **kwargs):
     if not isinstance(titleblock, dict): raise ValueError("Invalid titleblock data.")
     pe3.titleblock = deepcopy(titleblock)
     if setting_data_titleblock is not None:
-        if not isinstance(titleblock, dict): raise ValueError("Invalid titleblock settings.")
+        if not isinstance(setting_data_titleblock, dict): raise ValueError("Invalid titleblock settings.")
         for key, value in setting_data_titleblock.items():
             if isinstance(value, (tuple, list)):
                 #если тип значения 'tuple' или 'list' то собираем из него строку и добавляем её к уже имеющейся в полученных данных

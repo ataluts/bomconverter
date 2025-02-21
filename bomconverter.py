@@ -25,6 +25,11 @@ import export_pe3_csv                   #экспорт перечня элем�
 import export_sp_csv                    #экспорт спецификации в CSV
 from dict_locale import LocaleIndex     #словарь с локализациями
 
+#Force output encoding to be utf-8
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
 _module_version = '3.6'
 _module_date    = datetime.datetime(2025, 2, 20)
@@ -56,7 +61,7 @@ class OptimizationID(enum.Enum):
 #-------------------------------------------------------- Specific functions --------------------------------------------------------
 
 #обрабатываем файл проекта Altium
-def process_adproject(address, output_directory = None, parser = None, settings = None, **kwargs):
+def process_adproject(address, titleblock = None, output_directory = None, parser = None, settings = None, **kwargs):
     print(('INFO >> Processing AD project: "' + os.path.basename(address) + '" ').ljust(80, '-'))
     print(' ' * 12 + 'output: ' +  os.path.basename(address))
 
@@ -70,6 +75,9 @@ def process_adproject(address, output_directory = None, parser = None, settings 
     if parser is None: parser = settings.get('parse', {}).get('parser', None)
     parser = _import_parser(parser)
 
+    #загружаем данные основной надписи для обновления той что в проекте
+    titleblock_upd = _import_titleblock(titleblock)
+
     #импорт проекта Altium Designer
     params = settings.get('input', {}).get('adproject', {})
     ADProject = import_adproject.importz(address, **params)
@@ -79,11 +87,11 @@ def process_adproject(address, output_directory = None, parser = None, settings 
     print("INFO >> Filling project data using designer's parser:")
     params = settings.get('parse', {}).get('project', {})
     parser.parse_project(ADProject, **params)
+
+    #справшиваем какие BoM обрабатывать если их больше одного
     print('INFO >> BoMs found: ' + str(len(ADProject.BoMs)))
     for i in range(len(ADProject.BoMs)):
         print(' ' * 12 + str(i + 1).rjust(2)  + ': "' + os.path.basename(ADProject.BoMs[i]) + '" / "' + ADProject.BoMVariantNames[i] + '"')
-
-    #справшиваем какие BoM обрабатывать если их больше одного
     activeBomIndexes = []
     if len(ADProject.BoMs) == 1 or noquestions:
         activeBomIndexes = list(range(len(ADProject.BoMs)))
@@ -110,14 +118,33 @@ def process_adproject(address, output_directory = None, parser = None, settings 
         activeBomIndexes = list(set(activeBomIndexes))   #убираем дубликаты
     print("INFO >> BoM files to process: " + str(len(activeBomIndexes)))
 
+    #добавляем данные основной надписи из внешнего модуля в словарь из проекта
+    titleblock = copy.deepcopy(ADProject.titleblock)
+    if titleblock_upd is not None:
+        if titleblock is not None:
+            if not isinstance(titleblock_upd, dict): raise ValueError("Invalid titleblock to update from.")
+            for key, value in titleblock_upd.items():
+                if isinstance(value, (tuple, list)):
+                    #если тип значения 'tuple' или 'list' то собираем из него строку и добавляем её к уже имеющейся в полученных данных
+                    value = ''.join(value)
+                    if key in titleblock:
+                        titleblock[key] += value
+                        continue
+                titleblock[key] = value
+        else:
+            titleblock = titleblock_upd
+
     #обрабатываем все выбранные BoM из проекта
     for i in activeBomIndexes:
-        process_bom(os.path.join(ADProject.directory, ADProject.BoMs[i]), ADProject.titleblock, output_directory, ADProject.designator, ADProject.BoMVariantNames[i], parser, settings, **kwargs)
+        process_bom(os.path.join(ADProject.directory, ADProject.BoMs[i]), titleblock, output_directory, ADProject.designator, ADProject.BoMVariantNames[i], parser, settings, **kwargs)
 
     print((' ' * 8).ljust(80, '='))
 
 #обрабатываем BoM файлы
 def process_bom(address, titleblock = None, output_directory = None, output_basename = None, output_postfix = None, parser = None, settings = None, **kwargs):
+    print('')
+    print(('INFO >> Processing BoM: "' + os.path.basename(address) + '" ').ljust(80, '-'))
+
     #загружаем настройки
     settings = _import_settings(settings)
 
@@ -158,9 +185,6 @@ def process_bom(address, titleblock = None, output_directory = None, output_base
     if output_directory is None: output_directory = os.path.dirname(address)
     if output_basename is None: output_basename = os.path.splitext(os.path.basename(address))[0]
     if output_postfix is None: output_postfix = ''
-
-    print('')
-    print(('INFO >> Processing BoM: "' + os.path.basename(address) + '" ').ljust(80, '-'))
 
     #импорт BoM
     print("INFO >> Importing BoM:")
@@ -391,7 +415,7 @@ def main() -> None:
     parse_default = argparse.ArgumentParser(description='BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
     parse_default.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
     parse_default.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
-    parse_default.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data (only for BoM files input)')
+    parse_default.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data')
     parse_default.add_argument('--output-dir',                                   metavar='path',         help='output directory')
     parse_default.add_argument('--parser',             type=str,                 metavar='file',         help='parser module to use')
     parse_default.add_argument('--settings',           type=str,                 metavar='file',         help='settings module to use')
@@ -419,7 +443,7 @@ def main() -> None:
     print('')
     for file in inputfiles:
         if args.adproject is True or os.path.splitext(file)[1].lstrip(os.extsep) == 'PrjPcb':
-            process_adproject(file, output_directory, parser, settings, **params)
+            process_adproject(file, args.titleblock, output_directory, parser, settings, **params)
         else:
             process_bom(file, args.titleblock, output_directory, None, None, parser, settings, **params)
     print('')

@@ -329,7 +329,7 @@ def getCellEffectiveWidth(cell):
 #Разбивает текст на строки (ширина в миллиметрах)
 def wrapText(text, width, font, resplitChars = ' '):
     max_width = width / (25.4/72)
-    if font.getsize(text)[0] > max_width:
+    if getTextWidth(font, text) > max_width:
         #разбиваем текст на блоки по заданным разделителям и приклеиваем разделитель обратно к концу блока
         blocks = re.split('([' + resplitChars + '])', text)
         for i in range(len(blocks) // 2):
@@ -340,13 +340,18 @@ def wrapText(text, width, font, resplitChars = ' '):
             #try putting this block in last line then measure
             lines[-1].append(block)
             line = ''.join(lines[-1])
-            if font.getsize(line)[0] > max_width: #too wide
+            if getTextWidth(font, line) > max_width: #too wide
                 #take it back out, put it on the next line, then measure again
                 if len(lines[-1]) > 1:   #take back out only if more than one block
                     lines.append([lines[-1].pop()])
         return [''.join(line) for line in lines]
     else:
         return [text]
+
+#Вычисляет ширину текста
+def getTextWidth(font, text):
+    bbox = font.getbbox(text)
+    return bbox[2] - bbox[0]
 
 #Записывает адреса ячеек в таблицы шаблона
 def indexTemplate(resultAddress, templateAddress = None):

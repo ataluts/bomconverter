@@ -1,5 +1,6 @@
 import os
 import subprocess
+import threading
 import csv
 
 from typedef_pe3 import PE3_typeDef                                 #класс перечня элементов
@@ -81,7 +82,6 @@ def export(data, address, **kwargs):
                         'Duplicate inventory number': titleblock.get('22_duplicate_inventoryNumber', ''), 
                         'Base document designator': titleblock.get('24_baseDocument_designator', ''),
                         'First reference document designator': titleblock.get('25_firstReferenceDocument_designator', '')})
-        csvFile.close()
     #--- перечень элементов
     with open(data_tmpAddress, 'w', encoding='utf-8', newline='') as csvFile:
         writer = csv.DictWriter(csvFile, fieldnames=['Designator', 'Label', 'Quantity', 'Annotation'])
@@ -91,13 +91,31 @@ def export(data, address, **kwargs):
                              'Label':      row.label.replace('\r', '').replace('\n', '\\\\'),         #заменяем символ новой строки на используемый в LaTeX
                              'Quantity':   row.quantity,
                              'Annotation': row.annotation.replace('\r', '').replace('\n', '\\\\')})   #заменяем символ новой строки на используемый в LaTeX
-        csvFile.close()
-    print('done.')
+    print('done.', flush = True)
 
     #создание PDF через MiKTeX
-    print('INFO >> Executing MiKTeX: ')
-    subprocess.run(['texify', '--quiet', '--clean', '--pdf', "--engine=xetex", template_address], cwd = outputDirectory)
-    #BUG!!! отсюда и далее нельзя использовать не ascii вывод в cmd windows поскольку это приводит к его падению
+    print('INFO >> Executing MiKTeX: ', flush = True)
+    #--- запускаем texify
+    process = subprocess.Popen(
+        ['texify', '--quiet', '--clean', '--pdf', "--engine=xetex", template_address],
+        cwd = outputDirectory,
+        stdout = subprocess.PIPE,
+        stderr = subprocess.PIPE,
+        text = True,  # Ensures output is treated as text, not bytes
+        encoding = "utf-8",
+        errors = "replace",
+        bufsize = 1
+    )
+    #--- создаём и запускаем потоки чтобы читать вывод в stdout и stderr
+    stdout_thread = threading.Thread(target=read_stdout, args=(process,))
+    stderr_thread = threading.Thread(target=read_stderr, args=(process,))
+    stdout_thread.start()
+    stderr_thread.start()
+    #--- ждём завершения процесса
+    process.wait()
+    #--- соединяем потоки
+    stdout_thread.join()
+    stderr_thread.join()
     print('INFO >> MiKTeX has finished.')
 
     print('INFO >> Renaming result', end ="... ", flush = True)
@@ -117,4 +135,16 @@ def export(data, address, **kwargs):
     os.remove(tb_tmpAddress)
     print('done.')
 
-    print('INFO >> pe3-pdf export completed.')   
+    print('INFO >> pe3-pdf export completed.')
+
+#Читаем из stdout
+def read_stdout(process):
+    for line in iter(process.stdout.readline, ''):
+        if line:
+            print(line.strip(), flush=True)
+
+#Читаем из stderr
+def read_stderr(process):
+    for line in iter(process.stderr.readline, ''):
+        if line:
+            print(line.strip(), flush=True)
