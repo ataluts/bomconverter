@@ -10,7 +10,7 @@ import configparser
 import enum
 
 _module_dirname = os.path.dirname(__file__)                      #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 2, 20)
+_module_date    = datetime.datetime(2025, 3, 14)
 
 class OutputID(enum.Enum):
     ALL      = 'all'
@@ -149,23 +149,27 @@ class MainFrame(wx.Frame):
         self.control_input_filebrowser_sizer.Add((0, 0))
         self.control_input_filebrowser_sizer.Add(self.control_input_adproject_chkbox, flag=wx.ALIGN_LEFT)
         self.control_input_filebrowser_sizer.Add((0, 0))
-        #--- --- --- Файл данных
+        #--- --- --- Файлы данных
         self.control_input_data_label = wx.StaticText(self.control_input_sbox, label="Данные:\n[0]", style = wx.ALIGN_RIGHT, size = label_browse_size)
         self.control_input_filebrowser_sizer.Add(self.control_input_data_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
         self.control_input_data_text = wx.TextCtrl(self.control_input_sbox, style = wx.TE_MULTILINE)
         self.control_input_data_text.Bind(wx.EVT_TEXT, self.OnControlPanelValueChange)
+        self.control_input_data_text.SetDropTarget(FileDropTarget(self.control_input_data_text))
         self.control_input_filebrowser_sizer.Add(self.control_input_data_text, flag = wx.EXPAND)
         self.control_input_data_browse = wx.Button(self.control_input_sbox, label = button_browse_label, size = button_browse_size)
         self.control_input_data_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.control_input_data_text, True, "Altium Designer project (*.PrjPcb)|*.PrjPcb|CSV files (*.csv)|*.csv|Text files (*.txt)|*.txt|All files (*.*)|*.*"))
+        self.control_input_data_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.control_input_data_text.Clear())
         self.control_input_filebrowser_sizer.Add(self.control_input_data_browse, flag = wx.EXPAND)
         #--- --- --- Файл основной надписи
         self.control_input_titleblock_label = wx.StaticText(self.control_input_sbox, label="Осн. надпись:", style = wx.ALIGN_RIGHT, size = label_browse_size)
         self.control_input_filebrowser_sizer.Add(self.control_input_titleblock_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
         self.control_input_titleblock_text = wx.TextCtrl(self.control_input_sbox)
         self.control_input_titleblock_text.Bind(wx.EVT_TEXT, self.OnControlPanelValueChange)
+        self.control_input_titleblock_text.SetDropTarget(FileDropTarget(self.control_input_titleblock_text))
         self.control_input_filebrowser_sizer.Add(self.control_input_titleblock_text, flag = wx.EXPAND)
         self.control_input_titleblock_browse = wx.Button(self.control_input_sbox, wx.ID_ANY, label = button_browse_label, size = button_browse_size)
         self.control_input_titleblock_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.control_input_titleblock_text, False, "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.control_input_titleblock_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.control_input_titleblock_text.Clear())
         self.control_input_filebrowser_sizer.Add(self.control_input_titleblock_browse)
         #--- --- компоновка: Выбор файлов/папок -> Ввод
         self.control_input_sbox_sizer.Add(self.control_input_filebrowser_sizer, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
@@ -183,18 +187,22 @@ class MainFrame(wx.Frame):
         self.control_config_filebrowser_sizer.Add(self.control_config_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
         self.control_config_settings_text = wx.TextCtrl(self.control_config_sbox)
         self.control_config_settings_text.Bind(wx.EVT_TEXT, self.OnControlPanelValueChange)
+        self.control_config_settings_text.SetDropTarget(FileDropTarget(self.control_config_settings_text))
         self.control_config_filebrowser_sizer.Add(self.control_config_settings_text, flag = wx.EXPAND)
         self.control_config_settings_browse = wx.Button(self.control_config_sbox, size = button_browse_size, label = button_browse_label)
         self.control_config_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.control_config_settings_text, False, "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.control_config_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.control_config_settings_text.Clear())
         self.control_config_filebrowser_sizer.Add(self.control_config_settings_browse)
         #--- --- --- Модуль анализатора
         self.control_config_parser_label = wx.StaticText(self.control_config_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Анализатор:")
         self.control_config_filebrowser_sizer.Add(self.control_config_parser_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
         self.control_config_parser_text = wx.TextCtrl(self.control_config_sbox)
         self.control_config_parser_text.Bind(wx.EVT_TEXT, self.OnControlPanelValueChange)
+        self.control_config_parser_text.SetDropTarget(FileDropTarget(self.control_config_parser_text))
         self.control_config_filebrowser_sizer.Add(self.control_config_parser_text,flag = wx.EXPAND)
         self.control_config_parser_browse = wx.Button(self.control_config_sbox, size = button_browse_size, label = button_browse_label)
         self.control_config_parser_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.control_config_parser_text, False, "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.control_config_parser_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.control_config_parser_text.Clear())
         self.control_config_filebrowser_sizer.Add(self.control_config_parser_browse)
         #--- --- компоновка: Выбор файлов/папок -> Конфигурация
         self.control_config_sbox_sizer.Add(self.control_config_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
@@ -235,9 +243,11 @@ class MainFrame(wx.Frame):
         self.control_output_filebrowser_sizer.Add(self.control_output_directory_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
         self.control_output_directory_text = wx.TextCtrl(self.control_output_sbox)
         self.control_output_directory_text.Bind(wx.EVT_TEXT, self.OnControlPanelValueChange)
+        self.control_output_directory_text.SetDropTarget(FileDropTarget(self.control_output_directory_text))
         self.control_output_filebrowser_sizer.Add(self.control_output_directory_text, flag = wx.EXPAND)
         self.control_output_directory_browse = wx.Button(self.control_output_sbox, size = button_browse_size, label = button_browse_label)
         self.control_output_directory_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnDirBrowse(event, self.control_output_directory_text))
+        self.control_output_directory_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.control_output_directory_text.Clear())
         self.control_output_filebrowser_sizer.Add(self.control_output_directory_browse)
         #--- --- компоновка: Выбор файлов/папок -> Вывод
         self.control_output_sbox_sizer.Add(self.control_output_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
@@ -287,9 +297,11 @@ class MainFrame(wx.Frame):
         self.control_process_filebrowser_sizer.Add(self.control_process_exe_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
         self.control_process_exe_text = wx.TextCtrl(self.control_process_sbox)
         self.control_process_exe_text.Bind(wx.EVT_TEXT, self.OnControlPanelValueChange)
+        self.control_process_exe_text.SetDropTarget(FileDropTarget(self.control_process_exe_text))
         self.control_process_filebrowser_sizer.Add(self.control_process_exe_text, flag = wx.EXPAND)
         self.control_process_exe_browse = wx.Button(self.control_process_sbox, size = button_browse_size, label = button_browse_label)
         self.control_process_exe_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.control_process_exe_text, False, "Python source (*.py)|*.py|Windows executable (*.exe)|*.exe|Shell scripts (*.bat;*.sh;*.command)|*.bat;*.sh;*.command|All files (*.*)|*.*"))
+        self.control_process_exe_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.control_process_exe_text.Clear())
         self.control_process_filebrowser_sizer.Add(self.control_process_exe_browse, flag = wx.FIXED_MINSIZE | wx.FIXED_LENGTH)
         #--- --- компоновка: Выбор файлов/папок -> Вывод
         self.control_process_sbox_sizer.Add(self.control_process_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
@@ -1132,6 +1144,16 @@ class MultiChoiceWDialog(wx.Dialog):
                         if i >= 0 and i < len(self.checkbox_list):
                             self.checkbox_list[i].SetValue(True)
                 self.OnChoice(None)
+
+class FileDropTarget(wx.FileDropTarget):
+    def __init__(self, text_ctrl):
+        super().__init__()
+        self.text_ctrl = text_ctrl
+
+    def OnDropFiles(self, x, y, filenames):
+        """Handles the files dropped into the TextCtrl."""
+        self.text_ctrl.SetValue("\n".join(filenames))
+        return True
 
 if __name__ == '__main__':
     # When this module is run (not imported) then create the app, the frame, show it, and start the event loop.
