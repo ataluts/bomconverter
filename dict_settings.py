@@ -1,5 +1,6 @@
 import os
 import csv
+import copy
 from datetime import datetime
 from dict_locale import LocaleIndex     #словарь с локализациями
 
@@ -65,7 +66,7 @@ _settings_titleblock = {                                                        
 
 #------------------------------------------------------------------------------- Перечень элементов --------------------------------------------------------------------------------
 #основная надпись ПЭ3
-_settings_titleblock_pe3 = _settings_titleblock.copy()
+_settings_titleblock_pe3 = copy.deepcopy(_settings_titleblock)
 #--- изменения к основной надписи по-умолчанию
 _settings_titleblock_pe3.update({
     '01b_document_type'                             : 'Перечень элементов',         #графа 1  - наименование документа
@@ -133,7 +134,7 @@ _settings_build_pe3 = {
 }
 
 #настройки сборки ПЭ3 и его экспорта в docx
-_settings_build_pe3_docx = _settings_build_pe3.copy()
+_settings_build_pe3_docx = copy.deepcopy(_settings_build_pe3)
 #--- изменения к настройкам сборки по-умолчанию
 _settings_build_pe3_docx.update({
     'format_param_decimalPoint'                     : ',',                          #десятичный разделитель
@@ -171,7 +172,7 @@ _settings_export_pe3_docx = {
 }
 
 #настройки сборки ПЭ3 и его экспорта в pdf
-_settings_build_pe3_pdf = _settings_build_pe3.copy()
+_settings_build_pe3_pdf = copy.deepcopy(_settings_build_pe3)
 #--- изменения к настройкам сборки по-умолчанию
 _settings_build_pe3_pdf.update({
 })
@@ -181,19 +182,19 @@ _settings_export_pe3_pdf = {
 }
 
 #настройки сборки ПЭ3 и его экспорта в csv
-_settings_build_pe3_csv = _settings_build_pe3.copy()
+_settings_build_pe3_csv = copy.deepcopy(_settings_build_pe3)
 #--- изменения к настройкам сборки по-умолчанию
 _settings_build_pe3_csv.update({
 })
 #--- настройки экспорта
-_settings_export_pe3_csv = _settings_export_csv.copy()
+_settings_export_pe3_csv = copy.deepcopy(_settings_export_csv)
 #--- изменения к настройкам экспорта по-умолчанию
 _settings_export_pe3_csv.update({
 })
 
 #---------------------------------------------------------------------------------- Спецификация -----------------------------------------------------------------------------------
 #основная надпись СП
-_settings_titleblock_sp = _settings_titleblock.copy()
+_settings_titleblock_sp = copy.deepcopy(_settings_titleblock)
 #--- изменения к основной надписи по-умолчанию
 _settings_titleblock_sp.update({
     '01b_document_type'                             : 'Спецификация',               #графа 1  - наименование документа
@@ -248,12 +249,12 @@ _settings_build_sp = {
 }
 
 #настройки сборки СП и её экспорта в csv
-_settings_build_sp_csv = _settings_build_sp.copy()
+_settings_build_sp_csv = copy.deepcopy(_settings_build_sp)
 #--- изменения к настройкам сборки по-умолчанию
 _settings_build_sp_csv.update({
 })
 #--- настройки экспорта
-_settings_export_sp_csv = _settings_export_csv.copy()
+_settings_export_sp_csv = copy.deepcopy(_settings_export_csv)
 #--- изменения к настройкам экспорта по-умолчанию
 _settings_export_sp_csv.update({
 })
@@ -292,7 +293,7 @@ _settings_build_cl = {
 }
 
 #настройки сборки СК и его экспорта в xlsx
-_settings_build_cl_xlsx = _settings_build_cl.copy()
+_settings_build_cl_xlsx = copy.deepcopy(_settings_build_cl)
 #--- изменения к настройкам сборки по-умолчанию
 _settings_build_cl_xlsx.update({
 })
