@@ -300,7 +300,7 @@ _settings_build_cl_xlsx.update({
 #--- настройки экспорта
 _settings_export_cl_xlsx = {
     'locale_index'                                  : LocaleIndex.RU.value,         #локализация
-    'content_accs_location'                         : 'sheet',                      #расположение аксессуаров {'end' - в конце общего списка | 'sheet' - на отдельном листе}
+    'content_accs_location'                         : 'sheet',                      #расположение аксессуаров {'sheet' - на отдельном листе | 'start' - в начале общего списка | 'end' - в конце общего списка}
     'content_accs_indent'                           : 1,                            #отступ (в строках) списка аксесуаров от списка компонентов при размещении на одном листе
     'format_groupvalue_delimiter'                   : ', ',                         #разделитель значений в полях с группировкой значений
     'format_singlevalue_delimiter'                  : '|',                          #разделитель значений в полях с одиночным значением
@@ -334,12 +334,12 @@ _settings_export_cl_xlsx = {
             'note'                                          : {'width': 36.0, 'valign': 'vcenter'},
             'subst_orig_value'                              : {'width': 25.0, 'valign': 'vcenter'},
             'subst_orig_mfr'                                : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_orig_quantity'                           : {'width':  8.0, 'valign': 'vcenter'},
+            'subst_orig_quantity'                           : {'width': 15.0, 'valign': 'vcenter'},
             'subst_desig'                                   : {'width': 70.0, 'valign': 'vcenter'},
-            'subst_quantity'                                : {'width':  8.0, 'valign': 'vcenter'},
+            'subst_quantity'                                : {'width': 15.0, 'valign': 'vcenter'},
             'subst_value'                                   : {'width': 25.0, 'valign': 'vcenter'},
             'subst_mfr'                                     : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_note'                                    : {'width': 42.0, 'valign': 'vcenter'}
+            'subst_note'                                    : {'width': 44.0, 'valign': 'vcenter'}
         }
     }
 }

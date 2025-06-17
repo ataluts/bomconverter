@@ -86,12 +86,12 @@ def export(data, address, **kwargs):
             'note'                : {'width': 36.0, 'valign': 'vcenter'},
             'subst_orig_value'    : {'width': 25.0, 'valign': 'vcenter'},
             'subst_orig_mfr'      : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_orig_quantity' : {'width':  8.0, 'valign': 'vcenter'},
+            'subst_orig_quantity' : {'width': 15.0, 'valign': 'vcenter'},
             'subst_desig'         : {'width': 70.0, 'valign': 'vcenter'},
-            'subst_quantity'      : {'width':  8.0, 'valign': 'vcenter'},
+            'subst_quantity'      : {'width': 15.0, 'valign': 'vcenter'},
             'subst_value'         : {'width': 25.0, 'valign': 'vcenter'},
             'subst_mfr'           : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_note'          : {'width': 42.0, 'valign': 'vcenter'}
+            'subst_note'          : {'width': 44.0, 'valign': 'vcenter'}
         }
     }
     #обновляем стили по-умолчанию стилями из аргумента
@@ -111,7 +111,7 @@ def export(data, address, **kwargs):
             #если словарь с форматом стал пустым то ставим ему значение None
             if not book_style['col'][key]: book_style['col'][key] = None
 
-    if len(data) > 0 and len(address) > 0:
+    if len(data) > 0:
         with xlsxwriter.Workbook(address, {'in_memory': True, 'strings_to_numbers': False}) as workbook:
             if 'book_title' not in kwargs: book_title = data[0].book_title
             
@@ -241,7 +241,7 @@ def export(data, address, **kwargs):
                         worksheet = workbook.add_worksheet()
 
                     #запись данных списка компонентов
-                    worksheet.write_row(0, 0, [lcl.export_cl_xlsx.HEADER_ORIGINAL_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_ORIGINAL_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index], lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index], lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_NOTE.value[locale_index]], wb_format_row_header)
+                    worksheet.write_row(0, 0, [lcl.export_cl_xlsx.HEADER_ORIGINAL_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_ORIGINAL_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_ORIGINAL_QUANTITY.value[locale_index], lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_QUANTITY.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_VALUE.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_MANUFACTURER.value[locale_index], lcl.export_cl_xlsx.HEADER_SUBSTITUTE_NOTE.value[locale_index]], wb_format_row_header)
                     row_index = 1 - 1    #начальная строка для записи данных (-1 из за обратного порядка записи и инкремента строки перед записью)
                     for entry in cl.substitutes.entries:
                         if entry.flag == entry.flag.OK:
@@ -281,7 +281,7 @@ def export(data, address, **kwargs):
                             else:
                                 worksheet.write_row(row_index, 3, [designator, quantity], row_format)
                         
-                        #список значальных компонентов
+                        #список изначальных компонентов
                         primary_value        = replace_nones(entry.primary_value,        '', False)
                         primary_manufacturer = replace_nones(entry.primary_manufacturer, '', False)
                         primary_quantity     = replace_nones(entry.primary_quantity,     '', False)
@@ -303,4 +303,4 @@ def export(data, address, **kwargs):
 
         print('INFO >> cl export completed.')  
     else:
-        print("ERROR! >> No output data or file specified.")
+        print("ERROR! >> No output data specified.")

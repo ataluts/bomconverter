@@ -25,14 +25,9 @@ import export_pe3_csv                   #экспорт перечня элем�
 import export_sp_csv                    #экспорт спецификации в CSV
 from dict_locale import LocaleIndex     #словарь с локализациями
 
-#Force output encoding to be utf-8
-import io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
 _module_version = '3.6'
-_module_date    = datetime.datetime(2025, 2, 20)
+_module_date    = datetime.datetime(2025, 6, 17)
 _halt_on_exit   = True
 _debug          = False
 
@@ -57,6 +52,29 @@ class OptimizationID(enum.Enum):
     NONE      = 'none'
 
 #====================================================== END Class definitions =======================================================
+
+# ------------------------------------------------------- Generic functions ---------------------------------------------------------
+#Ensures sys.stdout and sys.stderr use UTF-8 encoding with safe wrapping, avoiding double-wrapping or breaking the buffer.
+def wrap_stdout_utf8():
+    import io
+    def wrap(stream):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+                return stream
+            except Exception:
+                pass
+        if isinstance(stream, io.TextIOWrapper) and hasattr(stream, "buffer"):
+            try:
+                return io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+        return stream  # fallback to original if all else fails
+
+    sys.stdout = wrap(sys.stdout)
+    sys.stderr = wrap(sys.stderr)
+
+#======================================================= END Generic functions ======================================================
 
 #-------------------------------------------------------- Specific functions --------------------------------------------------------
 
@@ -460,8 +478,10 @@ def exit(code:int = 0) -> None:
     else:
         sys.exit(code)
 
-#prevent launch when importing
+#Prevent launch when importing
 if __name__ == "__main__":
+    wrap_stdout_utf8() #force output encoding to be utf-8
+
     exit_code = 0
     #checking launch from IDE
     if '--debug' in sys.argv:

@@ -196,7 +196,13 @@ class export_cl_xlsx(Enum):
     HEADER_NOTE = ("Note", "Примечание")
     HEADER_ORIGINAL_VALUE = ("Orig. value", "Изнач. номинал")
     HEADER_ORIGINAL_MANUFACTURER = ("Orig. manufacturer", "Изнач. производитель")
+    HEADER_ORIGINAL_QUANTITY = ("Orig. quantity", "Изнач. кол-во")
+    HEADER_SUBSTITUTE_QUANTITY = ("Subs. quantity", "Зам. кол-во")
     HEADER_SUBSTITUTE_VALUE = ("Subs. value", "Зам. номинал")
     HEADER_SUBSTITUTE_MANUFACTURER = ("Subs. manufacturer", "Зам. производитель")
     HEADER_SUBSTITUTE_NOTE = ("Subs. note", "Зам. примечание")
 
+class cldiscriminator(Enum):
+    TITLE_MODIFIED_LIST = ("Modified", "Изменённые")
+    TITLE_ADDED_LIST = ("Added", "Добавленные")
+    TITLE_REMOVED_LIST = ("Removed", "Исключённые")
