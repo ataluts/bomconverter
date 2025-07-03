@@ -81,6 +81,7 @@ class Components_typeDef():
                 self.GENERIC_substitute         = None          #допустимые замены (список)
                 self.GENERIC_misc               = []            #оставшиеся нераспознанные параметры
                 self.GENERIC_note               = None          #примечание
+                self.GENERIC_uid                = None          #уникальный идентификатор
 
                 self.flag = self.__class__.FlagType.NONE        #флаг (ошибки, предупреждения и т.п.)
                 self.types = Components_typeDef.ComponentTypes  #ссылка на класс с типами компонентов
@@ -143,6 +144,11 @@ class Components_typeDef():
                     self.value        = value           #номинал
                     self.manufacturer = manufacturer    #производитель
                     self.note         = note            #примечание
+
+            class UID():
+                def __init__(self, name = None, path = None):
+                    self.name = name
+                    self.path = path
 
             #ключ сортировки по десигнатору
             def _cmpkey_designator(self):

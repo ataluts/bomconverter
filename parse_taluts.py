@@ -1,7 +1,7 @@
 import os
 import datetime
 import re
-from typedef_bom import BoM_typeDef                                                             #класс BoM
+from typedef_bom import BoM                                                                     #класс BoM
 from typedef_components import Components_typeDef                                               #класс базы данных компонентов
 
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
@@ -190,14 +190,14 @@ def parse_project(data, **kwargs):
     print("done.")
 
 #Создание базы данных компонентов из BoM
-def parse_bom(components, BoM, **kwargs):
+def parse_bom(components, bom, **kwargs):
     print(' ' * 12 + 'designer: ' +  designer_name + ' (' + script_baseName + ')')
 
     stats = [0, 0]      #статистика [errors, warnings]
 
     print("INFO >> Parsing BoM data", end ="... ", flush = True)
-    for i in range(len(BoM.entries)):
-        component = _parse_entry(BoM.entries[i], None, stats)
+    for index, entry in enumerate(bom.entries):
+        component = _parse_entry(entry.to_dict(), None, stats)
         if isinstance(component, Components_typeDef.ComponentTypes.Generic):
             components.entries.append(component)
             if component.GENERIC_accessory_child is not None:
@@ -205,7 +205,7 @@ def parse_bom(components, BoM, **kwargs):
                     components.entries.append(child)
         else:
             stats[0] += 1
-            print('\n' + ' ' * 12 + "error: parsing bom entry #" +  str(i) + " failed")
+            print('\n' + ' ' * 12 + "error: parsing bom entry #" +  str(index) + " failed")
     
     if stats[0] + stats[1] == 0: 
         print('done (' + str(len(components.entries)) + ' components created)')
@@ -282,6 +282,13 @@ def _parse_entry(bom_entry, parent = None, stats = [0, 0], **kwargs):
                 stats[0] += 1
                 print('\n' + ' ' * 12 + 'error! ' + designator + " - can't parse designator", end = '', flush = True)
     
+    #--- уникальный идентификатор
+    uid_name = bom_entry.get('UniqueIdName')
+    uid_path = bom_entry.get('UniqueIdPath')
+    if uid_name is not None or uid_name is not None:
+        if component.GENERIC_uid is None:
+            component.GENERIC_uid = component.UID(uid_name, uid_path)
+
     #--- номинал
     if 'BOM_value' in bom_entry:
         if len(bom_entry['BOM_value'].strip(' ')) > 0:

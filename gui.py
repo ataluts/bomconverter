@@ -6,26 +6,25 @@ import os
 import subprocess, threading
 import time
 import datetime
-import configparser
-import enum
+import configparser, ast
+from enum import Enum
+from bomconverter import OutputID as Bomconverter_OutputID
+from bomconverter import OptimizationID as Bomconverter_OptimizationID
+from bomdiscriminator import OutputID as Bomdiscriminator_OutputID
+from bomdiscriminator import XlsxChangesModeID as Bomdiscriminator_XlsxChangesModeID
 
 _module_dirname = os.path.dirname(__file__)                      #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 6, 17)
+_module_date    = datetime.datetime(2025, 7, 3)
 
-class OutputID(enum.Enum):
-    ALL      = 'all'
-    CL_XLSX  = 'cl-xlsx'
-    PE3_DOCX = 'pe3-docx'
-    PE3_PDF  = 'pe3-pdf'
-    PE3_CSV  = 'pe3-csv'
-    SP_CSV   = 'sp-csv'
-    NONE     = 'none'
-
-class OptimizationID(enum.Enum):
-    ALL       = 'all'
-    MFR_NAME  = 'mfr-name'
-    RES_TOL   = 'res-tol'
-    NONE      = 'none'
+class FileBrowseWildcards(Enum):
+    ALL            = "All files (*.*)|*.*"
+    PYTHON         = "Python source (*.py)|*.py"
+    WINDOWS_EXE    = "Windows executable (*.exe)|*.exe"
+    SHELL_SCRIPT   = "Shell scripts (*.bat;*.sh;*.command)|*.bat;*.sh;*.command"
+    ALTIUM_PROJECT = "Altium Designer project (*.PrjPcb)|*.PrjPcb"
+    TEXT           = "Text files (*.txt)|*.txt"
+    CSV            = "CSV files (*.csv)|*.csv"
+    XLSX           = "Excel workbook (*.xlsx)|*.xlsx"
 
 class App(wx.App):
     def OnInit(self):
@@ -44,7 +43,6 @@ class App(wx.App):
         elif sys.platform.startswith("darwin"):
             #Mac
             wx.SystemOptions.SetOption("mac.window.force-hidpi", 1)
-        
         #Локализация
         self.locale = wx.Locale(wx.LANGUAGE_RUSSIAN)
 
@@ -53,37 +51,39 @@ class App(wx.App):
 #Главное окно программы
 class MainFrame(wx.Frame):
     def __init__(self, *args, **kwargs):
-        super(MainFrame, self).__init__(None, title="BoM converter - GUI")                      #инициализация
-        self.SetSizeHints(self.FromDIP(664), self.FromDIP(728))                                 #минимальные размеры окна
+        super(MainFrame, self).__init__(None, title="BoM converter - GUI")                          #инициализация
+        self.SetSizeHints(self.FromDIP(664), self.FromDIP(728))                                     #минимальные размеры окна
 
-        self.cli_log = []                                                                       #журнал командной строки
+        self.cli_log = []                                                                           #журнал командной строки
 
-        self.layout_statusBar()                                                                 #строка состояния
+        self.layout_statusBar()                                                                     #строка состояния
         self.statusbar.SetStatusText("Инициализация...")
-        self.layout_menuBar()                                                                   #главное меню
+        self.layout_menuBar()                                                                       #главное меню
 
-        self.panel = wx.Panel(self)                                                             #панель где будут располагаться элементы управления
-        self.panel_sizer = wx.BoxSizer(wx.VERTICAL)                                             #основной компоновщик на этой панели
+        self.panel = wx.Panel(self)                                                                 #панель где будут располагаться элементы управления
+        self.panel_sizer = wx.BoxSizer(wx.VERTICAL)                                                 #основной компоновщик на этой панели
         
-        self.notebook = wx.Notebook(self.panel)                                                 #создаём блокнот (вкладки)
-        self.notebook.AddPage(self.layout_panel_bomconverter(self.notebook), "Конвертация BoM") #добавляем панель bomconverter на вкладку #0
-        self.notebook.AddPage(self.layout_panel_cldiscriminator(self.notebook), "Сравнение CL") #добавляем панель cldiscriminator на вкладку #1
-        self.notebook.AddPage(self.layout_panel_log(self.notebook), "Журнал")                   #добавляем панель журнал на вкладку #2
+        self.notebook = wx.Notebook(self.panel)                                                     #создаём блокнот (вкладки)
+        self.notebook.AddPage(self.layout_panel_bomconverter(self.notebook), "Конвертация BoM")     #добавляем панель bomconverter на вкладку #0
+        self.notebook.AddPage(self.layout_panel_bomdiscriminator(self.notebook), "Сравнение BoM")   #добавляем панель bomdiscriminator на вкладку #1
+        self.notebook.AddPage(self.layout_panel_cldiscriminator(self.notebook), "Сравнение CL")     #добавляем панель cldiscriminator на вкладку #2
+        self.notebook.AddPage(self.layout_panel_log(self.notebook), "Журнал")                       #добавляем панель журнал на вкладку #3
 
-        self.panel_sizer.Add(self.notebook, 1, flag = wx.EXPAND)                                #добавляем блокнот на панель
-        self.panel.SetSizer(self.panel_sizer)                                                   #добавляем основной компоновщик на панель
+        self.panel_sizer.Add(self.notebook, 1, flag = wx.EXPAND)                                    #добавляем блокнот на панель
+        self.panel.SetSizer(self.panel_sizer)                                                       #добавляем основной компоновщик на панель
 
         #отображаем окно и центруем окно на экране
         self.Show()
         wx.CallAfter(self.Centre)
-        screen_width, screen_height = wx.DisplaySize()                                          #размеры экрана
-        frame_width,  frame_height  = self.GetSize()                                            #размеры окна
-        frame_pos_x = (screen_width - frame_width) // 2                                         #координаты окна
+        screen_width, screen_height = wx.DisplaySize()                                              #размеры экрана
+        frame_width,  frame_height  = self.GetSize()                                                #размеры окна
+        frame_pos_x = (screen_width - frame_width) // 2                                             #координаты окна
         frame_pos_y = (screen_height - frame_height) // 2
         self.SetPosition((frame_pos_x, frame_pos_y))
 
         #инициализация событий интерфейса
         self.OnBomconverterPanelValueChange(None)
+        self.OnBomdiscriminatorPanelValueChange(None)
         self.OnCldiscriminatorPanelValueChange(None)
         self.OnSearchLogTextChange(None)
         self.OnLogValueChange(None)
@@ -159,7 +159,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_input_data_text.SetDropTarget(FileDropTarget(self.bomconverter_input_data_text))
         self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_data_text, flag = wx.EXPAND)
         self.bomconverter_input_data_browse = wx.Button(self.bomconverter_input_sbox, label = button_browse_label, size = button_browse_size)
-        self.bomconverter_input_data_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_input_data_text, True, wildcard = "Altium Designer project (*.PrjPcb)|*.PrjPcb|CSV files (*.csv)|*.csv|Text files (*.txt)|*.txt|All files (*.*)|*.*"))
+        self.bomconverter_input_data_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_input_data_text, True, wildcard = "|".join([FileBrowseWildcards.ALTIUM_PROJECT.value, FileBrowseWildcards.CSV.value, FileBrowseWildcards.TEXT.value, FileBrowseWildcards.ALL.value])))
         self.bomconverter_input_data_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_input_data_text.Clear())
         self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_data_browse, flag = wx.EXPAND)
         #--- --- --- Файл основной надписи
@@ -170,7 +170,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_input_titleblock_text.SetDropTarget(FileDropTarget(self.bomconverter_input_titleblock_text))
         self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_titleblock_text, flag = wx.EXPAND)
         self.bomconverter_input_titleblock_browse = wx.Button(self.bomconverter_input_sbox, wx.ID_ANY, label = button_browse_label, size = button_browse_size)
-        self.bomconverter_input_titleblock_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_input_titleblock_text, False, wildcard = "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.bomconverter_input_titleblock_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_input_titleblock_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
         self.bomconverter_input_titleblock_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_input_titleblock_text.Clear())
         self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_titleblock_browse)
         #--- --- компоновка: Выбор файлов/папок -> Ввод
@@ -192,7 +192,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_config_settings_text.SetDropTarget(FileDropTarget(self.bomconverter_config_settings_text))
         self.bomconverter_config_filebrowser_sizer.Add(self.bomconverter_config_settings_text, flag = wx.EXPAND)
         self.bomconverter_config_settings_browse = wx.Button(self.bomconverter_config_sbox, size = button_browse_size, label = button_browse_label)
-        self.bomconverter_config_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_config_settings_text, False, wildcard = "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.bomconverter_config_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_config_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
         self.bomconverter_config_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_config_settings_text.Clear())
         self.bomconverter_config_filebrowser_sizer.Add(self.bomconverter_config_settings_browse)
         #--- --- --- Модуль анализатора
@@ -203,7 +203,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_config_parser_text.SetDropTarget(FileDropTarget(self.bomconverter_config_parser_text))
         self.bomconverter_config_filebrowser_sizer.Add(self.bomconverter_config_parser_text,flag = wx.EXPAND)
         self.bomconverter_config_parser_browse = wx.Button(self.bomconverter_config_sbox, size = button_browse_size, label = button_browse_label)
-        self.bomconverter_config_parser_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_config_parser_text, False, wildcard = "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.bomconverter_config_parser_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_config_parser_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
         self.bomconverter_config_parser_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_config_parser_text.Clear())
         self.bomconverter_config_filebrowser_sizer.Add(self.bomconverter_config_parser_browse)
         #--- --- компоновка: Выбор файлов/папок -> Конфигурация
@@ -302,7 +302,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_process_exe_text.SetDropTarget(FileDropTarget(self.bomconverter_process_exe_text))
         self.bomconverter_process_filebrowser_sizer.Add(self.bomconverter_process_exe_text, flag = wx.EXPAND)
         self.bomconverter_process_exe_browse = wx.Button(self.bomconverter_process_sbox, size = button_browse_size, label = button_browse_label)
-        self.bomconverter_process_exe_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_process_exe_text, False, wildcard = "Python source (*.py)|*.py|Windows executable (*.exe)|*.exe|Shell scripts (*.bat;*.sh;*.command)|*.bat;*.sh;*.command|All files (*.*)|*.*"))
+        self.bomconverter_process_exe_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_process_exe_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.WINDOWS_EXE.value, FileBrowseWildcards.SHELL_SCRIPT.value, FileBrowseWildcards.ALL.value])))
         self.bomconverter_process_exe_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_process_exe_text.Clear())
         self.bomconverter_process_filebrowser_sizer.Add(self.bomconverter_process_exe_browse, flag = wx.FIXED_MINSIZE | wx.FIXED_LENGTH)
         #--- --- компоновка: Выбор файлов/папок -> Вывод
@@ -345,7 +345,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_execution_sbox_sizer.Add(self.bomconverter_execution_command_text, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
         #--- --- Кнопка запуска
         self.bomconverter_execution_start_button = wx.Button(self.bomconverter_execution_sbox, label = "Запуск")
-        self.bomconverter_execution_start_button.Bind(wx.EVT_BUTTON, self.OnBomconvStartButtonPress)
+        self.bomconverter_execution_start_button.Bind(wx.EVT_BUTTON, self.OnBomconverterStartButtonPress)
         self.bomconverter_execution_sbox_sizer.Add(self.bomconverter_execution_start_button, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
         #--- компоновка: Выполнение -> Компоновщик панели
         self.bomconverter_panel_sizer.Add(self.bomconverter_execution_sbox_sizer, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
@@ -355,6 +355,256 @@ class MainFrame(wx.Frame):
 
         #возвращаем ссылку на панель
         return self.bomconverter_panel
+
+   # BoM discriminator panel ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+    def layout_panel_bomdiscriminator(self, parent):
+        #общие параметры панели
+        label_browse_size    = self.FromDIP(wx.Size(80, -1))
+        button_browse_size   = self.FromDIP(wx.Size(30, -1))
+        button_browse_label  = "..."
+        label_fields_size    = self.FromDIP(wx.Size(90, -1))
+        checkbox_flag_size   = self.FromDIP(wx.Size(200, -1))
+        group_border_outer   = self.FromDIP(2)
+        group_border_inner   = self.FromDIP(2)
+        fgs_filebrowser_gap  = (self.FromDIP(5), self.FromDIP(5))
+        gbs_variants_gap     = (self.FromDIP(5), self.FromDIP(5))
+        gbs_variants_border  = self.FromDIP(3)
+
+        self.bomdiscriminator_panel = wx.Panel(parent)                                                      #панель
+        self.bomdiscriminator_panel_sizer = wx.BoxSizer(wx.VERTICAL)                                        #основной компоновщик на панели
+
+        #--- Базовый
+        self.bomdiscriminator_reference_sbox = wx.StaticBox(self.bomdiscriminator_panel, label="Базовый")                                     #контейнер (именная группа)
+        self.bomdiscriminator_reference_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_reference_sbox, wx.VERTICAL)                     #компоновщик группы
+        #--- --- Выбор файлов/папок
+        self.bomdiscriminator_reference_filebrowser_sizer = wx.FlexGridSizer(2, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])   #табличный компоновщик для выбора файлов
+        self.bomdiscriminator_reference_filebrowser_sizer.AddGrowableCol(1)                                                          #задаём расширяемость для столбца с текстовыми полями
+        #--- --- --- Файл BoM
+        self.bomdiscriminator_reference_bom_label = wx.StaticText(self.bomdiscriminator_reference_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="BoM:")
+        self.bomdiscriminator_reference_filebrowser_sizer.Add(self.bomdiscriminator_reference_bom_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_reference_bom_text = wx.TextCtrl(self.bomdiscriminator_reference_sbox)
+        self.bomdiscriminator_reference_bom_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_reference_bom_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_reference_bom_text))
+        self.bomdiscriminator_reference_filebrowser_sizer.Add(self.bomdiscriminator_reference_bom_text, flag = wx.EXPAND)
+        self.bomdiscriminator_reference_bom_browse = wx.Button(self.bomdiscriminator_reference_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_reference_bom_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_reference_bom_text, False, wildcard = "|".join([FileBrowseWildcards.CSV.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_reference_bom_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_reference_bom_text.Clear())
+        self.bomdiscriminator_reference_filebrowser_sizer.Add(self.bomdiscriminator_reference_bom_browse)
+        #--- --- --- Модуль настроек
+        self.bomdiscriminator_reference_settings_label = wx.StaticText(self.bomdiscriminator_reference_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Настройки:")
+        self.bomdiscriminator_reference_filebrowser_sizer.Add(self.bomdiscriminator_reference_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_reference_settings_text = wx.TextCtrl(self.bomdiscriminator_reference_sbox)
+        self.bomdiscriminator_reference_settings_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_reference_settings_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_reference_settings_text))
+        self.bomdiscriminator_reference_filebrowser_sizer.Add(self.bomdiscriminator_reference_settings_text, flag = wx.EXPAND)
+        self.bomdiscriminator_reference_settings_browse = wx.Button(self.bomdiscriminator_reference_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_reference_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_reference_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_reference_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_reference_settings_text.Clear())
+        self.bomdiscriminator_reference_filebrowser_sizer.Add(self.bomdiscriminator_reference_settings_browse)
+        #--- --- компоновка: Выбор файлов/папок -> Базовый
+        self.bomdiscriminator_reference_sbox_sizer.Add(self.bomdiscriminator_reference_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- компоновка: Базовый -> Компоновщик панели
+        self.bomdiscriminator_panel_sizer.Add(self.bomdiscriminator_reference_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
+
+        #--- Сравниваемый
+        self.bomdiscriminator_subject_sbox = wx.StaticBox(self.bomdiscriminator_panel, label="Сравниваемый")                                  #контейнер (именная группа)
+        self.bomdiscriminator_subject_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_subject_sbox, wx.VERTICAL)                         #компоновщик группы
+        #--- --- Выбор файлов/папок
+        self.bomdiscriminator_subject_filebrowser_sizer = wx.FlexGridSizer(2, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])     #табличный компоновщик для выбора файлов
+        self.bomdiscriminator_subject_filebrowser_sizer.AddGrowableCol(1)                                                            #задаём расширяемость для столбца с текстовыми полями
+        #--- --- --- Файл BoM
+        self.bomdiscriminator_subject_bom_label = wx.StaticText(self.bomdiscriminator_subject_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="BoM:")
+        self.bomdiscriminator_subject_filebrowser_sizer.Add(self.bomdiscriminator_subject_bom_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_subject_bom_text = wx.TextCtrl(self.bomdiscriminator_subject_sbox)
+        self.bomdiscriminator_subject_bom_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_subject_bom_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_subject_bom_text))
+        self.bomdiscriminator_subject_filebrowser_sizer.Add(self.bomdiscriminator_subject_bom_text, flag = wx.EXPAND)
+        self.bomdiscriminator_subject_bom_browse = wx.Button(self.bomdiscriminator_subject_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_subject_bom_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_subject_bom_text, False, wildcard = "|".join([FileBrowseWildcards.CSV.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_subject_bom_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_subject_bom_text.Clear())
+        self.bomdiscriminator_subject_filebrowser_sizer.Add(self.bomdiscriminator_subject_bom_browse)
+        #--- --- --- Модуль настроек
+        self.bomdiscriminator_subject_settings_label = wx.StaticText(self.bomdiscriminator_subject_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Настройки:")
+        self.bomdiscriminator_subject_filebrowser_sizer.Add(self.bomdiscriminator_subject_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_subject_settings_text = wx.TextCtrl(self.bomdiscriminator_subject_sbox)
+        self.bomdiscriminator_subject_settings_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_subject_settings_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_subject_settings_text))
+        self.bomdiscriminator_subject_filebrowser_sizer.Add(self.bomdiscriminator_subject_settings_text, flag = wx.EXPAND)
+        self.bomdiscriminator_subject_settings_browse = wx.Button(self.bomdiscriminator_subject_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_subject_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_subject_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_subject_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_subject_settings_text.Clear())
+        self.bomdiscriminator_subject_filebrowser_sizer.Add(self.bomdiscriminator_subject_settings_browse)
+        #--- --- компоновка: Выбор файлов/папок -> Сравниваемый
+        self.bomdiscriminator_subject_sbox_sizer.Add(self.bomdiscriminator_subject_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- компоновка: Сравниваемый -> Компоновщик панели
+        self.bomdiscriminator_panel_sizer.Add(self.bomdiscriminator_subject_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
+
+        #--- Результат
+        self.bomdiscriminator_result_sbox = wx.StaticBox(self.bomdiscriminator_panel, label="Результат")                                      #контейнер (именная группа)
+        self.bomdiscriminator_result_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_result_sbox, wx.VERTICAL)                           #компоновщик группы
+        #--- --- ?
+        self.bomdiscriminator_result_sizer = wx.FlexGridSizer(2, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])
+        self.bomdiscriminator_result_sizer.AddGrowableCol(1)
+        #--- --- --- Формат
+        self.bomdiscriminator_result_format_label = wx.StaticText(self.bomdiscriminator_result_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Формат:")
+        self.bomdiscriminator_result_sizer.Add(self.bomdiscriminator_result_format_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_result_format_choice = wx.Choice(self.bomdiscriminator_result_sbox, choices = [member.value for member in Bomdiscriminator_OutputID])
+        self.bomdiscriminator_result_format_choice.SetSelection(0)
+        self.bomdiscriminator_result_format_choice.Bind(wx.EVT_CHOICE, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_result_sizer.Add(self.bomdiscriminator_result_format_choice, flag = wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_result_sizer.Add((0, 0))
+        #--- --- --- Файл
+        self.bomdiscriminator_result_file_label = wx.StaticText(self.bomdiscriminator_result_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Файл:")
+        self.bomdiscriminator_result_sizer.Add(self.bomdiscriminator_result_file_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_result_file_text = wx.TextCtrl(self.bomdiscriminator_result_sbox)
+        self.bomdiscriminator_result_file_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_result_file_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_result_file_text))
+        self.bomdiscriminator_result_sizer.Add(self.bomdiscriminator_result_file_text, flag = wx.EXPAND)
+        self.bomdiscriminator_result_file_browse = wx.Button(self.bomdiscriminator_result_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_result_file_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_result_file_text, False, True, wildcard = "|".join([FileBrowseWildcards.XLSX.value, FileBrowseWildcards.CSV.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_result_file_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_result_file_text.Clear())
+        self.bomdiscriminator_result_sizer.Add(self.bomdiscriminator_result_file_browse)
+        #--- --- компоновка: Выбор файлов/папок -> Результат
+        self.bomdiscriminator_result_sbox_sizer.Add(self.bomdiscriminator_result_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- компоновка: Результат -> Компоновщик панели
+        self.bomdiscriminator_panel_sizer.Add(self.bomdiscriminator_result_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
+
+        #--- Конфигурация
+        self.bomdiscriminator_config_sbox = wx.StaticBox(self.bomdiscriminator_panel, label="Конфигурация")                   #контейнер (именная группа) для конфигурации
+        self.bomdiscriminator_config_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_config_sbox, wx.VERTICAL)                   #компоновщик группы
+        #--- --- Выбор файлов/папок
+        self.bomdiscriminator_config_filebrowser_sizer = wx.FlexGridSizer(1, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])    #табличный компоновщик для выбора файлов
+        self.bomdiscriminator_config_filebrowser_sizer.AddGrowableCol(1)                                             #задаём расширяемость для столбца с текстовыми полями
+        #--- --- --- Модуль настроек
+        self.bomdiscriminator_config_settings_label = wx.StaticText(self.bomdiscriminator_config_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Настройки:")
+        self.bomdiscriminator_config_filebrowser_sizer.Add(self.bomdiscriminator_config_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_config_settings_text = wx.TextCtrl(self.bomdiscriminator_config_sbox)
+        self.bomdiscriminator_config_settings_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_config_settings_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_config_settings_text))
+        self.bomdiscriminator_config_filebrowser_sizer.Add(self.bomdiscriminator_config_settings_text, flag = wx.EXPAND)
+        self.bomdiscriminator_config_settings_browse = wx.Button(self.bomdiscriminator_config_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_config_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_config_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_config_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_config_settings_text.Clear())
+        self.bomdiscriminator_config_filebrowser_sizer.Add(self.bomdiscriminator_config_settings_browse)
+        #--- --- компоновка: Выбор файлов/папок -> Конфигурация
+        self.bomdiscriminator_config_sbox_sizer.Add(self.bomdiscriminator_config_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- --- Поля
+        self.bomdiscriminator_config_fields_sbox = wx.StaticBox(self.bomdiscriminator_config_sbox, label="Поля")
+        self.bomdiscriminator_config_fields_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_config_fields_sbox, wx.VERTICAL) #компоновщик группы
+        #--- --- --- Выбор полей
+        self.bomdiscriminator_config_fields_sizer = wx.FlexGridSizer(2, 2, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])
+        self.bomdiscriminator_config_fields_sizer.AddGrowableCol(1)
+        #--- --- --- --- Ключевые
+        self.bomdiscriminator_config_fields_key_label = wx.StaticText(self.bomdiscriminator_config_fields_sbox, style = wx.ALIGN_RIGHT, size = label_fields_size, label="Ключевые:")
+        self.bomdiscriminator_config_fields_sizer.Add(self.bomdiscriminator_config_fields_key_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_config_fields_key_combobox = wx.ComboBox(self.bomdiscriminator_config_fields_sbox, style = wx.CB_DROPDOWN)
+        self.bomdiscriminator_config_fields_key_combobox.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_config_fields_sizer.Add(self.bomdiscriminator_config_fields_key_combobox, flag = wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
+        #--- --- --- --- Игнорируемые
+        self.bomdiscriminator_config_fields_ignore_label = wx.StaticText(self.bomdiscriminator_config_fields_sbox, style = wx.ALIGN_RIGHT, size = label_fields_size, label="Игнорировать:")
+        self.bomdiscriminator_config_fields_sizer.Add(self.bomdiscriminator_config_fields_ignore_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_config_fields_ignore_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.bomdiscriminator_config_fields_ignore_combobox = wx.ComboBox(self.bomdiscriminator_config_fields_sbox, style = wx.CB_DROPDOWN)
+        self.bomdiscriminator_config_fields_ignore_combobox.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_config_fields_ignore_sizer.Add(self.bomdiscriminator_config_fields_ignore_combobox, flag = wx.EXPAND, proportion = 1)
+        self.bomdiscriminator_config_fields_ignore_sizer.AddSpacer(fgs_filebrowser_gap[0])
+        self.bomdiscriminator_config_fields_ignore_unpaired_chkbox = wx.CheckBox(self.bomdiscriminator_config_fields_sbox, label="непарные")
+        self.bomdiscriminator_config_fields_ignore_unpaired_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_config_fields_ignore_sizer.Add(self.bomdiscriminator_config_fields_ignore_unpaired_chkbox, flag = wx.ALIGN_LEFT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_config_fields_sizer.Add(self.bomdiscriminator_config_fields_ignore_sizer, flag = wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
+        #--- --- --- компоновка: Выбор полей -> Поля
+        self.bomdiscriminator_config_fields_sbox_sizer.Add(self.bomdiscriminator_config_fields_sizer, flag = wx.EXPAND)
+        self.bomdiscriminator_config_fields_sbox_sizer.AddSpacer(fgs_filebrowser_gap[1])
+        #--- --- Метод подсветки изменений
+        self.bomdiscriminator_config_changes_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.bomdiscriminator_config_xlsx_changes_mode_label = wx.StaticText(self.bomdiscriminator_config_sbox, label="Метод отображения изменений: ")
+        self.bomdiscriminator_config_changes_sizer.Add(self.bomdiscriminator_config_xlsx_changes_mode_label, flag = wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_config_xlsx_changes_mode_choice = wx.Choice(self.bomdiscriminator_config_sbox, choices = [member.value for member in Bomdiscriminator_XlsxChangesModeID])
+        self.bomdiscriminator_config_xlsx_changes_mode_choice.SetSelection(0)
+        self.bomdiscriminator_config_xlsx_changes_mode_choice.Bind(wx.EVT_CHOICE, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_config_changes_sizer.Add(self.bomdiscriminator_config_xlsx_changes_mode_choice, flag = wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_config_xlsx_changes_mode_note = wx.StaticText(self.bomdiscriminator_config_sbox, label="  * для xlsx")
+        font = self.bomdiscriminator_config_xlsx_changes_mode_note.GetFont()
+        font.MakeItalic()
+        self.bomdiscriminator_config_xlsx_changes_mode_note.SetFont(font)
+        self.bomdiscriminator_config_changes_sizer.Add(self.bomdiscriminator_config_xlsx_changes_mode_note, flag = wx.ALIGN_CENTER_VERTICAL)
+        #--- --- компоновка: Поля -> Конфигурация
+        self.bomdiscriminator_config_sbox_sizer.Add(self.bomdiscriminator_config_fields_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- --- компоновка: Метод подсветки изменений -> Конфигурация
+        self.bomdiscriminator_config_sbox_sizer.AddSpacer(group_border_outer)
+        self.bomdiscriminator_config_sbox_sizer.Add(self.bomdiscriminator_config_changes_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- компоновка: Конфигурация -> Компоновщик панели
+        self.bomdiscriminator_panel_sizer.Add(self.bomdiscriminator_config_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
+
+        #--- Процесс
+        self.bomdiscriminator_process_sbox = wx.StaticBox(self.bomdiscriminator_panel, label="Процесс")                   #контейнер (именная группа) для процесса
+        self.bomdiscriminator_process_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_process_sbox, wx.VERTICAL)             #компоновщик группы
+        #--- --- Выбор файлов/папок
+        self.bomdiscriminator_process_filebrowser_sizer = wx.FlexGridSizer(1, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1]) #табличный компоновщик для выбора файлов
+        self.bomdiscriminator_process_filebrowser_sizer.AddGrowableCol(1)                                          #задаём расширяемость для столбца с текстовыми полями
+        #--- --- --- Исполняемый файл
+        self.bomdiscriminator_process_exe_label = wx.StaticText(self.bomdiscriminator_process_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Исп. файл:")
+        self.bomdiscriminator_process_filebrowser_sizer.Add(self.bomdiscriminator_process_exe_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomdiscriminator_process_exe_text = wx.TextCtrl(self.bomdiscriminator_process_sbox)
+        self.bomdiscriminator_process_exe_text.Bind(wx.EVT_TEXT, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_process_exe_text.SetDropTarget(FileDropTarget(self.bomdiscriminator_process_exe_text))
+        self.bomdiscriminator_process_filebrowser_sizer.Add(self.bomdiscriminator_process_exe_text, flag = wx.EXPAND)
+        self.bomdiscriminator_process_exe_browse = wx.Button(self.bomdiscriminator_process_sbox, size = button_browse_size, label = button_browse_label)
+        self.bomdiscriminator_process_exe_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomdiscriminator_process_exe_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.WINDOWS_EXE.value, FileBrowseWildcards.SHELL_SCRIPT.value, FileBrowseWildcards.ALL.value])))
+        self.bomdiscriminator_process_exe_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomdiscriminator_process_exe_text.Clear())
+        self.bomdiscriminator_process_filebrowser_sizer.Add(self.bomdiscriminator_process_exe_browse, flag = wx.FIXED_MINSIZE | wx.FIXED_LENGTH)
+        #--- --- компоновка: Выбор файлов/папок -> Вывод
+        self.bomdiscriminator_process_sbox_sizer.Add(self.bomdiscriminator_process_filebrowser_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- --- Поведение
+        self.bomdiscriminator_process_behaviour_sbox = wx.StaticBox(self.bomdiscriminator_process_sbox, label="Поведение")                #контейнер (именная группа) для поведения
+        self.bomdiscriminator_process_behaviour_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_process_behaviour_sbox, wx.VERTICAL) #компоновщик группы
+        #--- --- --- Варианты
+        self.bomdiscriminator_process_behaviour_grid_sizer = wx.GridBagSizer(gbs_variants_gap[0], gbs_variants_gap[1])   #табличный компоновщик для вариантов
+        self.bomdiscriminator_process_behaviour_noquestions_chkbox = wx.CheckBox(self.bomdiscriminator_process_behaviour_sbox, size = checkbox_flag_size, label="Не задавать вопросов")
+        self.bomdiscriminator_process_behaviour_noquestions_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_process_behaviour_noquestions_chkbox.SetValue(False)
+        self.bomdiscriminator_process_behaviour_noquestions_chkbox.Disable()
+        self.bomdiscriminator_process_behaviour_grid_sizer.Add(self.bomdiscriminator_process_behaviour_noquestions_chkbox, pos = (0, 0), flag=wx.ALIGN_LEFT)
+        self.bomdiscriminator_process_behaviour_nohalt_chkbox = wx.CheckBox(self.bomdiscriminator_process_behaviour_sbox, size = checkbox_flag_size, label="Закрываться при завершении")
+        self.bomdiscriminator_process_behaviour_nohalt_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_process_behaviour_nohalt_chkbox.SetValue(True)
+        self.bomdiscriminator_process_behaviour_nohalt_chkbox.Disable()
+        self.bomdiscriminator_process_behaviour_grid_sizer.Add(self.bomdiscriminator_process_behaviour_nohalt_chkbox,      pos = (0, 1), flag=wx.ALIGN_LEFT)
+        #--- --- --- --- Уровень лога
+        self.bomdiscriminator_process_behaviour_loglevel_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.bomdiscriminator_process_behaviour_loglevel_label = wx.StaticText(self.bomdiscriminator_process_behaviour_sbox, label="Уровень журнала: ")
+        self.bomdiscriminator_process_behaviour_loglevel_label.Disable()
+        self.bomdiscriminator_process_behaviour_loglevel_sizer.Add(self.bomdiscriminator_process_behaviour_loglevel_label)
+        self.bomdiscriminator_process_behaviour_loglevel_choice = wx.Choice(self.bomdiscriminator_process_behaviour_sbox, choices=["", "debug", "info", "warn", "error", "fatal"])
+        self.bomdiscriminator_process_behaviour_loglevel_choice.Disable()
+        self.bomdiscriminator_process_behaviour_loglevel_choice.Bind(wx.EVT_CHOICE, self.OnBomdiscriminatorPanelValueChange)
+        self.bomdiscriminator_process_behaviour_loglevel_sizer.Add(self.bomdiscriminator_process_behaviour_loglevel_choice)
+        self.bomdiscriminator_process_behaviour_grid_sizer.Add(self.bomdiscriminator_process_behaviour_loglevel_sizer, pos = (0, 2), flag=wx.ALIGN_LEFT)
+        #--- --- --- компоновка: Варианты -> Поведение
+        self.bomdiscriminator_process_behaviour_sbox_sizer.Add(self.bomdiscriminator_process_behaviour_grid_sizer, flag = wx.EXPAND | wx.ALL, border = gbs_variants_border)
+        #--- --- компоновка: Поведение -> Процесс
+        self.bomdiscriminator_process_sbox_sizer.Add(self.bomdiscriminator_process_behaviour_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- компоновка: Процесс -> Компоновщик панели
+        self.bomdiscriminator_panel_sizer.Add(self.bomdiscriminator_process_sbox_sizer, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
+
+        #--- Выполнение
+        self.bomdiscriminator_execution_sbox = wx.StaticBox(self.bomdiscriminator_panel, label="Выполнение")                      #контейнер (именная группа) для выполнения
+        self.bomdiscriminator_execution_sbox_sizer = wx.StaticBoxSizer(self.bomdiscriminator_execution_sbox, wx.VERTICAL)         #компоновщик группы
+        #--- --- Команда
+        self.bomdiscriminator_execution_command_text = wx.TextCtrl(self.bomdiscriminator_execution_sbox, style = wx.TE_MULTILINE | wx.TE_READONLY)
+        self.bomdiscriminator_execution_sbox_sizer.Add(self.bomdiscriminator_execution_command_text, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- --- Кнопка запуска
+        self.bomdiscriminator_execution_start_button = wx.Button(self.bomdiscriminator_execution_sbox, label = "Запуск")
+        self.bomdiscriminator_execution_start_button.Bind(wx.EVT_BUTTON, self.OnBomdiscriminatorStartButtonPress)
+        self.bomdiscriminator_execution_sbox_sizer.Add(self.bomdiscriminator_execution_start_button, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
+        #--- компоновка: Выполнение -> Компоновщик панели
+        self.bomdiscriminator_panel_sizer.Add(self.bomdiscriminator_execution_sbox_sizer, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
+
+        #компоновка: Компоновщик панели -> Панель
+        self.bomdiscriminator_panel.SetSizer(self.bomdiscriminator_panel_sizer)
+
+        #возвращаем ссылку на панель
+        return self.bomdiscriminator_panel
 
    # CL discriminator panel ---------------------------------------------------------------------------------------------------------------------------------------------------------------
     def layout_panel_cldiscriminator(self, parent):
@@ -379,16 +629,16 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_reference_filebrowser_sizer = wx.FlexGridSizer(2, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])   #табличный компоновщик для выбора файлов
         self.cldiscriminator_reference_filebrowser_sizer.AddGrowableCol(1)                                                          #задаём расширяемость для столбца с текстовыми полями
         #--- --- --- Файл списка
-        self.cldiscriminator_reference_clfile_label = wx.StaticText(self.cldiscriminator_reference_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Список:")
-        self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_clfile_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
-        self.cldiscriminator_reference_clfile_text = wx.TextCtrl(self.cldiscriminator_reference_sbox)
-        self.cldiscriminator_reference_clfile_text.Bind(wx.EVT_TEXT, self.OnCldiscriminatorPanelValueChange)
-        self.cldiscriminator_reference_clfile_text.SetDropTarget(FileDropTarget(self.cldiscriminator_reference_clfile_text))
-        self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_clfile_text, flag = wx.EXPAND)
-        self.cldiscriminator_reference_clfile_browse = wx.Button(self.cldiscriminator_reference_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_reference_clfile_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_reference_clfile_text, False, wildcard = "Excel workbook (*.xlsx)|*.xlsx|All files (*.*)|*.*"))
-        self.cldiscriminator_reference_clfile_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_reference_clfile_text.Clear())
-        self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_clfile_browse)
+        self.cldiscriminator_reference_cl_label = wx.StaticText(self.cldiscriminator_reference_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Список:")
+        self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_cl_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.cldiscriminator_reference_cl_text = wx.TextCtrl(self.cldiscriminator_reference_sbox)
+        self.cldiscriminator_reference_cl_text.Bind(wx.EVT_TEXT, self.OnCldiscriminatorPanelValueChange)
+        self.cldiscriminator_reference_cl_text.SetDropTarget(FileDropTarget(self.cldiscriminator_reference_cl_text))
+        self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_cl_text, flag = wx.EXPAND)
+        self.cldiscriminator_reference_cl_browse = wx.Button(self.cldiscriminator_reference_sbox, size = button_browse_size, label = button_browse_label)
+        self.cldiscriminator_reference_cl_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_reference_cl_text, False, wildcard = "|".join([FileBrowseWildcards.XLSX.value, FileBrowseWildcards.ALL.value])))
+        self.cldiscriminator_reference_cl_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_reference_cl_text.Clear())
+        self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_cl_browse)
         #--- --- --- Модуль настроек
         self.cldiscriminator_reference_settings_label = wx.StaticText(self.cldiscriminator_reference_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Настройки:")
         self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
@@ -397,7 +647,7 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_reference_settings_text.SetDropTarget(FileDropTarget(self.cldiscriminator_reference_settings_text))
         self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_settings_text, flag = wx.EXPAND)
         self.cldiscriminator_reference_settings_browse = wx.Button(self.cldiscriminator_reference_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_reference_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_reference_settings_text, False, wildcard = "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.cldiscriminator_reference_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_reference_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
         self.cldiscriminator_reference_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_reference_settings_text.Clear())
         self.cldiscriminator_reference_filebrowser_sizer.Add(self.cldiscriminator_reference_settings_browse)
         #--- --- компоновка: Выбор файлов/папок -> Базовый
@@ -412,16 +662,16 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_subject_filebrowser_sizer = wx.FlexGridSizer(2, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])     #табличный компоновщик для выбора файлов
         self.cldiscriminator_subject_filebrowser_sizer.AddGrowableCol(1)                                                            #задаём расширяемость для столбца с текстовыми полями
         #--- --- --- Файл списка
-        self.cldiscriminator_subject_clfile_label = wx.StaticText(self.cldiscriminator_subject_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Список:")
-        self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_clfile_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
-        self.cldiscriminator_subject_clfile_text = wx.TextCtrl(self.cldiscriminator_subject_sbox)
-        self.cldiscriminator_subject_clfile_text.Bind(wx.EVT_TEXT, self.OnCldiscriminatorPanelValueChange)
-        self.cldiscriminator_subject_clfile_text.SetDropTarget(FileDropTarget(self.cldiscriminator_subject_clfile_text))
-        self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_clfile_text, flag = wx.EXPAND)
-        self.cldiscriminator_subject_clfile_browse = wx.Button(self.cldiscriminator_subject_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_subject_clfile_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_subject_clfile_text, False, wildcard = "Excel workbook (*.xlsx)|*.xlsx|All files (*.*)|*.*"))
-        self.cldiscriminator_subject_clfile_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_subject_clfile_text.Clear())
-        self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_clfile_browse)
+        self.cldiscriminator_subject_cl_label = wx.StaticText(self.cldiscriminator_subject_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Список:")
+        self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_cl_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.cldiscriminator_subject_cl_text = wx.TextCtrl(self.cldiscriminator_subject_sbox)
+        self.cldiscriminator_subject_cl_text.Bind(wx.EVT_TEXT, self.OnCldiscriminatorPanelValueChange)
+        self.cldiscriminator_subject_cl_text.SetDropTarget(FileDropTarget(self.cldiscriminator_subject_cl_text))
+        self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_cl_text, flag = wx.EXPAND)
+        self.cldiscriminator_subject_cl_browse = wx.Button(self.cldiscriminator_subject_sbox, size = button_browse_size, label = button_browse_label)
+        self.cldiscriminator_subject_cl_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_subject_cl_text, False, wildcard = "|".join([FileBrowseWildcards.XLSX.value, FileBrowseWildcards.ALL.value])))
+        self.cldiscriminator_subject_cl_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_subject_cl_text.Clear())
+        self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_cl_browse)
         #--- --- --- Модуль настроек
         self.cldiscriminator_subject_settings_label = wx.StaticText(self.cldiscriminator_subject_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Настройки:")
         self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
@@ -430,7 +680,7 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_subject_settings_text.SetDropTarget(FileDropTarget(self.cldiscriminator_subject_settings_text))
         self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_settings_text, flag = wx.EXPAND)
         self.cldiscriminator_subject_settings_browse = wx.Button(self.cldiscriminator_subject_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_subject_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_subject_settings_text, False, wildcard = "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.cldiscriminator_subject_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_subject_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
         self.cldiscriminator_subject_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_subject_settings_text.Clear())
         self.cldiscriminator_subject_filebrowser_sizer.Add(self.cldiscriminator_subject_settings_browse)
         #--- --- компоновка: Выбор файлов/папок -> Сравниваемый
@@ -445,16 +695,16 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_result_filebrowser_sizer = wx.FlexGridSizer(2, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1])      #табличный компоновщик для выбора файлов
         self.cldiscriminator_result_filebrowser_sizer.AddGrowableCol(1)                                                             #задаём расширяемость для столбца с текстовыми полями
         #--- --- --- Файл списка
-        self.cldiscriminator_result_clfile_label = wx.StaticText(self.cldiscriminator_result_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Список:")
-        self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_clfile_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
-        self.cldiscriminator_result_clfile_text = wx.TextCtrl(self.cldiscriminator_result_sbox)
-        self.cldiscriminator_result_clfile_text.Bind(wx.EVT_TEXT, self.OnCldiscriminatorPanelValueChange)
-        self.cldiscriminator_result_clfile_text.SetDropTarget(FileDropTarget(self.cldiscriminator_result_clfile_text))
-        self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_clfile_text, flag = wx.EXPAND)
-        self.cldiscriminator_result_clfile_browse = wx.Button(self.cldiscriminator_result_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_result_clfile_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_result_clfile_text, False, True, wildcard = "Excel workbook (*.xlsx)|*.xlsx|All files (*.*)|*.*"))
-        self.cldiscriminator_result_clfile_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_result_clfile_text.Clear())
-        self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_clfile_browse)
+        self.cldiscriminator_result_cl_label = wx.StaticText(self.cldiscriminator_result_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Список:")
+        self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_cl_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.cldiscriminator_result_cl_text = wx.TextCtrl(self.cldiscriminator_result_sbox)
+        self.cldiscriminator_result_cl_text.Bind(wx.EVT_TEXT, self.OnCldiscriminatorPanelValueChange)
+        self.cldiscriminator_result_cl_text.SetDropTarget(FileDropTarget(self.cldiscriminator_result_cl_text))
+        self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_cl_text, flag = wx.EXPAND)
+        self.cldiscriminator_result_cl_browse = wx.Button(self.cldiscriminator_result_sbox, size = button_browse_size, label = button_browse_label)
+        self.cldiscriminator_result_cl_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_result_cl_text, False, True, wildcard = "|".join([FileBrowseWildcards.XLSX.value, FileBrowseWildcards.ALL.value])))
+        self.cldiscriminator_result_cl_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_result_cl_text.Clear())
+        self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_cl_browse)
         #--- --- --- Модуль настроек
         self.cldiscriminator_result_settings_label = wx.StaticText(self.cldiscriminator_result_sbox, style = wx.ALIGN_RIGHT, size = label_browse_size, label="Настройки:")
         self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_settings_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
@@ -463,7 +713,7 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_result_settings_text.SetDropTarget(FileDropTarget(self.cldiscriminator_result_settings_text))
         self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_settings_text, flag = wx.EXPAND)
         self.cldiscriminator_result_settings_browse = wx.Button(self.cldiscriminator_result_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_result_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_result_settings_text, False, wildcard = "Python source (*.py)|*.py|All files (*.*)|*.*"))
+        self.cldiscriminator_result_settings_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_result_settings_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.ALL.value])))
         self.cldiscriminator_result_settings_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_result_settings_text.Clear())
         self.cldiscriminator_result_filebrowser_sizer.Add(self.cldiscriminator_result_settings_browse)
         #--- --- компоновка: Выбор файлов/папок -> Результат
@@ -485,7 +735,7 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_process_exe_text.SetDropTarget(FileDropTarget(self.cldiscriminator_process_exe_text))
         self.cldiscriminator_process_filebrowser_sizer.Add(self.cldiscriminator_process_exe_text, flag = wx.EXPAND)
         self.cldiscriminator_process_exe_browse = wx.Button(self.cldiscriminator_process_sbox, size = button_browse_size, label = button_browse_label)
-        self.cldiscriminator_process_exe_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_process_exe_text, False, wildcard = "Python source (*.py)|*.py|Windows executable (*.exe)|*.exe|Shell scripts (*.bat;*.sh;*.command)|*.bat;*.sh;*.command|All files (*.*)|*.*"))
+        self.cldiscriminator_process_exe_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.cldiscriminator_process_exe_text, False, wildcard = "|".join([FileBrowseWildcards.PYTHON.value, FileBrowseWildcards.WINDOWS_EXE.value, FileBrowseWildcards.SHELL_SCRIPT.value, FileBrowseWildcards.ALL.value])))
         self.cldiscriminator_process_exe_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.cldiscriminator_process_exe_text.Clear())
         self.cldiscriminator_process_filebrowser_sizer.Add(self.cldiscriminator_process_exe_browse, flag = wx.FIXED_MINSIZE | wx.FIXED_LENGTH)
         #--- --- компоновка: Выбор файлов/папок -> Вывод
@@ -530,7 +780,7 @@ class MainFrame(wx.Frame):
         self.cldiscriminator_execution_sbox_sizer.Add(self.cldiscriminator_execution_command_text, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
         #--- --- Кнопка запуска
         self.cldiscriminator_execution_start_button = wx.Button(self.cldiscriminator_execution_sbox, label = "Запуск")
-        self.cldiscriminator_execution_start_button.Bind(wx.EVT_BUTTON, self.OnCldiscrStartButtonPress)
+        self.cldiscriminator_execution_start_button.Bind(wx.EVT_BUTTON, self.OnCldiscriminatorStartButtonPress)
         self.cldiscriminator_execution_sbox_sizer.Add(self.cldiscriminator_execution_start_button, flag = wx.EXPAND | wx.ALL, border = group_border_inner)
         #--- компоновка: Выполнение -> Компоновщик панели
         self.cldiscriminator_panel_sizer.Add(self.cldiscriminator_execution_sbox_sizer, proportion = 1, flag = wx.EXPAND | wx.ALL, border = group_border_outer)
@@ -660,7 +910,7 @@ class MainFrame(wx.Frame):
 
     #Обработчик события: вызов сохранения параметров GUI
     def OnParamsSave(self, event):
-        params = self.get_params()
+        params = self.params_get()
         style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT
         wildcard = "Configuration files (*.ini)|*.ini|All files (*.*)|*.*"
         with wx.FileDialog(self, "Сохранить параметры в файл", style = style, wildcard = wildcard) as file_dialog:
@@ -688,7 +938,7 @@ class MainFrame(wx.Frame):
 
     #Обработчик события: вызов сброса параметров GUI
     def OnParamsDefaults(self, event):
-        params = self.params_defaults()
+        params = self.params_default()
         self.params_apply(params)
 
     #Обработчик события: вызов окна о программе
@@ -701,7 +951,7 @@ class MainFrame(wx.Frame):
     def OnBomconverterPanelValueChange(self, event):
         """Changes on BoM converter panel were made"""
         #получаем параметры с интерфейса
-        params = self.get_params_bomconverter()
+        params = self.params_get_bomconverter()
         
         #изменения на интерфейсе
         #--- количество файлов данных
@@ -718,16 +968,16 @@ class MainFrame(wx.Frame):
         if datafiles_num > 0: self.bomconverter_execution_start_button.Enable()
         else:                 self.bomconverter_execution_start_button.Disable()
         #--- флаги оптимизации
-        config_optimize_all  = OptimizationID.ALL.value in params['config']['optimize']
-        config_optimize_none = OptimizationID.NONE.value in params['config']['optimize']
+        config_optimize_all  = Bomconverter_OptimizationID.ALL.value in params['config']['optimize']
+        config_optimize_none = Bomconverter_OptimizationID.NONE.value in params['config']['optimize']
         config_optimize_global = config_optimize_all | config_optimize_none
         self.bomconverter_config_optimize_mfrname_chkbox.Enable(not config_optimize_global)
         self.bomconverter_config_optimize_restol_chkbox.Enable(not config_optimize_global)
         self.bomconverter_config_optimize_all_chkbox.Enable(not config_optimize_none)
         self.bomconverter_config_optimize_none_chkbox.Enable(not config_optimize_all)
         #--- флаги выходных форматов
-        output_format_all  = OutputID.ALL.value in params['output']['format']
-        output_format_none = OutputID.NONE.value in params['output']['format']
+        output_format_all  = Bomconverter_OutputID.ALL.value in params['output']['format']
+        output_format_none = Bomconverter_OutputID.NONE.value in params['output']['format']
         output_format_global = output_format_all | output_format_none
         self.bomconverter_output_format_pe3docx_chkbox.Enable(not output_format_global)
         self.bomconverter_output_format_pe3pdf_chkbox.Enable(not output_format_global)
@@ -738,16 +988,49 @@ class MainFrame(wx.Frame):
         self.bomconverter_output_format_none_chkbox.Enable(not output_format_all)
 
         #получаем аргументы для вызова
-        argv = self.bomconverter_argv_build(params)
+        argv = self.argv_build_bomconverter(params)
 
         #собираем команду для отображения
         self.bomconverter_execution_command_text.SetValue(self.command_build(argv))
+
+    #Обработчик события: изменение значений на панели bomdiscriminator
+    def OnBomdiscriminatorPanelValueChange(self, event):
+        """Changes on BoM discriminator panel were made"""
+        #изменения на интерфейсе (до сбора параметров)
+        #--- смена расширения выходного файла в зависимости от формата
+        result_format_choices = [self.bomdiscriminator_result_format_choice.GetString(i) for i in range(self.bomdiscriminator_result_format_choice.GetCount())]
+        result_file = self.bomdiscriminator_result_file_text.GetValue()
+        for choice in result_format_choices:
+            if choice:
+                choice_ext = os.path.extsep + choice
+                if result_file.endswith(choice_ext):
+                    choice_ext_new = os.path.extsep + self.get_choice_string(self.bomdiscriminator_result_format_choice)
+                    result_file_new = result_file[:-len(choice_ext)] + choice_ext_new
+                    if result_file_new != result_file:
+                        self.bomdiscriminator_result_file_text.SetValue(result_file_new)
+                    break
+
+        #получаем параметры с интерфейса
+        params = self.params_get_bomdiscriminator()
+
+        #изменения на интерфейсе (после сбора параметров)
+        #--- кнопка запуска
+        if len(params['reference']['bom']) > 0 and len(params['subject']['bom']) > 0 and len(params['result']['file']) > 0:
+            self.bomdiscriminator_execution_start_button.Enable()
+        else:
+            self.bomdiscriminator_execution_start_button.Disable()
+
+        #получаем аргументы для вызова
+        argv = self.argv_build_bomdiscriminator(params)
+
+        #собираем команду для отображения
+        self.bomdiscriminator_execution_command_text.SetValue(self.command_build(argv))
 
     #Обработчик события: изменение значений на панели cldiscriminator
     def OnCldiscriminatorPanelValueChange(self, event):
         """Changes on CL discriminator panel were made"""
         #получаем параметры с интерфейса
-        params = self.get_params_cldiscriminator()
+        params = self.params_get_cldiscriminator()
 
         #изменения на интерфейсе
         #--- кнопка запуска
@@ -757,25 +1040,34 @@ class MainFrame(wx.Frame):
             self.cldiscriminator_execution_start_button.Disable()
 
         #получаем аргументы для вызова
-        argv = self.cldiscriminator_argv_build(params)
+        argv = self.argv_build_cldiscriminator(params)
 
         #собираем команду для отображения
         self.cldiscriminator_execution_command_text.SetValue(self.command_build(argv))
 
     #Обработчик события: вызов запуска bomconverter
-    def OnBomconvStartButtonPress(self, event):
+    def OnBomconverterStartButtonPress(self, event):
         """BoM converter start button press event handler"""
-        params = self.get_params_bomconverter()
-        argv = self.bomconverter_argv_build(params)
+        params = self.params_get_bomconverter()
+        argv = self.argv_build_bomconverter(params)
+        self.notebook.SetSelection(self.get_notebook_page_index(self.notebook, self.log_panel))
+        self.execution_lock(True)
+        self.cli_execute(argv)
+
+    #Обработчик события: вызов запуска bomconverter
+    def OnBomdiscriminatorStartButtonPress(self, event):
+        """BoM discriminator start button press event handler"""
+        params = self.params_get_bomdiscriminator()
+        argv = self.argv_build_bomdiscriminator(params)
         self.notebook.SetSelection(self.get_notebook_page_index(self.notebook, self.log_panel))
         self.execution_lock(True)
         self.cli_execute(argv)
 
     #Обработчик события: вызов запуска cldiscriminator
-    def OnCldiscrStartButtonPress(self, event):
+    def OnCldiscriminatorStartButtonPress(self, event):
         """CL discriminator start button press event handler"""
-        params = self.get_params_cldiscriminator()
-        argv = self.cldiscriminator_argv_build(params)
+        params = self.params_get_cldiscriminator()
+        argv = self.argv_build_cldiscriminator(params)
         self.notebook.SetSelection(self.get_notebook_page_index(self.notebook, self.log_panel))
         self.execution_lock(True)
         self.cli_execute(argv)
@@ -879,9 +1171,11 @@ class MainFrame(wx.Frame):
     def execution_lock(self, state):
         if state:
             self.bomconverter_execution_start_button.Disable()
+            self.bomdiscriminator_execution_start_button.Disable()
             self.cldiscriminator_execution_start_button.Disable()
         else:
             self.bomconverter_execution_start_button.Enable()
+            self.bomdiscriminator_execution_start_button.Enable()
             self.cldiscriminator_execution_start_button.Enable()
 
     #Возвращает индекс вкладки блокнота по панели
@@ -891,34 +1185,53 @@ class MainFrame(wx.Frame):
                 return i
         return -1
 
+    #Возвращает текстовое значение выбранное на Choice
+    def get_choice_string(self, choice, default_index = 0):
+        selected_index = choice.GetSelection()
+        if selected_index < 0: selected_index = default_index
+        return choice.GetString(selected_index)
+
+    #Устанавливает значение выбранное на Choice по тексту, возвращает False если такого варианта текста нет
+    def set_choice_string(self, choice, string, default_index = None, case_sensitive = False):
+        result = True
+        item_index = choice.FindString(string, case_sensitive)
+        if item_index == wx.NOT_FOUND:
+            result = False
+            if default_index is not None:
+                item_index = default_index
+        choice.SetSelection(item_index)
+        return result
+
     #Собирает все параметры со всех панелей
-    def get_params(self):
-        bomconverter_params = self.get_params_bomconverter()
-        cldiscriminator_params = self.get_params_cldiscriminator()
+    def params_get(self):
+        bomconverter_params = self.params_get_bomconverter()
+        bomdiscriminator_params = self.params_get_bomdiscriminator()
+        cldiscriminator_params = self.params_get_cldiscriminator()
         params = {
             'bomconverter': bomconverter_params,
+            'bomdiscriminator': bomdiscriminator_params,
             'cldiscriminator': cldiscriminator_params
         }
         return params
 
     #Собирает параметры с панели bomconverter
-    def get_params_bomconverter(self):
+    def params_get_bomconverter(self):
         """Get params from BoM converter panel"""
         config_optimize = []
-        if self.bomconverter_config_optimize_none_chkbox.GetValue(): config_optimize.append(OptimizationID.NONE.value)
-        if self.bomconverter_config_optimize_all_chkbox.GetValue(): config_optimize.append(OptimizationID.ALL.value)
-        if self.bomconverter_config_optimize_mfrname_chkbox.GetValue(): config_optimize.append(OptimizationID.MFR_NAME.value)
-        if self.bomconverter_config_optimize_restol_chkbox.GetValue(): config_optimize.append(OptimizationID.RES_TOL.value)
+        if self.bomconverter_config_optimize_none_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.NONE.value)
+        if self.bomconverter_config_optimize_all_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.ALL.value)
+        if self.bomconverter_config_optimize_mfrname_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.MFR_NAME.value)
+        if self.bomconverter_config_optimize_restol_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.RES_TOL.value)
         config_optimize = ",".join(config_optimize)
 
         output_format = []
-        if self.bomconverter_output_format_none_chkbox.GetValue(): output_format.append(OutputID.NONE.value)
-        if self.bomconverter_output_format_all_chkbox.GetValue(): output_format.append(OutputID.ALL.value)
-        if self.bomconverter_output_format_pe3docx_chkbox.GetValue(): output_format.append(OutputID.PE3_DOCX.value)
-        if self.bomconverter_output_format_pe3pdf_chkbox.GetValue(): output_format.append(OutputID.PE3_PDF.value)
-        if self.bomconverter_output_format_pe3csv_chkbox.GetValue(): output_format.append(OutputID.PE3_CSV.value)
-        if self.bomconverter_output_format_clxlsx_chkbox.GetValue(): output_format.append(OutputID.CL_XLSX.value)
-        if self.bomconverter_output_format_spcsv_chkbox.GetValue(): output_format.append(OutputID.SP_CSV.value)
+        if self.bomconverter_output_format_none_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.NONE.value)
+        if self.bomconverter_output_format_all_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.ALL.value)
+        if self.bomconverter_output_format_pe3docx_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.PE3_DOCX.value)
+        if self.bomconverter_output_format_pe3pdf_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.PE3_PDF.value)
+        if self.bomconverter_output_format_pe3csv_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.PE3_CSV.value)
+        if self.bomconverter_output_format_clxlsx_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.CL_XLSX.value)
+        if self.bomconverter_output_format_spcsv_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.SP_CSV.value)
         output_format = ",".join(output_format)
 
         params = {
@@ -940,118 +1253,207 @@ class MainFrame(wx.Frame):
                 'executable'    : self.bomconverter_process_exe_text.GetValue(),
                 'noquestions'   : self.bomconverter_process_behaviour_noquestions_chkbox.GetValue(),
                 'nohalt'        : self.bomconverter_process_behaviour_nohalt_chkbox.GetValue(),
-                'loglevel'      : self.bomconverter_process_behaviour_loglevel_choice.GetSelection()
+                'loglevel'      : self.get_choice_string(self.bomconverter_process_behaviour_loglevel_choice)
             }
         }
+        return params
 
-        loglevel = params['process']['loglevel']
-        if loglevel < 0: loglevel = 0
-        params['process']['loglevel'] = self.bomconverter_process_behaviour_loglevel_choice.GetString(loglevel)
+    #Собирает параметры с панели bomdiscriminator
+    def params_get_bomdiscriminator(self):
+        """Get params from BoM discriminator panel"""
+        config_fields_ignore = self.bomdiscriminator_config_fields_ignore_combobox.GetValue()
+        if config_fields_ignore:
+            config_fields_ignore = config_fields_ignore.split(',')
+        else:
+            config_fields_ignore = []
+        for i, value in enumerate(config_fields_ignore):
+            config_fields_ignore[i] = value.strip()
+        config_fields_ignore_unpaired = self.bomdiscriminator_config_fields_ignore_unpaired_chkbox.GetValue()
+        if config_fields_ignore_unpaired: config_fields_ignore.append('*')
 
+        params = {
+            'reference': {
+                'bom'               : self.bomdiscriminator_reference_bom_text.GetValue(),
+                'settings'          : self.bomdiscriminator_reference_settings_text.GetValue(),
+            },
+            'subject': {
+                'bom'               : self.bomdiscriminator_subject_bom_text.GetValue(),
+                'settings'          : self.bomdiscriminator_subject_settings_text.GetValue(),
+            },
+            'result': {
+                'format'            : self.get_choice_string(self.bomdiscriminator_result_format_choice),
+                'file'              : self.bomdiscriminator_result_file_text.GetValue(),
+            },
+            'config': {
+                'settings'          : self.bomdiscriminator_config_settings_text.GetValue(),
+                'fields': {
+                    'key'               : self.bomdiscriminator_config_fields_key_combobox.GetValue(),
+                    'key_list'          : [self.bomdiscriminator_config_fields_key_combobox.GetString(i) for i in range(self.bomdiscriminator_config_fields_key_combobox.GetCount())],
+                    'ignore'            : ','.join(config_fields_ignore),
+                    'ignore_list'       : [self.bomdiscriminator_config_fields_ignore_combobox.GetString(i) for i in range(self.bomdiscriminator_config_fields_ignore_combobox.GetCount())],
+                },
+                'xlsx_changes_mode' : self.get_choice_string(self.bomdiscriminator_config_xlsx_changes_mode_choice)
+            },
+            'process': {
+                'executable'        : self.bomdiscriminator_process_exe_text.GetValue(),
+                'noquestions'       : self.bomdiscriminator_process_behaviour_noquestions_chkbox.GetValue(),
+                'nohalt'            : self.bomdiscriminator_process_behaviour_nohalt_chkbox.GetValue(),
+                'loglevel'          : self.get_choice_string(self.bomdiscriminator_process_behaviour_loglevel_choice)
+            }
+        }
         return params
 
     #Собирает параметры с панели cldiscriminator
-    def get_params_cldiscriminator(self):
+    def params_get_cldiscriminator(self):
         """Get params from CL discriminator panel"""
         params = {
             'reference': {
-                'cl'            : self.cldiscriminator_reference_clfile_text.GetValue(),
+                'cl'            : self.cldiscriminator_reference_cl_text.GetValue(),
                 'settings'      : self.cldiscriminator_reference_settings_text.GetValue(),
             },
             'subject': {
-                'cl'            : self.cldiscriminator_subject_clfile_text.GetValue(),
+                'cl'            : self.cldiscriminator_subject_cl_text.GetValue(),
                 'settings'      : self.cldiscriminator_subject_settings_text.GetValue(),
             },
             'result': {
-                'cl'            : self.cldiscriminator_result_clfile_text.GetValue(),
+                'cl'            : self.cldiscriminator_result_cl_text.GetValue(),
                 'settings'      : self.cldiscriminator_result_settings_text.GetValue(),
             },
             'process': {
                 'executable'    : self.cldiscriminator_process_exe_text.GetValue(),
                 'noquestions'   : self.cldiscriminator_process_behaviour_noquestions_chkbox.GetValue(),
                 'nohalt'        : self.cldiscriminator_process_behaviour_nohalt_chkbox.GetValue(),
-                'loglevel'      : self.cldiscriminator_process_behaviour_loglevel_choice.GetSelection()
+                'loglevel'      : self.get_choice_string(self.cldiscriminator_process_behaviour_loglevel_choice)
             }
         }
-
-        loglevel = params['process']['loglevel']
-        if loglevel < 0: loglevel = 0
-        params['process']['loglevel'] = self.cldiscriminator_process_behaviour_loglevel_choice.GetString(loglevel)
 
         return params
 
     #Применяет параметры на интерфейс
     def params_apply(self, params):
-        if 'bomconverter' in params:
-            block = params['bomconverter']
-            if 'input' in block:
-                section = block['input']
-                if 'adproject' in section: self.bomconverter_input_adproject_chkbox.SetValue(section['adproject'])
-                if 'datafiles' in section: self.bomconverter_input_data_text.SetValue(str(section['datafiles']))
-                if 'titleblock' in section: self.bomconverter_input_titleblock_text.SetValue(str(section['titleblock']))
-            if 'config' in block:
-                section = block['config']
-                if 'settings' in section: self.bomconverter_config_settings_text.SetValue(str(section['settings']))
-                if 'parser' in section: self.bomconverter_config_parser_text.SetValue(str(section['parser']))
-                if 'optimize' in section:
-                    self.bomconverter_config_optimize_none_chkbox.SetValue(OptimizationID.NONE.value in section['optimize'])
-                    self.bomconverter_config_optimize_all_chkbox.SetValue(OptimizationID.ALL.value in section['optimize'])
-                    self.bomconverter_config_optimize_mfrname_chkbox.SetValue(OptimizationID.MFR_NAME.value in section['optimize'])
-                    self.bomconverter_config_optimize_restol_chkbox.SetValue(OptimizationID.RES_TOL.value in section['optimize'])
-            if 'output' in block:
-                section = block['output']
-                if 'output' in section: self.bomconverter_output_directory_text.SetValue(str(section['directory']))
-                if 'format' in section:
-                    self.bomconverter_output_format_none_chkbox.SetValue(OutputID.NONE.value in section['format'])
-                    self.bomconverter_output_format_all_chkbox.SetValue(OutputID.ALL.value in section['format'])
-                    self.bomconverter_output_format_pe3docx_chkbox.SetValue(OutputID.PE3_DOCX.value in section['format'])
-                    self.bomconverter_output_format_pe3pdf_chkbox.SetValue(OutputID.PE3_PDF.value in section['format'])
-                    self.bomconverter_output_format_pe3csv_chkbox.SetValue(OutputID.PE3_CSV.value in section['format'])
-                    self.bomconverter_output_format_clxlsx_chkbox.SetValue(OutputID.CL_XLSX.value in section['format'])
-                    self.bomconverter_output_format_spcsv_chkbox.SetValue(OutputID.SP_CSV.value in section['format'])
-            if 'process' in block:
-                section = block['process']
-                if 'executable' in section: self.bomconverter_process_exe_text.SetValue(str(section['executable']))
-                if 'noquestions' in section: self.bomconverter_process_behaviour_noquestions_chkbox.SetValue(section['noquestions'])
-                if 'nohalt' in section: self.bomconverter_process_behaviour_nohalt_chkbox.SetValue(section['nohalt'])
-                if 'loglevel' in section:
-                    for i in range(self.bomconverter_process_behaviour_loglevel_choice.GetCount()):
-                        if self.bomconverter_process_behaviour_loglevel_choice.GetString(i) == section['loglevel']:
-                            self.bomconverter_process_behaviour_loglevel_choice.SetSelection(i)
-            self.OnBomconverterPanelValueChange(None)
+        if 'bomconverter' in params: self.params_apply_bomconverter(params['bomconverter'])
+        if 'bomdiscriminator' in params: self.params_apply_bomdiscriminator(params['bomdiscriminator'])
+        if 'cldiscriminator' in params: self.params_apply_bomconverter(params['cldiscriminator'])
 
-        if 'cldiscriminator' in params:
-            block = params['cldiscriminator']
-            if 'reference' in block:
-                section = block['reference']
-                if 'cl' in section: self.cldiscriminator_reference_clfile_text.SetValue(str(section['cl']))
-                if 'settings' in section: self.cldiscriminator_reference_settings_text.SetValue(str(section['settings']))
-            if 'subject' in block:
-                section = block['subject']
-                if 'cl' in section: self.cldiscriminator_subject_clfile_text.SetValue(str(section['cl']))
-                if 'settings' in section: self.cldiscriminator_subject_settings_text.SetValue(str(section['settings']))
-            if 'result' in block:
-                section = block['result']
-                if 'cl' in section: self.cldiscriminator_result_clfile_text.SetValue(str(section['cl']))
-                if 'settings' in section: self.cldiscriminator_result_settings_text.SetValue(str(section['settings']))
-            if 'process' in block:
-                section = block['process']
-                if 'executable' in section: self.cldiscriminator_process_exe_text.SetValue(str(section['executable']))
-                if 'noquestions' in section: self.cldiscriminator_process_behaviour_noquestions_chkbox.SetValue(section['noquestions'])
-                if 'nohalt' in section: self.cldiscriminator_process_behaviour_nohalt_chkbox.SetValue(section['nohalt'])
-                if 'loglevel' in section:
-                    for i in range(self.cldiscriminator_process_behaviour_loglevel_choice.GetCount()):
-                        if self.cldiscriminator_process_behaviour_loglevel_choice.GetString(i) == section['loglevel']:
-                            self.cldiscriminator_process_behaviour_loglevel_choice.SetSelection(i)
-            self.OnCldiscriminatorPanelValueChange(None)
+    #Применяет параметры на интерфейс для bomconverter
+    def params_apply_bomconverter(self, params):
+        if 'input' in params:
+            block = params['input']
+            if 'adproject' in block: self.bomconverter_input_adproject_chkbox.SetValue(block['adproject'])
+            if 'datafiles' in block: self.bomconverter_input_data_text.SetValue(str(block['datafiles']))
+            if 'titleblock' in block: self.bomconverter_input_titleblock_text.SetValue(str(block['titleblock']))
+        if 'config' in params:
+            block = params['config']
+            if 'settings' in block: self.bomconverter_config_settings_text.SetValue(str(block['settings']))
+            if 'parser' in block: self.bomconverter_config_parser_text.SetValue(str(block['parser']))
+            if 'optimize' in block:
+                self.bomconverter_config_optimize_none_chkbox.SetValue(Bomconverter_OptimizationID.NONE.value in block['optimize'])
+                self.bomconverter_config_optimize_all_chkbox.SetValue(Bomconverter_OptimizationID.ALL.value in block['optimize'])
+                self.bomconverter_config_optimize_mfrname_chkbox.SetValue(Bomconverter_OptimizationID.MFR_NAMES.value in block['optimize'])
+                self.bomconverter_config_optimize_restol_chkbox.SetValue(Bomconverter_OptimizationID.RES_TOL.value in block['optimize'])
+        if 'output' in params:
+            block = params['output']
+            if 'output' in block: self.bomconverter_output_directory_text.SetValue(str(block['directory']))
+            if 'format' in block:
+                self.bomconverter_output_format_none_chkbox.SetValue(Bomconverter_OutputID.NONE.value in block['format'])
+                self.bomconverter_output_format_all_chkbox.SetValue(Bomconverter_OutputID.ALL.value in block['format'])
+                self.bomconverter_output_format_pe3docx_chkbox.SetValue(Bomconverter_OutputID.PE3_DOCX.value in block['format'])
+                self.bomconverter_output_format_pe3pdf_chkbox.SetValue(Bomconverter_OutputID.PE3_PDF.value in block['format'])
+                self.bomconverter_output_format_pe3csv_chkbox.SetValue(Bomconverter_OutputID.PE3_CSV.value in block['format'])
+                self.bomconverter_output_format_clxlsx_chkbox.SetValue(Bomconverter_OutputID.CL_XLSX.value in block['format'])
+                self.bomconverter_output_format_spcsv_chkbox.SetValue(Bomconverter_OutputID.SP_CSV.value in block['format'])
+        if 'process' in params:
+            block = params['process']
+            if 'executable' in block: self.bomconverter_process_exe_text.SetValue(str(block['executable']))
+            if 'noquestions' in block: self.bomconverter_process_behaviour_noquestions_chkbox.SetValue(block['noquestions'])
+            if 'nohalt' in block: self.bomconverter_process_behaviour_nohalt_chkbox.SetValue(block['nohalt'])
+            if 'loglevel' in block: self.set_choice_string(self.bomconverter_process_behaviour_loglevel_choice, str(block['loglevel']), 0)
+        self.OnBomconverterPanelValueChange(None)
+
+    #Применяет параметры на интерфейс для bomdiscriminator
+    def params_apply_bomdiscriminator(self, params):
+        if 'reference' in params:
+            block = params['reference']
+            if 'bom' in block: self.bomdiscriminator_reference_bom_text.SetValue(str(block['bom']))
+            if 'settings' in block: self.cldiscriminator_reference_settings_text.SetValue(str(block['settings']))
+        if 'subject' in params:
+            block = params['subject']
+            if 'bom' in block: self.bomdiscriminator_subject_bom_text.SetValue(str(block['bom']))
+            if 'settings' in block: self.bomdiscriminator_subject_settings_text.SetValue(str(block['settings']))
+        if 'result' in params:
+            block = params['result']
+            if 'format' in block: self.set_choice_string(self.bomdiscriminator_result_format_choice, str(block['format']), 0)
+            if 'file' in block: self.bomdiscriminator_result_file_text.SetValue(str(block['file']))
+        if 'config' in params:
+            block = params['config']
+            if 'settings' in block: self.bomdiscriminator_config_settings_text.SetValue(str(block['settings']))
+            if 'fields' in block:
+                section = block['fields']
+                if 'key' in section: self.bomdiscriminator_config_fields_key_combobox.SetValue(str(section['key']))
+                if 'key_list' in section:
+                    config_fields_key_value = self.bomdiscriminator_config_fields_key_combobox.GetValue()
+                    self.bomdiscriminator_config_fields_key_combobox.Clear()
+                    for choice in section['key_list']:
+                        self.bomdiscriminator_config_fields_key_combobox.Append(choice)
+                    self.bomdiscriminator_config_fields_key_combobox.SetValue(config_fields_key_value)
+                if 'ignore' in section:
+                    config_fields_ignore = str(section['ignore'])
+                    config_fields_ignore_unpaired = False
+                    if config_fields_ignore: config_fields_ignore = config_fields_ignore.split(',')
+                    else:                    config_fields_ignore = []
+                    for i in range(len(config_fields_ignore) - 1, -1, -1):
+                        config_fields_ignore[i] = config_fields_ignore[i].strip()
+                        if config_fields_ignore[i] == '*':
+                            config_fields_ignore_unpaired = True
+                            config_fields_ignore.pop(i)
+                    self.bomdiscriminator_config_fields_ignore_combobox.SetValue(','.join(config_fields_ignore))
+                    self.bomdiscriminator_config_fields_ignore_unpaired_chkbox.SetValue(config_fields_ignore_unpaired)
+                if 'ignore_list' in section:
+                    config_fields_ignore_value = self.bomdiscriminator_config_fields_ignore_combobox.GetValue()
+                    self.bomdiscriminator_config_fields_ignore_combobox.Clear()
+                    for choice in section['ignore_list']:
+                        self.bomdiscriminator_config_fields_ignore_combobox.Append(choice)
+                    self.bomdiscriminator_config_fields_ignore_combobox.SetValue(config_fields_ignore_value)
+            if 'xlsx_changes_mode' in block: self.set_choice_string(self.bomdiscriminator_config_xlsx_changes_mode_choice, str(block['xlsx_changes_mode']), 0)
+        if 'process' in params:
+            block = params['process']
+            if 'executable' in block: self.bomdiscriminator_process_exe_text.SetValue(str(block['executable']))
+            if 'noquestions' in block: self.bomdiscriminator_process_behaviour_noquestions_chkbox.SetValue(block['noquestions'])
+            if 'nohalt' in block: self.bomdiscriminator_process_behaviour_nohalt_chkbox.SetValue(block['nohalt'])
+            if 'loglevel' in block: self.set_choice_string(self.bomdiscriminator_process_behaviour_loglevel_choice, str(block['loglevel']), 0)
+        self.OnBomdiscriminatorPanelValueChange(None)
+
+    #Применяет параметры на интерфейс для cldiscriminator
+    def params_apply_cldiscriminator(self, params):
+        if 'reference' in params:
+            block = params['reference']
+            if 'cl' in block: self.cldiscriminator_reference_cl_text.SetValue(str(block['cl']))
+            if 'settings' in block: self.cldiscriminator_reference_settings_text.SetValue(str(block['settings']))
+        if 'subject' in params:
+            block = params['subject']
+            if 'cl' in block: self.cldiscriminator_subject_cl_text.SetValue(str(block['cl']))
+            if 'settings' in block: self.cldiscriminator_subject_settings_text.SetValue(str(block['settings']))
+        if 'result' in params:
+            block = params['result']
+            if 'cl' in block: self.cldiscriminator_result_cl_text.SetValue(str(block['cl']))
+            if 'settings' in block: self.cldiscriminator_result_settings_text.SetValue(str(block['settings']))
+        if 'process' in params:
+            block = params['process']
+            if 'executable' in block: self.cldiscriminator_process_exe_text.SetValue(str(block['executable']))
+            if 'noquestions' in block: self.cldiscriminator_process_behaviour_noquestions_chkbox.SetValue(block['noquestions'])
+            if 'nohalt' in block: self.cldiscriminator_process_behaviour_nohalt_chkbox.SetValue(block['nohalt'])
+            if 'loglevel' in block: self.set_choice_string(self.cldiscriminator_process_behaviour_loglevel_choice, str(block['loglevel']), 0)
+        self.OnCldiscriminatorPanelValueChange(None)
 
     #Сохраняет параметры в конфигурационный файл
     def params_save(self, params, filename):
         config = configparser.ConfigParser()
         flat_params = nested_dict_flatten(params, '.', 1)
 
-        for section, value in flat_params.items():
-            config[section] = value
+        for section, dictionary in flat_params.items():
+            for option, value in dictionary.items():
+                dictionary[option] = repr(value)
+            config[section] = dictionary
 
         with open(filename, "w", encoding="utf-8") as configfile:
             config.write(configfile)
@@ -1062,12 +1464,12 @@ class MainFrame(wx.Frame):
 
         try:
             config.read(filename, encoding="utf-8")
-
-            params = {
-                section: {key: parse_value(value) for key, value in config[section].items()}
-                for section in config.sections()
-            }
-
+            params = {}
+            for section in config.sections():
+                section_dict = {}
+                for key, value in config[section].items():
+                    section_dict[key] = ast.literal_eval(value)
+                params[section] = section_dict
             params = nested_dict_unflatten(params, '.', -1)
             return params
 
@@ -1081,55 +1483,100 @@ class MainFrame(wx.Frame):
         return None
 
     #Возвращает параметры по-умолчанию
-    def params_defaults(self):
+    def params_default(self):
         params = {
-            'bomconverter': {
-                'input': {
-                    'adproject'     : False,
-                    'datafiles'     : "",
-                    'titleblock'    : ""
-                },
-                'config': {
-                    'settings'      : "",
-                    'parser'        : "",
-                    'optimize'      : ""
-                },
-                'output': {
-                    'directory'     : "",
-                    'format'        : ""
-                },
-                'process': {
-                    'executable'    : "",
-                    'noquestions'   : False,
-                    'nohalt'        : True,
-                    'loglevel'      : ""
-                }
+            'bomconverter'     : self.params_default_bomconverter(),
+            'bomdiscriminator' : self.params_default_bomdiscriminator(),
+            'cldiscriminator'  : self.params_default_cldiscriminator()
+        }
+        return params
+
+    #Возвращает параметры по-умолчанию для bomconverter
+    def params_default_bomconverter(self):
+        params = {
+            'input': {
+                'adproject'     : False,
+                'datafiles'     : "",
+                'titleblock'    : ""
             },
-            'cldiscriminator': {
-                'reference': {
-                    'cl'            : "",
-                    'settings'      : "",
-                },
-                'subject': {
-                    'cl'            : "",
-                    'settings'      : "",
-                },
-                'result': {
-                    'cl'            : "",
-                    'settings'      : "",
-                },
-                'process': {
-                    'executable'    : "",
-                    'noquestions'   : False,
-                    'nohalt'        : True,
-                    'loglevel'      : ""
-                } 
+            'config': {
+                'settings'      : "",
+                'parser'        : "",
+                'optimize'      : ""
+            },
+            'output': {
+                'directory'     : "",
+                'format'        : ""
+            },
+            'process': {
+                'executable'    : "",
+                'noquestions'   : False,
+                'nohalt'        : True,
+                'loglevel'      : ""
             }
         }
         return params
 
+    #Возвращает параметры по-умолчанию для bomdiscriminator
+    def params_default_bomdiscriminator(self):
+        params = {
+            'reference': {
+                'bom'               : "",
+                'settings'          : "",
+            },
+            'subject': {
+                'bom'               : "",
+                'settings'          : "",
+            },
+            'result': {
+                'format'            : Bomdiscriminator_OutputID.XLSX.value,
+                'file'              : "",
+            },
+            'config': {
+                'settings'          : "",
+                'fields': {
+                    'key'               : "Designator",
+                    'key_list'          : ["Designator", "UniqueIdName,UniqueIdPath"],
+                    'ignore'            : "",
+                    'ignore_list'       : ["Footprint"]
+                },
+                'xlsx_changes_mode' : Bomdiscriminator_XlsxChangesModeID.COMMENT.value
+            },
+            'process': {
+                'executable'        : "",
+                'noquestions'       : False,
+                'nohalt'            : True,
+                'loglevel'          : ""
+            }
+        }
+        return params
+
+    #Возвращает параметры по-умолчанию для cldiscriminator
+    def params_default_cldiscriminator(self):
+        params = {
+            'reference': {
+                'cl'            : "",
+                'settings'      : "",
+            },
+            'subject': {
+                'cl'            : "",
+                'settings'      : "",
+            },
+            'result': {
+                'cl'            : "",
+                'settings'      : "",
+            },
+            'process': {
+                'executable'    : "",
+                'noquestions'   : False,
+                'nohalt'        : True,
+                'loglevel'      : ""
+            } 
+        }
+        return params
+
     #Собирает вектор аргументов для bomconverter
-    def bomconverter_argv_build(self, params):
+    def argv_build_bomconverter(self, params):
         """Build command line argument vector for bomconverter"""
         argv = []
 
@@ -1171,11 +1618,11 @@ class MainFrame(wx.Frame):
         if optimize:
             argv.append('--optimize')
             optimize = optimize.replace(' ', '').split(',')
-            if OptimizationID.NONE.value in optimize: argv.append(OptimizationID.NONE.value)
-            elif OptimizationID.ALL.value in optimize: argv.append(OptimizationID.ALL.value)
+            if Bomconverter_OptimizationID.NONE.value in optimize: argv.append(Bomconverter_OptimizationID.NONE.value)
+            elif Bomconverter_OptimizationID.ALL.value in optimize: argv.append(Bomconverter_OptimizationID.ALL.value)
             else:
                 for opt in optimize:
-                    if any(opt == item.value for item in OptimizationID):
+                    if any(opt == item.value for item in Bomconverter_OptimizationID):
                         argv.append(opt)
 
         #выходная папка
@@ -1188,11 +1635,11 @@ class MainFrame(wx.Frame):
         if format:
             argv.append('--output')
             format = format.replace(' ', '').split(',')
-            if OutputID.NONE.value in format: argv.append(OutputID.NONE.value)
-            elif OutputID.ALL.value in format: argv.append(OutputID.ALL.value)
+            if Bomconverter_OutputID.NONE.value in format: argv.append(Bomconverter_OutputID.NONE.value)
+            elif Bomconverter_OutputID.ALL.value in format: argv.append(Bomconverter_OutputID.ALL.value)
             else:
                 for opt in format:
-                    if any(opt == item.value for item in OutputID):
+                    if any(opt == item.value for item in Bomconverter_OutputID):
                         argv.append(opt)
 
         #не задавать вопросов
@@ -1214,8 +1661,65 @@ class MainFrame(wx.Frame):
 
         return argv
 
+    #Собирает вектор аргументов для bomdiscriminator
+    def argv_build_bomdiscriminator(self, params):
+        """Build command line argument vector for bomdiscriminator"""
+        argv = []
+
+        #исполняемый файл
+        executable = params.get('process', {}).get('executable', '')
+        if len(executable) == 0: executable = 'bomdiscriminator.py'
+        if os.path.splitext(executable)[1].lstrip(os.extsep) == 'py':
+            argv.append('python')
+        argv.append(executable)
+
+        #BoM
+        bom_reference = params.get('reference', {}).get('bom', '')
+        argv.append(bom_reference)
+        bom_subject = params.get('subject', {}).get('bom', '')
+        argv.append(bom_subject)
+        bom_result = params.get('result', {}).get('file', '')
+        argv.append(bom_result)
+
+        #настройки
+        settings_reference = params.get('reference', {}).get('settings', '')
+        if settings_reference: argv.extend(['--settings-reference', settings_reference])
+        settings_subject = params.get('subject', {}).get('settings', '')
+        if settings_subject: argv.extend(['--settings-subject', settings_subject])
+        settings_result = params.get('result', {}).get('settings', '')
+        if settings_result: argv.extend(['--settings-result', settings_result])
+        
+        #конфигурация
+        output = params.get('result', {}).get('format', '')
+        if output: argv.extend(['--output', output])
+        fields_key = params.get('config', {}).get('fields', {}).get('key', '')
+        if fields_key: argv.extend(['--fields-key', fields_key])
+        fields_ignore = params.get('config', {}).get('fields', {}).get('ignore', '')
+        if fields_ignore: argv.extend(['--fields-ignore', fields_ignore])
+        xlsx_changes_mode = params.get('config', {}).get('xlsx_changes_mode', '')
+        if xlsx_changes_mode: argv.extend(['--xlsx-changes-mode', xlsx_changes_mode])
+
+        #не задавать вопросов
+        #noquestions = params.get('process', {}).get('noquestions', False)
+        #if noquestions: argv.append('--noquestions')
+
+        #не закрывать окно по завершению
+        nohalt = params.get('process', {}).get('nohalt', False)
+        if nohalt: argv.append('--nohalt')
+
+        #уровень лога
+        #loglevel = params.get('process', {}).get('loglevel', '')
+        #if len(loglevel) > 0:
+        #    if   loglevel == 'debug': argv.extend(['--loglevel', 'debug'])
+        #    elif loglevel == 'info':  argv.extend(['--loglevel', 'info'])
+        #    elif loglevel == 'warn':  argv.extend(['--loglevel', 'warn'])
+        #    elif loglevel == 'error': argv.extend(['--loglevel', 'error'])
+        #    elif loglevel == 'fatal': argv.extend(['--loglevel', 'fatal'])
+
+        return argv
+
     #Собирает вектор аргументов для cldiscriminator
-    def cldiscriminator_argv_build(self, params):
+    def argv_build_cldiscriminator(self, params):
         """Build command line argument vector for cldiscriminator"""
         argv = []
 
@@ -1542,19 +2046,6 @@ class FileDropTarget(wx.FileDropTarget):
         self.text_ctrl.SetValue("\n".join(filenames))
         return True
 
-#Convert string values to int, float, or bool when possible.
-def parse_value(value):
-    if value.lower() in ("true", "yes", "on"):
-        return True
-    elif value.lower() in ("false", "no", "off"):
-        return False
-    try:
-        if "." in value:
-            return float(value)
-        return int(value)
-    except ValueError:
-        return value  # Return as string if conversion fails
-
 #Flattens a nested dictionary while preserving the top `preserve_levels` as nested dicts.
 def nested_dict_flatten(nested_dict, sep = '.', preserve_levels = 0):
     """
@@ -1670,7 +2161,7 @@ if __name__ == '__main__':
     params = None
     params_file = 'gui.ini'
     if os.path.isfile(params_file): params = frame.params_load(params_file)
-    if params is None: params = frame.params_defaults()
+    if params is None: params = frame.params_default()
     frame.params_apply(params)
 
     app.MainLoop()

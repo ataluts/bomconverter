@@ -7,14 +7,31 @@ from dict_locale import LocaleIndex     #словарь с локализаци�
 _module_dirname = os.path.dirname(__file__)                                     #адрес папки со словарём
 now = datetime.now()                                                            #текущее дата/время
 
-#--------------------------------------------------------------------------------- Экспорт в CSV -----------------------------------------------------------------------------------
-#настройки экспорта в CSV (по-умолчанию)
-_settings_export_csv = {
+#================================================================================= Общие настройки =================================================================================
+_settings_generic_locale                            = LocaleIndex.RU.value      #локализация
+
+#--------------------------------------------------------------------------------------- csv ---------------------------------------------------------------------------------------
+#настройки импорта из csv (базовые)
+_settings_generic_csv_import = {
     'encoding'                                      : 'cp1251',                     #кодировка
     'dialect'                                       : {                             #диалект csv (вместо параметров ниже можно указать имя встроенного диалекта, например 'excel', 'excel-tab' или 'unix')
         'delimiter'                                     : ',',                          #разделитель значений
         'doublequote'                                   : True,                         #заменять " на "" в значениях
-        'escapechar'                                    : '\\',                         #символ смены регистра
+        'escapechar'                                    : None,                         #символ экранирования
+        'lineterminator'                                : '\r\n',                       #окончание строки
+        'quotechar'                                     : '"',                          #"кавычки" для значений со спецсимволами
+        'quoting'                                       : csv.QUOTE_ALL,                #метод заключения значений в "кавычки"
+        'skipinitialspace'                              : False                         #пропускать пробел следующий сразу за разделителем
+    }
+}
+
+#настройки экспорта в csv (базовые)
+_settings_generic_csv_export = {
+    'encoding'                                      : 'cp1251',                     #кодировка
+    'dialect'                                       : {                             #диалект csv (вместо параметров ниже можно указать имя встроенного диалекта, например 'excel', 'excel-tab' или 'unix')
+        'delimiter'                                     : ',',                          #разделитель значений
+        'doublequote'                                   : True,                         #заменять " на "" в значениях
+        'escapechar'                                    : None,                         #символ экранирования
         'lineterminator'                                : '\r\n',                       #окончание строки
         'quotechar'                                     : '"',                          #"кавычки" для значений со спецсимволами
         'quoting'                                       : csv.QUOTE_ALL,                #метод заключения значений в "кавычки"
@@ -30,10 +47,57 @@ _settings_export_csv = {
     }
 }
 
+#------------------------------------------------------------------------------- Список компонентов --------------------------------------------------------------------------------
+#настройки экспорта СК в xlsx (базовые)
+_settings_generic_cl_xlsx_export = {
+    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'content_accs_location'                         : 'sheet',                      #расположение аксессуаров {'sheet' - на отдельном листе | 'start' - в начале общего списка | 'end' - в конце общего списка}
+    'content_accs_indent'                           : 1,                            #отступ (в строках) списка аксесуаров от списка компонентов при размещении на одном листе
+    'format_groupvalue_delimiter'                   : ', ',                         #разделитель значений в полях с группировкой значений
+    'format_singlevalue_delimiter'                  : '|',                          #разделитель значений в полях с одиночным значением
+    #'book_title'                                    : '',                           #название              <- свойства книги
+    #'book_subject'                                  : '',                           #тема
+    #'book_author'                                   : '',                           #автор, кем изменено
+    #'book_manager'                                  : '',                           #руководитель
+    #'book_company'                                  : '',                           #организация
+    #'book_category'                                 : '',                           #категории
+    #'book_keywords'                                 : '',                           #теги
+    #'book_created'                                  : datetime(Y, M, D, h, m, s),   #создан, изменён
+    #'book_comments'                                 : '',                           #примечания
+    #'book_status'                                   : '',                           #состояние
+    #'book_hyperlink'                                : '',                           #база гиперссылки      ^
+    'book_style'                                    : {                              #стили в книге
+        'row'                                           : {                             #строки
+            'generic'                                       : None,
+            'header'                                        : {'valign': 'vcenter', 'bold':True, 'font_color':'#000000', 'bg_color':'#99CCFF', 'align':'center'},
+            'ok'                                            : {'valign': 'vcenter', 'bold':False, 'font_color':'green'},
+            'warning'                                       : {'valign': 'vcenter', 'bold':False, 'font_color':'orange'},
+            'error'                                         : {'valign': 'vcenter', 'bold':False, 'font_color':'red'}
+        },
+        'col'                                           : {                             #столбцы
+            'desig'                                         : {'width': 50.0, 'valign': 'vcenter'},
+            'kind'                                          : {'width': 25.0, 'valign': 'vcenter'},
+            'value'                                         : {'width': 25.0, 'valign': 'vcenter'},
+            'description'                                   : {'width': 60.0, 'valign': 'vcenter'},
+            'package'                                       : {'width': 15.0, 'valign': 'vcenter'},
+            'mfr'                                           : {'width': 25.0, 'valign': 'vcenter'},
+            'quantity'                                      : {'width':  8.0, 'valign': 'vcenter'},
+            'note'                                          : {'width': 36.0, 'valign': 'vcenter'},
+            'subst_orig_value'                              : {'width': 25.0, 'valign': 'vcenter'},
+            'subst_orig_mfr'                                : {'width': 25.0, 'valign': 'vcenter'},
+            'subst_orig_quantity'                           : {'width': 15.0, 'valign': 'vcenter'},
+            'subst_desig'                                   : {'width': 70.0, 'valign': 'vcenter'},
+            'subst_quantity'                                : {'width': 15.0, 'valign': 'vcenter'},
+            'subst_value'                                   : {'width': 25.0, 'valign': 'vcenter'},
+            'subst_mfr'                                     : {'width': 25.0, 'valign': 'vcenter'},
+            'subst_note'                                    : {'width': 44.0, 'valign': 'vcenter'}
+        }
+    }
+}
 
 #-------------------------------------------------------------------------------- Основная надпись ---------------------------------------------------------------------------------
-#значения основной надписи (по-умолчанию)
-_settings_titleblock = {                                                            #если тип значения 'tuple' то оно будет добавлено к уже имеющемуся в полученных данных
+#значения основной надписи (базовые)
+_settings_generic_titleblock = {                                                            #если тип значения 'tuple' то оно будет добавлено к уже имеющемуся в полученных данных
     #'01a_product_name'                              : '',                           #графа 1  - наименование изделия
     #'01b_document_type'                             : '',                           #графа 1  - наименование документа
     #'02_document_designator'                        : '',                           #графа 2  - обозначение документа
@@ -63,20 +127,30 @@ _settings_titleblock = {                                                        
     #'25_firstReferenceDocument_designator'          : ''                            #графа 25 - обозначение соответствующего документа, в котором впервые записан данный документ
 }
 
+#================================================================================== BoM converter ==================================================================================
+#--------------------------------------------------------------------------------------- BoM ---------------------------------------------------------------------------------------
+#настройки импорта BoM из csv
+_settings_bomconverter_bom_csv_import = copy.deepcopy(_settings_generic_csv_import)
+#--- изменения к настройкам импорта по-умолчанию
+_settings_bomconverter_bom_csv_import.update({
+    'conversion_int'                                : None,                         #список полей значения которых конвертировать в целочисленные (None - не делать конвертацию)
+    'conversion_float'                              : None,                         #список полей значения которых конвертировать в дробные (None - не делать конвертацию)
+    'conversion_bool'                               : None,                         #список полей значения которых конвертировать в двоичные (None - не делать конвертацию)
+})
 
 #------------------------------------------------------------------------------- Перечень элементов --------------------------------------------------------------------------------
 #основная надпись ПЭ3
-_settings_titleblock_pe3 = copy.deepcopy(_settings_titleblock)
+_settings_bomconverter_pe3_titleblock = copy.deepcopy(_settings_generic_titleblock)
 #--- изменения к основной надписи по-умолчанию
-_settings_titleblock_pe3.update({
+_settings_bomconverter_pe3_titleblock.update({
     '01b_document_type'                             : 'Перечень элементов',         #графа 1  - наименование документа
     '02_document_designator'                        : (' ПЭ3', ),                   #графа 2  - обозначение документа
 })
 
 #настройки сборки ПЭ3 (по-умолчанию)
-_settings_build_pe3 = {
-    'data_titleblock'                               : _settings_titleblock_pe3,     #значения полей основной надписи (обновляют значения из полученных данных)
-    'locale_index'                                  : LocaleIndex.RU.value,         #локализация
+_settings_bomconverter_pe3_build = {
+    'data_titleblock'                               : _settings_bomconverter_pe3_titleblock, #значения полей основной надписи (обновляют значения из полученных данных)
+    'locale_index'                                  : _settings_generic_locale,     #локализация
     'content_table_group_header'                    : True,                         #добавлять заголовок для группы элементов
     'content_accs'                                  : True,                         #добавлять аксессуары
     'content_accs_parent'                           : True,                         #добавлять в примечание позиционное обозначение родительского элемента для аксессуара
@@ -134,9 +208,9 @@ _settings_build_pe3 = {
 }
 
 #настройки сборки ПЭ3 и его экспорта в docx
-_settings_build_pe3_docx = copy.deepcopy(_settings_build_pe3)
+_settings_bomconverter_pe3_docx_build = copy.deepcopy(_settings_bomconverter_pe3_build)
 #--- изменения к настройкам сборки по-умолчанию
-_settings_build_pe3_docx.update({
+_settings_bomconverter_pe3_docx_build.update({
     'format_param_decimalPoint'                     : ',',                          #десятичный разделитель
     'format_param_rangeSymbol'                      : '\xa0\u2026\xa0',             #символ диапазона
     'format_param_delimiter'                        : ' \u2013 ',                   #разделитель параметров
@@ -146,13 +220,13 @@ _settings_build_pe3_docx.update({
     'format_param_conditions_enclosure'             : ['\xa0(', ')'],               #обрамление условий измерения параметра
 })  
 #--- настройки экспорта
-_settings_export_pe3_docx = {
+_settings_bomconverter_pe3_docx_export = {
     #'template'                                      : "export_pe3_docx.docx"        #адрес шаблона для экспорта
     'format_table_desig_wordwrap'                   : False,                        #позиционное обозначение    <- переносить значение в нижестоящую ячейку таблицы, если оно не влезает в текущую 
     'format_table_label_wordwrap'                   : True,                         #наименование
     'format_table_annot_wordwrap'                   : True,                         #примечание                 ^
     'format_table_desig_wordwrap_delimiter'         : ' ',                          #позиционное обозначение    <- разделитель после которого можно делать перенос
-    'format_table_label_wordwrap_delimiter'         : _settings_build_pe3_docx['format_param_delimiter'], #наименование
+    'format_table_label_wordwrap_delimiter'         : _settings_bomconverter_pe3_docx_build['format_param_delimiter'], #наименование
     'format_table_annot_wordwrap_delimiter'         : ' '                           #примечание                 ^
     #'document_author'                               : '',                          #автор                      <- свойства документа (если не заданы то остаются как в шаблоне)
     #'document_category'                             : '',                          #категории
@@ -172,38 +246,38 @@ _settings_export_pe3_docx = {
 }
 
 #настройки сборки ПЭ3 и его экспорта в pdf
-_settings_build_pe3_pdf = copy.deepcopy(_settings_build_pe3)
+_settings_bomconverter_pe3_pdf_build = copy.deepcopy(_settings_bomconverter_pe3_build)
 #--- изменения к настройкам сборки по-умолчанию
-_settings_build_pe3_pdf.update({
+_settings_bomconverter_pe3_pdf_build.update({
 })
 #--- настройки экспорта
-_settings_export_pe3_pdf = {
+_settings_bomconverter_pe3_pdf_export = {
     #'template'                                      : "export_pe3_pdf.tex"         #адрес шаблона для экспорта
 }
 
 #настройки сборки ПЭ3 и его экспорта в csv
-_settings_build_pe3_csv = copy.deepcopy(_settings_build_pe3)
+_settings_bomconverter_pe3_csv_build = copy.deepcopy(_settings_bomconverter_pe3_build)
 #--- изменения к настройкам сборки по-умолчанию
-_settings_build_pe3_csv.update({
+_settings_bomconverter_pe3_csv_build.update({
 })
 #--- настройки экспорта
-_settings_export_pe3_csv = copy.deepcopy(_settings_export_csv)
+_settings_bomconverter_pe3_csv_export = copy.deepcopy(_settings_generic_csv_export)
 #--- изменения к настройкам экспорта по-умолчанию
-_settings_export_pe3_csv.update({
+_settings_bomconverter_pe3_csv_export.update({
 })
 
 #---------------------------------------------------------------------------------- Спецификация -----------------------------------------------------------------------------------
 #основная надпись СП
-_settings_titleblock_sp = copy.deepcopy(_settings_titleblock)
+_settings_bomconverter_sp_titleblock = copy.deepcopy(_settings_generic_titleblock)
 #--- изменения к основной надписи по-умолчанию
-_settings_titleblock_sp.update({
+_settings_bomconverter_sp_titleblock.update({
     '01b_document_type'                             : 'Спецификация',               #графа 1  - наименование документа
 })
 
 #настройки сборки СП (по-умолчанию)
-_settings_build_sp = {
-    'data_titleblock'                               : _settings_titleblock_sp,      #значения полей основной надписи (обновляют значения из полученных данных)
-    'locale_index'                                  : LocaleIndex.RU.value,         #локализация
+_settings_bomconverter_sp_build = {
+    'data_titleblock'                               : _settings_bomconverter_sp_titleblock, #значения полей основной надписи (обновляют значения из полученных данных)
+    'locale_index'                                  : _settings_generic_locale,     #локализация
     'content_accs'                                  : True,                         #добавлять аксессуары
     'content_accs_parent'                           : False,                        #указывать в качестве позиционного обозначения родительский элемент для аксессуара
     'content_value'                                 : True,                         #добавлять номинал
@@ -249,25 +323,21 @@ _settings_build_sp = {
 }
 
 #настройки сборки СП и её экспорта в csv
-_settings_build_sp_csv = copy.deepcopy(_settings_build_sp)
+_settings_bomconverter_sp_csv_build = copy.deepcopy(_settings_bomconverter_sp_build)
 #--- изменения к настройкам сборки по-умолчанию
-_settings_build_sp_csv.update({
+_settings_bomconverter_sp_csv_build.update({
 })
 #--- настройки экспорта
-_settings_export_sp_csv = copy.deepcopy(_settings_export_csv)
+_settings_bomconverter_sp_csv_export = copy.deepcopy(_settings_generic_csv_export)
 #--- изменения к настройкам экспорта по-умолчанию
-_settings_export_sp_csv.update({
+_settings_bomconverter_sp_csv_export.update({
+    'format_desig_delimiter'                        : ', '                          #разделитель позиционных обозначений
 })
-
 
 #------------------------------------------------------------------------------- Список компонентов --------------------------------------------------------------------------------
 #настройки сборки СК (по-умолчанию)
-_settings_build_cl = {
-    'locale_index'                                  : LocaleIndex.RU.value,         #локализация
-    #'title_book'                                    : 'Список компонентов',         #название книги
-    #'title_list_components'                         : 'Компоненты',                 #название листа со списком компонентов
-    #'title_list_accessories'                        : 'Аксессуары',                 #название листа со списком аксессуаров
-    #'title_list_substitutes'                        : 'Допустимые замены',          #название листа со списком допустимых замен
+_settings_bomconverter_cl_build = {
+    'locale_index'                                  : _settings_generic_locale,     #локализация
     'sorting_method'                                : 'params',                     #метод сортировки компонентов [designator|value|kind|params]
     'sorting_reverse'                               : False,                        #сортировать компоненты в обратном порядке
     'content_accs'                                  : True,                         #добавлять аксессуары
@@ -293,17 +363,40 @@ _settings_build_cl = {
 }
 
 #настройки сборки СК и его экспорта в xlsx
-_settings_build_cl_xlsx = copy.deepcopy(_settings_build_cl)
+_settings_bomconverter_cl_xlsx_build = copy.deepcopy(_settings_bomconverter_cl_build)
 #--- изменения к настройкам сборки по-умолчанию
-_settings_build_cl_xlsx.update({
+_settings_bomconverter_cl_xlsx_build.update({
 })
 #--- настройки экспорта
-_settings_export_cl_xlsx = {
-    'locale_index'                                  : LocaleIndex.RU.value,         #локализация
-    'content_accs_location'                         : 'sheet',                      #расположение аксессуаров {'sheet' - на отдельном листе | 'start' - в начале общего списка | 'end' - в конце общего списка}
-    'content_accs_indent'                           : 1,                            #отступ (в строках) списка аксесуаров от списка компонентов при размещении на одном листе
-    'format_groupvalue_delimiter'                   : ', ',                         #разделитель значений в полях с группировкой значений
-    'format_singlevalue_delimiter'                  : '|',                          #разделитель значений в полях с одиночным значением
+_settings_bomconverter_cl_xlsx_export = copy.deepcopy(_settings_generic_cl_xlsx_export)
+#--- изменения к настройкам экспорта по-умолчанию
+_settings_bomconverter_cl_xlsx_export.update({
+})
+
+#================================================================================ BoM discriminator ================================================================================
+#-------------------------------------------------------------------------------------- input --------------------------------------------------------------------------------------
+#настройки импорта BoM из csv
+_settings_bomdiscriminator_input_csv = copy.deepcopy(_settings_generic_csv_import)
+#--- изменения к настройкам импорта по-умолчанию
+_settings_bomdiscriminator_input_csv.update({
+    'conversion_int'                                : ['Quantity'],                 #список полей значения которых конвертировать в целочисленные (None - не делать конвертацию)
+    'conversion_float'                              : None,                         #список полей значения которых конвертировать в дробные (None - не делать конвертацию)
+    'conversion_bool'                               : None,                         #список полей значения которых конвертировать в двоичные (None - не делать конвертацию)
+})
+
+#------------------------------------------------------------------------------------- process -------------------------------------------------------------------------------------
+#настройки сравнения
+_settings_bomdiscriminator_discriminate = {
+    'locale_index'                                  : _settings_generic_locale      #локализация
+    #'comparison_fields_key'                         : ['Designator'],               #названия полей по которым определять соответствие элементов, список
+    #'comparison_fields_ignore'                      : [],                           #названия полей игнорируемых при сравнении, список ('~' - игнорировать непарные поля)
+}
+
+#------------------------------------------------------------------------------------- output --------------------------------------------------------------------------------------
+#настройки экспорта в xlsx
+_settings_bomdiscriminator_output_xlsx = {
+    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'changes_mode'                                  : 'comment',                    #метод отображения изменений {none|highlight|comment|duplex}
     #'book_title'                                    : '',                           #название              <- свойства книги
     #'book_subject'                                  : '',                           #тема
     #'book_author'                                   : '',                           #автор, кем изменено
@@ -316,113 +409,169 @@ _settings_export_cl_xlsx = {
     #'book_status'                                   : '',                           #состояние
     #'book_hyperlink'                                : '',                           #база гиперссылки      ^
     'book_style'                                    : {                              #стили в книге
-        'row'                                           : {                             #строки
-            'generic'                                       : None,
-            'header'                                        : {'valign': 'vcenter', 'bold':True, 'font_color':'#000000', 'bg_color':'#99CCFF', 'align':'center'},
-            'ok'                                            : {'valign': 'vcenter', 'bold':False, 'font_color':'green'},
-            'warning'                                       : {'valign': 'vcenter', 'bold':False, 'font_color':'orange'},
-            'error'                                         : {'valign': 'vcenter', 'bold':False, 'font_color':'red'}
+        'header' : {    #заголовок таблицы
+            'normal'   : {'valign': 'vcenter', 'bold':True, 'font_color':'#000000', 'bg_color':'#99CCFF', 'align':'center'},
+            'key'      : {'valign': 'vcenter', 'bold':True, 'font_color':'#000000', 'bg_color':'#FFA0FF', 'align':'center'},
+            'ignored'  : {'valign': 'vcenter', 'bold':True, 'font_color':'#808080', 'bg_color':'#D8D8D8', 'align':'center'},
+            'added'    : {'valign': 'vcenter', 'bold':True, 'font_color':'#000000', 'bg_color':'#92D050', 'align':'center'},
+            'removed'  : {'valign': 'vcenter', 'bold':True, 'font_color':'#000000', 'bg_color':'#FF7070', 'align':'center'},
+        },   
+        'field' : {     #поле (ячейка)
+            'normal'        : {'valign': 'vcenter'},
+            'key'           : {'valign': 'vcenter', 'font_color':'#FF00FF'},
+            'equal'         : {'valign': 'vcenter', 'font_color':'#000000'},
+            'modified'      : {'valign': 'vcenter', 'font_color':'#0000FF', 'bold':True},
+            'modified-ref'  : {'valign': 'vcenter', 'font_color':'#FF0000', 'font_strikeout': True},
+            'modified-subj' : {'valign': 'vcenter', 'font_color':'#008000'},
+            'ignored'       : {'valign': 'vcenter', 'font_color':'#808080'},
+            'added'         : {'valign': 'vcenter', 'font_color':'#008000'},
+            'removed'       : {'valign': 'vcenter', 'font_color':'#FF0000', 'font_strikeout': True}
         },
-        'col'                                           : {                             #столбцы
-            'desig'                                         : {'width': 50.0, 'valign': 'vcenter'},
-            'kind'                                          : {'width': 25.0, 'valign': 'vcenter'},
-            'value'                                         : {'width': 25.0, 'valign': 'vcenter'},
-            'description'                                   : {'width': 60.0, 'valign': 'vcenter'},
-            'package'                                       : {'width': 15.0, 'valign': 'vcenter'},
-            'mfr'                                           : {'width': 25.0, 'valign': 'vcenter'},
-            'quantity'                                      : {'width':  8.0, 'valign': 'vcenter'},
-            'note'                                          : {'width': 36.0, 'valign': 'vcenter'},
-            'subst_orig_value'                              : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_orig_mfr'                                : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_orig_quantity'                           : {'width': 15.0, 'valign': 'vcenter'},
-            'subst_desig'                                   : {'width': 70.0, 'valign': 'vcenter'},
-            'subst_quantity'                                : {'width': 15.0, 'valign': 'vcenter'},
-            'subst_value'                                   : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_mfr'                                     : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_note'                                    : {'width': 44.0, 'valign': 'vcenter'}
+        'comment' : {'x_scale': 1.75},   #примечание к полю (ячейке)
+        'row' : {   #ряд
+            'normal'  : None,   #ряд с полями (значениями)
+            'header'  : None    #ряд с заголовком таблицы
+        },
+        'col' : {   #столбец (стили для столбцов по их названиям)
+            '<default>'        : {'width': 10.0, 'valign': 'vcenter'}, #стиль по-умолчанию
+            'Designator'       : {'width':  9.0, 'valign': 'vcenter'},
+            'BOM_type'         : {'width': 15.0, 'valign': 'vcenter'},
+            'BOM_value'        : {'width': 30.0, 'valign': 'vcenter'},
+            'BOM_description'  : {'width': 60.0, 'valign': 'vcenter'},
+            'BOM_manufacturer' : {'width': 30.0, 'valign': 'vcenter'},
+            'BOM_explicit'     : {'width': 11.0, 'valign': 'vcenter'},
+            'BOM_substitute'   : {'width': 30.0, 'valign': 'vcenter'},
+            'BOM_note'         : {'width': 30.0, 'valign': 'vcenter'},
+            'BOM_accessory'    : {'width': 30.0, 'valign': 'vcenter'},
+            'Footprint'        : {'width': 25.0, 'valign': 'vcenter'},
+            'Quantity'         : {'width':  8.0, 'valign': 'vcenter'},
+            'Fitted'           : {'width':  8.0, 'valign': 'vcenter'},
+            'UniqueIdName'     : {'width': 12.0, 'valign': 'vcenter'},
+            'UniqueIdPath'     : {'width': 25.0, 'valign': 'vcenter'}
         }
     }
 }
 
+#настройки экспорта в csv
+_settings_bomdiscriminator_output_csv = {
+    'changes_state_name'                            : 'Diff_state',                 #название поля с типом изменения в записи (None - не добавлять)
+    'changes_state_index'                           : 0,                            #индекс поля с типом изменения в записи (отрицательные значения отсчитывают с конца)
+    'export'                                        : copy.deepcopy(_settings_generic_csv_export)  #настройки экспорта в csv
+}
 
-#------------------------------------------------------------------------------ Словарь с настройками ------------------------------------------------------------------------------
+#================================================================================= CL discriminator ================================================================================
+#настройки экспорта СК в xlsx
+_settings_cldiscriminator_export_xlsx = copy.deepcopy(_settings_generic_cl_xlsx_export)
+#--- изменения к настройкам экспорта по-умолчанию
+_settings_cldiscriminator_export_xlsx.update({
+})
+
+#============================================================================== Словарь с настройками ==============================================================================
 data = {
-    #вход
-    'input': {
-        'adproject': {                                                                  #настройки импорта проекта Altium Designer
-            #нет настроек
+    #bomconverter
+    'bomconverter': {
+        #вход
+        'input': {
+            'adproject': {                                                          #настройки импорта проекта Altium Designer
+                #нет настроек
+            },
+            'bom-csv'                   : _settings_bomconverter_bom_csv_import     #настройки импорта BoM из CSV
         },
-        'bom-csv': {                                                                    #настройки импорта BoM из CSV
-            'encoding'                                      : 'cp1251',                     #кодировка
-            'dialect'                                       : {                             #диалект csv (вместо параметров ниже можно указать имя встроенного диалекта, например 'excel', 'excel-tab' или 'unix')
-                'delimiter'                                     : ',',                          #разделитель значений
-                'doublequote'                                   : True,                         #заменять " на "" в значениях
-                'escapechar'                                    : '\\',                         #символ смены регистра
-                'lineterminator'                                : '\r\n',                       #окончание строки
-                'quotechar'                                     : '"',                          #"кавычки" для значений со спецсимволами
-                'quoting'                                       : csv.QUOTE_ALL,                #метод заключения значений в "кавычки"
-                'skipinitialspace'                              : False,                        #пропускать пробел следующий сразу за разделителем
-                'strict'                                        : False                         #вызывать ошибку при неправильных читаемых данных
+        
+        #анализ данных
+        'parse': {
+            #'parser'                    : "parse_taluts.py"                    #адрес парсера
+            'project': {                                                            #настройки анализа проекта
+                #нет настроек
+            },
+            'bom': {                                                                #настройки анализа BoM
+                #нет настроек
+            },
+            'check': {                                                              #настройки проверки данных после анализа
+                #нет настроек
+            }
+        },
+
+        #оптимизация данных
+        'optimize': {
+            'mfr-name': {                                                           #имена производителей
+                'enabled'               : False,                                        #включено
+                #'dictionary'            : dict_mfr_names.py"                            #адрес словаря
+            },
+            'res-tol': {                                                            #точность резиторов
+                'enabled'               : False                                         #включено
+            }
+        },
+
+        #выход
+        'output': {
+            'cl-xlsx' : {                                                           #список компонентов в Excel
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename СК $postfix.xlsx",                 #имя выходного файла
+                'build'                 : _settings_bomconverter_cl_xlsx_build,         #настройки сборки
+                'export'                : _settings_bomconverter_cl_xlsx_export         #настройки экспорта
+            },
+            'pe3-docx': {                                                           #перечень элементов в Word
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename ПЭ3 $postfix.docx",                #имя выходного файла
+                'build'                 : _settings_bomconverter_pe3_docx_build,        #настройки сборки
+                'export'                : _settings_bomconverter_pe3_docx_export        #настройки экспорта
+            },
+            'pe3-pdf' : {                                                           #перечень элементов в PDF
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename ПЭ3 $postfix.pdf",                 #имя выходного файла
+                'build'                 : _settings_bomconverter_pe3_pdf_build,         #настройки сборки
+                'export'                : _settings_bomconverter_pe3_pdf_export
+            },
+            'pe3-csv' : {                                                           #перечень элементов в CSV
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename ПЭ3 $postfix.csv",                 #имя выходного файла
+                'build'                 : _settings_bomconverter_pe3_csv_build,         #настройки сборки
+                'export'                : _settings_bomconverter_pe3_csv_export         #настройки экспорта
+            },
+            'sp-csv'  : {                                                           #спецификация в CSV
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename СП $postfix.csv",                  #имя выходного файла
+                'build'                 : _settings_bomconverter_sp_csv_build,          #настройки сборки
+                'export'                : _settings_bomconverter_sp_csv_export          #настройки экспорта
             }
         }
     },
-    
-    #анализ данных
-    'parse': {
-        #'parser'                                        : "parse_taluts.py"             #адрес парсера
-        'project': {                                                                    #настройки анализа проекта
-            #нет настроек
+
+    #bomdiscriminator
+    'bomdiscriminator' : {
+        #вход
+        'input': {
+            'csv'                       : _settings_bomdiscriminator_input_csv
         },
-        'bom': {                                                                        #настройки анализа BoM
-            #нет настроек
-        },
-        'check': {                                                                      #настройки проверки данных после анализа
-            #нет настроек
+
+        #обработка
+        'discriminate'                  : _settings_bomdiscriminator_discriminate,
+
+        #выход
+        'output': {
+            'xlsx'                      : _settings_bomdiscriminator_output_xlsx,   #xlsx
+            'csv'                       : _settings_bomdiscriminator_output_csv     #csv
         }
     },
 
-    #оптимизация данных
-    'optimize': {
-        'mfr-name': {                                                                   #имена производителей
-            'enabled'                                   : False,                             #включено
-            #'dictionary'                                : dict_mfr_names.py"                #адрес словаря
+    #cldiscriminator
+    'cldiscriminator' : {
+        #вход
+        'input': {
+            'xlsx' : {                                                              #xlsx
+                'locale_index'          : _settings_generic_locale,                     #локализация
+            }
         },
-        'res-tol': {                                                                    #точность резиторов
-            'enabled'                                   : False                              #включено
-        }
-    },
 
-    #выход
-    'output': {
-        'cl-xlsx' : {                                                                   #список компонентов в Excel
-            'enabled'                                   : True,                             #включено
-            'filename'                                  : "$basename СК $postfix.xlsx",     #имя выходного файла
-            'build'                                     : _settings_build_cl_xlsx,          #настройки сборки
-            'export'                                    : _settings_export_cl_xlsx          #настройки экспорта
+        #обработка
+        'discriminate': {
+            'locale_index'              : _settings_generic_locale,                     #локализация
         },
-        'pe3-docx': {                                                                   #перечень элементов в Word
-            'enabled'                                   : True,                             #включено
-            'filename'                                  : "$basename ПЭ3 $postfix.docx",    #имя выходного файла
-            'build'                                     : _settings_build_pe3_docx,         #настройки сборки
-            'export'                                    : _settings_export_pe3_docx         #настройки экспорта
-        },
-        'pe3-pdf' : {                                                                   #перечень элементов в PDF
-            'enabled'                                   : True,                             #включено
-            'filename'                                  : "$basename ПЭ3 $postfix.pdf",     #имя выходного файла
-            'build'                                     : _settings_build_pe3_pdf,          #настройки сборки
-            'export'                                    : _settings_export_pe3_pdf
-        },
-        'pe3-csv' : {                                                                   #перечень элементов в CSV
-            'enabled'                                   : True,                             #включено
-            'filename'                                  : "$basename ПЭ3 $postfix.csv",     #имя выходного файла
-            'build'                                     : _settings_build_pe3_csv,          #настройки сборки
-            'export'                                    : _settings_export_pe3_csv          #настройки экспорта
-        },
-        'sp-csv'  : {                                                                   #спецификация в CSV
-            'enabled'                                   : True,                             #включено
-            'filename'                                  : "$basename СП $postfix.csv",      #имя выходного файла
-            'build'                                     : _settings_build_sp_csv,           #настройки сборки
-            'export'                                    : _settings_export_sp_csv           #настройки экспорта
+
+        #выход
+        'output': {
+            'xlsx'                      : _settings_cldiscriminator_export_xlsx     #xlsx
         }
     }
 }

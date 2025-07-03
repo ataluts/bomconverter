@@ -19,12 +19,14 @@ def export(data, address, **kwargs):
     print(f"{' ' * 12}dialect: {dialect}")
     print(f"{' ' * 12}replace: {replace}")
 
+    format_desig_delimiter = kwargs.get('format_desig_delimiter',  ', ')
+
     #регистрируем диалект
     dialect_name = 'export_sp_csv'
     default_dialect = {
         'delimiter'        : ',',            #разделитель значений
         'doublequote'      : True,           #заменять " на "" в значениях
-        'escapechar'       : '\\',           #символ смены регистра
+        'escapechar'       : None,           #символ экранирования
         'lineterminator'   : '\r\n',         #окончание строки
         'quotechar'        : '"',            #"кавычки" для pначений со спецсимволами
         'quoting'          : csv.QUOTE_ALL,  #метод заключения значений в "кавычки"
@@ -61,9 +63,16 @@ def export(data, address, **kwargs):
         writer = csv.DictWriter(csvFile, fieldnames=['Label', 'Quantity', 'Designator'], dialect=dialect_name)
         writer.writeheader()
         for entry in sp.entries:
+            designator = ''
+            for desig in entry.designator:
+                if len(desig) > 0:
+                    designator += format_desig_delimiter + desig
+            if designator:
+                designator = designator[len(format_desig_delimiter):]
+
             writer.writerow({'Label':      entry.label,
                              'Quantity':   entry.quantity,
-                             'Designator': ', '.join(entry.designator)})
+                             'Designator': designator})
         csvFile.close()
 
     print('INFO >> sp-scv export completed.')   

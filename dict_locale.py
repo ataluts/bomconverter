@@ -203,6 +203,13 @@ class export_cl_xlsx(Enum):
     HEADER_SUBSTITUTE_NOTE = ("Subs. note", "Зам. примечание")
 
 class cldiscriminator(Enum):
-    TITLE_MODIFIED_LIST = ("Modified", "Изменённые")
-    TITLE_ADDED_LIST = ("Added", "Добавленные")
-    TITLE_REMOVED_LIST = ("Removed", "Исключённые")
+    XLSX_SHEET_TITLE_MODIFIED = ("Modified", "Изменённые")
+    XLSX_SHEET_TITLE_ADDED = ("Added", "Добавленные")
+    XLSX_SHEET_TITLE_REMOVED = ("Removed", "Исключённые")
+
+class bomdiscriminator(Enum):
+    XLSX_SHEET_TITLE_MODIFIED = ("Modified", "Изменённые")
+    XLSX_SHEET_TITLE_CHANGES = ("Changes", "Изменения")
+    XLSX_SHEET_TITLE_ADDED = ("Added", "Добавленные")
+    XLSX_SHEET_TITLE_REMOVED = ("Removed", "Исключённые")
+    XLSX_FIELD_MODIFIED_COMMENT_PREFIX = ("Reference value:\n", "Исходное значение:\n")

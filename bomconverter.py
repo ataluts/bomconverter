@@ -5,12 +5,12 @@ import copy
 import datetime
 import re
 import enum
-import types
 from string import Template
 
 import typedef_bom                      #класс BoM
 import typedef_components               #класс базы данных компонентов
 
+import lib_common                       #библиотека с общими функциями
 import import_adproject                 #импорт данных проекта Altium Designer
 import import_bom_csv as import_bom     #импорт данных из Bill of Materials
 import optimize_mfr_name                #оптимизация имени производителя
@@ -26,13 +26,9 @@ import export_sp_csv                    #экспорт спецификации
 from dict_locale import LocaleIndex     #словарь с локализациями
 
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_version = '3.6'
-_module_date    = datetime.datetime(2025, 6, 17)
+_module_date    = datetime.datetime(2025, 7, 3)
 _halt_on_exit   = True
 _debug          = False
-
-default_parser   = "parse_taluts.py"
-default_settings = "dict_settings.py"
 
 #-------------------------------------------------------- Class definitions ---------------------------------------------------------
 
@@ -53,29 +49,6 @@ class OptimizationID(enum.Enum):
 
 #====================================================== END Class definitions =======================================================
 
-# ------------------------------------------------------- Generic functions ---------------------------------------------------------
-#Ensures sys.stdout and sys.stderr use UTF-8 encoding with safe wrapping, avoiding double-wrapping or breaking the buffer.
-def wrap_stdout_utf8():
-    import io
-    def wrap(stream):
-        if hasattr(stream, "reconfigure"):
-            try:
-                stream.reconfigure(encoding="utf-8", errors="replace")
-                return stream
-            except Exception:
-                pass
-        if isinstance(stream, io.TextIOWrapper) and hasattr(stream, "buffer"):
-            try:
-                return io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
-            except Exception:
-                pass
-        return stream  # fallback to original if all else fails
-
-    sys.stdout = wrap(sys.stdout)
-    sys.stderr = wrap(sys.stderr)
-
-#======================================================= END Generic functions ======================================================
-
 #-------------------------------------------------------- Specific functions --------------------------------------------------------
 
 #обрабатываем файл проекта Altium
@@ -87,14 +60,15 @@ def process_adproject(address, titleblock = None, output_directory = None, parse
     noquestions = kwargs.get('noquestions',  False)
 
     #загружаем настройки
-    settings = _import_settings(settings)
+    settings = lib_common.import_settings(settings)
+    if 'bomconverter' in settings: settings = settings['bomconverter']
 
     #загружаем анализатор данных (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
     if parser is None: parser = settings.get('parse', {}).get('parser', None)
-    parser = _import_parser(parser)
+    parser = lib_common.import_parser(parser)
 
     #загружаем данные основной надписи для обновления той что в проекте
-    titleblock_upd = _import_titleblock(titleblock)
+    titleblock_upd = lib_common.import_titleblock(titleblock)
 
     #импорт проекта Altium Designer
     params = settings.get('input', {}).get('adproject', {})
@@ -164,17 +138,18 @@ def process_bom(address, titleblock = None, output_directory = None, output_base
     print(('INFO >> Processing BoM: "' + os.path.basename(address) + '" ').ljust(80, '-'))
 
     #загружаем настройки
-    settings = _import_settings(settings)
+    settings = lib_common.import_settings(settings)
+    if 'bomconverter' in settings: settings = settings['bomconverter']
 
     #загружаем анализатор данных (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
     if parser is None: parser = settings.get('parse', {}).get('parser', None)
-    parser = _import_parser(parser)
+    parser = lib_common.import_parser(parser)
     
     #загружаем данные основной надписи
-    titleblock = _import_titleblock(titleblock)
+    titleblock = lib_common.import_titleblock(titleblock)
 
     #какие документы создавать (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
-    make_cl_xlsx  = settings.get('output', {}).get('cl-xlsx',  {}).get('enabled', True)
+    make_cl_xlsx  = settings.get('output', {}).get('output', {}).get('cl-xlsx',  {}).get('enabled', True)
     make_pe3_docx = settings.get('output', {}).get('pe3-docx', {}).get('enabled', True)
     make_pe3_pdf  = settings.get('output', {}).get('pe3-pdf',  {}).get('enabled', True)
     make_pe3_csv  = settings.get('output', {}).get('pe3-csv',  {}).get('enabled', True)
@@ -191,8 +166,8 @@ def process_bom(address, titleblock = None, output_directory = None, output_base
     
     #какие оптимизации проводить (приоритет выбора значения: из аргумента -> из настроек -> по-умолчанию)
     optmz_mfr_name = settings.get('optimize', {}).get('mfr-name', {}).get('enabled', False)
-    optmz_res_tol   = settings.get('optimize', {}).get('res-tol', {}).get('enabled', False)
-    optimize        = kwargs.get('optimize')
+    optmz_res_tol  = settings.get('optimize', {}).get('res-tol', {}).get('enabled', False)
+    optimize       = kwargs.get('optimize')
     if optimize is not None:
         if   OptimizationID.ALL.value    in optimize: optimize = [OptimizationID.MFR_NAMES.value, OptimizationID.RES_TOL.value]
         elif OptimizationID.NONE.value   in optimize: optimize = []
@@ -312,105 +287,6 @@ def process_bom(address, titleblock = None, output_directory = None, output_base
 
     print((' ' * 8).ljust(80, '='))
 
-
-#импортирует анализатор данных
-def _import_parser(parser):
-    print("INFO >> Importing designer's parser", end ="... ")
-    if parser is None: parser = default_parser
-    if isinstance(parser, types.ModuleType):
-        #на входе сразу модуль -> его и возвращаем
-        print("ok, already imported.")
-        return parser
-    elif isinstance(parser, str):
-        #на входе строка -> загружаем модуль по адресу в ней
-        print(f"from file '{parser}'", end ="... ")
-        path = os.path.join(_module_dirname, parser)
-        if os.path.exists(path):
-            name = os.path.splitext(os.path.basename(path))[0]
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(name, path)
-            parser = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(parser)
-            print("ok.")
-            return parser
-        else:
-            print("error! file doesn't exist.")
-            raise FileExistsError
-    else:
-        print("error! invalid input.")
-        raise ValueError
-
-#импортирует данные основной надписи
-def _import_titleblock(titleblock):
-    print("INFO >> Importing titleblock data", end ="... ")
-    if titleblock is None:
-        print("nothing to import.")
-        return None
-    if isinstance(titleblock, dict):
-        #на входе сразу словарь -> его и возвращаем
-        print(f"ok, already in dictionary ({len(titleblock)} entries).")
-        return titleblock
-    elif isinstance(titleblock, str):
-        #на входе строка -> загружаем модуль по адресу в ней
-        print(f"from file '{titleblock}'", end ="... ")
-        path = os.path.join(_module_dirname, titleblock)
-        if os.path.exists(path):
-            name = os.path.splitext(os.path.basename(path))[0]
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(name, path)
-            titleblock = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(titleblock)
-            dictionary = titleblock.data
-            print(f"done ({len(dictionary)} entries).")
-            return dictionary
-        else:
-            print("error! file doesn't exist.")
-            raise FileExistsError
-    else:
-        print("error! invalid input.")
-        raise ValueError
-
-#импортирует настройки
-def _import_settings(settings):
-    print("INFO >> Importing settings", end ="... ")
-    if settings is None: settings = default_settings
-    if isinstance(settings, dict):
-        #на входе сразу словарь -> его и возвращаем
-        print("ok, already imported.")
-        return settings
-    elif isinstance(settings, types.ModuleType):
-        #на входе модуль -> возвращаем словарь из него
-        print("extracting data", end ="... ")
-        if isinstance(settings.data, dict):
-            print("ok.")
-            return settings.data
-        else:
-            print("error! data is not a dictionary.")
-            raise ValueError
-    elif isinstance(settings, str):
-        #на входе строка -> загружаем модуль по адресу в ней
-        print(f"from file '{settings}'", end ="... ")
-        path = os.path.join(_module_dirname, settings)
-        if os.path.exists(path):
-            name = os.path.splitext(os.path.basename(path))[0]
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(name, path)
-            settings = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(settings)
-            print("module loaded, extracting data", end ="... ")
-            if isinstance(settings.data, dict):
-                print("ok.")
-                return settings.data
-            else:
-                print("error! data is not a dictionary.")
-                raise ValueError
-        else:
-            print("error! file doesn't exist.")
-            raise FileExistsError
-    else:
-        print("error! invalid input.")
-        raise ValueError
-
 #===================================================== END Specific functions =====================================================
 
 
@@ -422,26 +298,21 @@ def main() -> None:
     output_directory = None                                                 #output directory
     parser = None                                                           #модуль анализа данных [module|file_address]
     settings = None                                                         #настройки [dictionary|module|file_address]
-    params = {#'output':                OutputID.ALL.value,                 #какие файлы делать: [OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.SP_CSV.value] или OutputID.ALL
-                #'noquestions':           False                               #ничего не спрашивать при выполнении программы, при возникновении вопросов делать по-умолчанию
-                #'output_name_enclosure': [' ', ' ']                          #заключение для типа документа в имени выходного файла
-                #'output_name_prefix':    ''                                  #префикс имени выходного файла
-                #'output_name_postfix':   ''                                  #суффикс имени выходного файла
-    }
+    params = {}
 
     #parse arguments
-    parse_default = argparse.ArgumentParser(description='BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
-    parse_default.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
-    parse_default.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
-    parse_default.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data')
-    parse_default.add_argument('--output-dir',                                   metavar='path',         help='output directory')
-    parse_default.add_argument('--parser',             type=str,                 metavar='file',         help='parser module to use')
-    parse_default.add_argument('--settings',           type=str,                 metavar='file',         help='settings module to use')
-    parse_default.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',        choices=[OutputID.CL_XLSX.value, OutputID.PE3_DOCX.value, OutputID.PE3_PDF.value, OutputID.PE3_CSV.value, OutputID.SP_CSV.value, OutputID.ALL.value, OutputID.NONE.value])
-    parse_default.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[OptimizationID.MFR_NAMES.value, OptimizationID.RES_TOL.value, OptimizationID.ALL.value, OptimizationID.NONE.value])
-    parse_default.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
-    parse_default.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
-    args = parse_default.parse_args()
+    argparser = argparse.ArgumentParser(description=f"BoM converter v. {_module_date.strftime('%Y-%m-%d')} by Alexander Taluts")
+    argparser.add_argument('inputfiles',                          nargs='+', metavar='data-file',    help='input files to process')
+    argparser.add_argument('--adproject',          action='store_true',                              help='input files are Altium Designer project')
+    argparser.add_argument('--titleblock',         type=str,                 metavar='file',         help='dictionary with title block data')
+    argparser.add_argument('--output-dir',                                   metavar='path',         help='output directory')
+    argparser.add_argument('--parser',             type=str,                 metavar='file',         help='parser module to use')
+    argparser.add_argument('--settings',           type=str,                 metavar='file',         help='settings module to use')
+    argparser.add_argument('--output',             type=str,      nargs='+', action='extend',        help='which output to produce',        choices=[member.value for member in OutputID])
+    argparser.add_argument('--optimize',           type=str,      nargs='+', action='extend',        help='which optimization to perform',  choices=[member.value for member in OptimizationID])
+    argparser.add_argument('--noquestions',        action='store_true',                              help='do not ask questions')
+    argparser.add_argument('--nohalt',             action='store_true',                              help='do not halt terminal')
+    args = argparser.parse_args()
 
     #take input data files and options from arguments
     inputfiles = args.inputfiles
@@ -457,7 +328,7 @@ def main() -> None:
 
     #process data
     print('')
-    print('INFO >> BoM converter v' + _module_version + ' (' + _module_date.strftime('%Y-%m-%d') + ') by Alexander Taluts')
+    print(f"INFO >> BoM converter v. {_module_date.strftime('%Y-%m-%d')} by Alexander Taluts")
     print('')
     for file in inputfiles:
         if args.adproject is True or os.path.splitext(file)[1].lstrip(os.extsep) == 'PrjPcb':
@@ -480,7 +351,7 @@ def exit(code:int = 0) -> None:
 
 #Prevent launch when importing
 if __name__ == "__main__":
-    wrap_stdout_utf8() #force output encoding to be utf-8
+    lib_common.wrap_stdout_utf8() #force output encoding to be utf-8
 
     exit_code = 0
     #checking launch from IDE

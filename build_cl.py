@@ -12,10 +12,10 @@ def build(data, **kwargs):
     locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
 
     #параметры
-    title_book = kwargs.get('title_book', lcl.build_cl.TITLE_BOOK.value[locale_index])
-    title_list_components = kwargs.get('title_list_components', lcl.build_cl.TITLE_COMPONENTS_LIST.value[locale_index])
-    title_list_accessories = kwargs.get('title_list_accessories', lcl.build_cl.TITLE_ACCESSORIES_LIST.value[locale_index])
-    title_list_substitutes = kwargs.get('title_list_substitutes', lcl.build_cl.TITLE_SUBSTITUTES_LIST.value[locale_index])
+    title_book = lcl.build_cl.TITLE_BOOK.value[locale_index]
+    title_list_components = lcl.build_cl.TITLE_COMPONENTS_LIST.value[locale_index]
+    title_list_accessories = lcl.build_cl.TITLE_ACCESSORIES_LIST.value[locale_index]
+    title_list_substitutes = lcl.build_cl.TITLE_SUBSTITUTES_LIST.value[locale_index]
     sorting_method = kwargs.get('sorting_method', 'none')
     sorting_reverse = kwargs.get('sorting_reverse', False)
     content_accs = kwargs.get('content_accs', True)

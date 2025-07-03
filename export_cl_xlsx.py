@@ -2,12 +2,13 @@ import os
 import xlsxwriter
 import datetime, pytz
 import copy
-import collections.abc
-import dict_locale as lcl
-from typedef_cl import CL_typeDef                                                               #структура списка компонентов
 
-script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
-script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
+import lib_common                                                           #библиотека с общими функциями
+import dict_locale as lcl
+from typedef_cl import CL_typeDef                                           #структура списка компонентов
+
+script_dirName  = os.path.dirname(__file__)                                 #адрес папки со скриптом
+script_baseName = os.path.splitext(os.path.basename(__file__))[0]           #базовое имя модуля
 
 # ----------------------------------------------------------- Generic functions -------------------------------------------------
 
@@ -21,17 +22,6 @@ def replace_nones(data, replacement = '', edit_in_place = False):
             result[i] = replace_nones(result[i], replacement)
         return result
     return data
-
-#обновляет вложенные словари
-def dict_nested_update(source, update):
-    for key, value in update.items():
-        if isinstance(value, collections.abc.Mapping):
-            source[key] = dict_nested_update(source.get(key, {}), value)
-        else:
-            if source is None: source = {}
-            source[key] = value
-    return source
-
 
 #========================================================== END Generic functions =================================================
 
@@ -95,7 +85,7 @@ def export(data, address, **kwargs):
         }
     }
     #обновляем стили по-умолчанию стилями из аргумента
-    book_style = dict_nested_update(book_style, book_style_arg)
+    book_style = lib_common.dict_nested_update(book_style, book_style_arg)
     #выделяем высоту строк в отдельный словарь
     row_heights = {}
     for key in book_style['row']:
