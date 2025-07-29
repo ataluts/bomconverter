@@ -144,7 +144,7 @@ def parse_project(data, **kwargs):
         #анализируем словарь параметров
         if keys['RECORD'] in line and keys['OWNERPARTID'] in line and keys['NAME'] in line and keys['TEXT'] in line:
             if line[keys['RECORD']] == '41' and line[keys['OWNERPARTID']] == '-1':
-                if   line[keys['NAME']] == 'TitleBlock_01a_DocumentName': titleblock['01a_product_name'] += line[keys['TEXT']]
+                if   line[keys['NAME']] == 'TitleBlock_01a_DocumentName': titleblock['01a_product_name'] = line[keys['TEXT']]
                 elif line[keys['NAME']] == 'TitleBlock_01a_DocumentName_line1': titleblock['01a_product_name'] = line[keys['TEXT']] + titleblock.get('01a_product_name', '')
                 elif line[keys['NAME']] == 'TitleBlock_01a_DocumentName_line2': titleblock['01a_product_name'] = titleblock.get('01a_product_name', '') + ' ' + line[keys['TEXT']]
                 #elif line[keys['NAME']] == 'TitleBlock_01b_DocumentType': titleblock['01b_document_type'] += line[keys['TEXT']]
@@ -2018,7 +2018,7 @@ def check(components, **kwargs):
 __dict_package = { #запятые на концах чтобы запись с одним значением воспринималась как массив значений, а не массив символов в строке
     #чипы
     '0201': ('MLCC_0201', 'RC_0201', 'FB_0201'),
-    '0402': ('MLCC_0402', 'RC_0402', 'LC_0402-0.50', 'FB_0402', 'LEDC_0402-0.50'),
+    '0402': ('MLCC_0402', 'RC_0402', 'JC_0402', 'LC_0402-0.50', 'FB_0402', 'LEDC_0402-0.50'),
     '0603': ('MLCC_0603', 'SFCC_0603', 'RC_0603', 'LC_0603-1.00', 'FB_0603', 'FC_0603', 'LEDC_0603', 'LEDC_0603-0.75'),
     '0606': ('LEDC_0606-0.50_3IND', ),
     '0805': ('MLCC_0805', 'SFCC_0805', 'RC_0805', 'LC_0805-1.25', 'FB_0805', 'FC_0805', 'LEDC_0805', 'LEDC_0805-0.75', 'LEDC_0805-0.45_2IND'),
