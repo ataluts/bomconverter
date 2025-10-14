@@ -28,7 +28,8 @@ class CL_typeDef():
             self.description  = []
             self.package      = []
             self.manufacturer = []
-            self.quantity     = int(quantity)
+            if quantity is None: self.quantity = 0
+            else:                self.quantity = int(quantity)
             self.note         = []
             self.flag         = CL_typeDef.FlagType.NONE
             if isinstance(designator, (list, tuple)): self.designator.extend(designator)
@@ -110,6 +111,18 @@ class CL_typeDef():
             #примечание
             if len(self.note) > 1:
                 pass #if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+
+        #проверяет является ли запись пустой
+        def isempty(self):
+            attributes = [self.designator, self.kind, self.value, self.description, self.package, self.manufacturer, self.note]
+            for attribute in attributes:
+                if attribute is not None and len(attribute) > 0:
+                    for item in attribute:
+                        if item is not None and len(item) > 0:
+                            return False
+            if self.quantity != 0:
+                return False
+            return True
 
     class SubstituteEntry():
         def __init__(self, primary_value = None, primary_manufacturer = None, primary_quantity = 0, substitute_group = None, flag = None):

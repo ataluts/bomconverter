@@ -13,8 +13,9 @@ from bomconverter import OptimizationID as Bomconverter_OptimizationID
 from bomdiscriminator import OutputID as Bomdiscriminator_OutputID
 from bomdiscriminator import XlsxChangesModeID as Bomdiscriminator_XlsxChangesModeID
 
-_module_dirname = os.path.dirname(__file__)                      #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 7, 3)
+_module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
+_module_date    = datetime.datetime(2025, 10, 14)
+_debug = False                                                  #режим отладки
 
 class FileBrowseWildcards(Enum):
     ALL            = "All files (*.*)|*.*"
@@ -93,31 +94,37 @@ class MainFrame(wx.Frame):
     # Menu bar -----------------------------------------------------------------------------------------------------------------------------------------------------------------
     def layout_menuBar(self):
         #Файл
-        menu_file = wx.Menu()
-        # The "\t..." syntax defines an accelerator key that also triggers the same event
-        menuitem_params_save = menu_file.Append(-1, "Сохранить параметры\tCtrl-S", "Сохранить параметры запуска в файл")
-        menuitem_params_load = menu_file.Append(-1, "Загрузить параметры\tCtrl-O", "Загрузить параметры запуска из файла")
-        menuitem_params_defaults = menu_file.Append(-1, "Сбросить параметры\tCtrl-N", "Сбросить параметры запуска на значения по-умолчанию")
-        menu_file.AppendSeparator()
+        self.menu_file = wx.Menu()
         # When using a stock ID we don't need to specify the menu item's label
-        manuitem_exit = menu_file.Append(wx.ID_EXIT)
+        self.menuitem_file_exit = self.menu_file.Append(wx.ID_EXIT)
+
+        #Настройки
+        self.menu_settings = wx.Menu()
+        # The "\t..." syntax defines an accelerator key that also triggers the same event
+        self.menuitem_settings_params_save = self.menu_settings.Append(-1, "Сохранить параметры\tCtrl-S", "Сохранить параметры запуска в файл")
+        self.menuitem_settings_params_load = self.menu_settings.Append(-1, "Загрузить параметры\tCtrl-O", "Загрузить параметры запуска из файла")
+        self.menuitem_settings_params_defaults = self.menu_settings.Append(-1, "Сбросить параметры\tCtrl-N", "Сбросить параметры запуска на значения по-умолчанию")
+        self.menu_settings.AppendSeparator()
+        self.menuitem_settings_debug = self.menu_settings.Append(-1, "Режим отладки", "Не ловить непредвиденные ошибки (пропускать их в среду разработки)", wx.ITEM_CHECK)
 
         #Справка
-        helpMenu = wx.Menu()
-        aboutItem = helpMenu.Append(wx.ID_ABOUT)
+        self.menu_help = wx.Menu()
+        self.menuitem_help_about = self.menu_help.Append(wx.ID_ABOUT)
 
         #создаём панель и добавляем ранее созданные меню в него 
-        menuBar = wx.MenuBar()
-        menuBar.Append(menu_file, "&Файл")
-        menuBar.Append(helpMenu, "&Справка")
-        self.SetMenuBar(menuBar)
+        self.menuBar = wx.MenuBar()
+        self.menuBar.Append(self.menu_file, "&Файл")
+        self.menuBar.Append(self.menu_settings, "&Настройки")
+        self.menuBar.Append(self.menu_help, "&Справка")
+        self.SetMenuBar(self.menuBar)
 
         #назначаем события пунктам меню
-        self.Bind(wx.EVT_MENU, self.OnParamsSave, menuitem_params_save)
-        self.Bind(wx.EVT_MENU, self.OnParamsLoad, menuitem_params_load)
-        self.Bind(wx.EVT_MENU, self.OnParamsDefaults, menuitem_params_defaults)
-        self.Bind(wx.EVT_MENU, self.OnExit,  manuitem_exit)
-        self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
+        self.Bind(wx.EVT_MENU, self.OnParamsSave, self.menuitem_settings_params_save)
+        self.Bind(wx.EVT_MENU, self.OnParamsLoad, self.menuitem_settings_params_load)
+        self.Bind(wx.EVT_MENU, self.OnParamsDefaults, self.menuitem_settings_params_defaults)
+        self.Bind(wx.EVT_MENU, self.OnExit,  self.menuitem_file_exit)
+        self.Bind(wx.EVT_MENU, self.OnAbout, self.menuitem_help_about)
+        self.Bind(wx.EVT_MENU, self.OnDebug, self.menuitem_settings_debug)
 
     # Status bar ---------------------------------------------------------------------------------------------------------------------------------------------------------------
     def layout_statusBar(self):
@@ -947,6 +954,15 @@ class MainFrame(wx.Frame):
         message = f"Графический интерфейс пользователя для программы BoM converter.\nВерсия от {_module_date:%Y-%m-%d}"
         wx.MessageBox(message, "О программе", wx.OK|wx.ICON_INFORMATION)
 
+    #Обработчик события: переключение режима отладки
+    def OnDebug(self, event):
+        """Toggle debug mone"""
+        global _debug
+        _debug = self.menuitem_settings_debug.IsChecked()
+        self.OnBomconverterPanelValueChange(None)
+        self.OnBomdiscriminatorPanelValueChange(None)
+        self.OnCldiscriminatorPanelValueChange(None)
+
     #Обработчик события: изменение значений на панели bomconverter
     def OnBomconverterPanelValueChange(self, event):
         """Changes on BoM converter panel were made"""
@@ -1659,6 +1675,9 @@ class MainFrame(wx.Frame):
         #    elif loglevel == 'error': argv.extend(['--loglevel', 'error'])
         #    elif loglevel == 'fatal': argv.extend(['--loglevel', 'fatal'])
 
+        #режим отладки
+        if _debug: argv.append('--debug')
+
         return argv
 
     #Собирает вектор аргументов для bomdiscriminator
@@ -1716,6 +1735,9 @@ class MainFrame(wx.Frame):
         #    elif loglevel == 'error': argv.extend(['--loglevel', 'error'])
         #    elif loglevel == 'fatal': argv.extend(['--loglevel', 'fatal'])
 
+        #режим отладки
+        if _debug: argv.append('--debug')
+
         return argv
 
     #Собирает вектор аргументов для cldiscriminator
@@ -1762,6 +1784,9 @@ class MainFrame(wx.Frame):
         #    elif loglevel == 'warn':  argv.extend(['--loglevel', 'warn'])
         #    elif loglevel == 'error': argv.extend(['--loglevel', 'error'])
         #    elif loglevel == 'fatal': argv.extend(['--loglevel', 'fatal'])
+
+        #режим отладки
+        if _debug: argv.append('--debug')
 
         return argv
 

@@ -94,21 +94,23 @@ def importz(address, **kwargs):
                 if column_index_package is not None      and row[column_index_package].value      is not None: entry_package      = row[column_index_package].value.split(format_singlevalue_delimiter)
                 if column_index_manufacturer is not None and row[column_index_manufacturer].value is not None: entry_manufacturer = row[column_index_manufacturer].value.split(format_singlevalue_delimiter)
                 if column_index_note is not None         and row[column_index_note].value         is not None: entry_note         = row[column_index_note].value.split(format_singlevalue_delimiter)
-                entry_quantity, entry_flag = cellvalue_toint(row[column_index_quantity].value)
+                if column_index_quantity is not None     and row[column_index_quantity].value     is not None: entry_quantity, entry_flag = cellvalue_toint(row[column_index_quantity].value)
                 
+                #if entry_designator  None
                 entry = CL_typeDef.ComponentEntry(entry_designator, entry_kind, entry_value, entry_description, entry_package, entry_manufacturer, entry_quantity, entry_note, entry_flag)
-                entry.check()
+                if not entry.isempty():
+                    entry.check()
 
-                if worksheet_accessories is not None:
-                    #есть отдельный лист с аксессуарами -> добавляем все записи в список компонентов
-                    cl.components.entries.append(entry)
-                else:
-                    #нет отдельного листа с аксессуарами -> добавляем записи с десигнаторами в компоненты, а без десигнаторов в аксессуары
-                    if len(entry.designator) > 0:
+                    if worksheet_accessories is not None:
+                        #есть отдельный лист с аксессуарами -> добавляем все записи в список компонентов
                         cl.components.entries.append(entry)
                     else:
-                        if cl.accessories is None: cl.accessories = CL_typeDef.Sublist(title_list_accessories)
-                        cl.accessories.entries.append(entry)
+                        #нет отдельного листа с аксессуарами -> добавляем записи с десигнаторами в компоненты, а без десигнаторов в аксессуары
+                        if len(entry.designator) > 0:
+                            cl.components.entries.append(entry)
+                        else:
+                            if cl.accessories is None: cl.accessories = CL_typeDef.Sublist(title_list_accessories)
+                            cl.accessories.entries.append(entry)
             
             entry_num = len(cl.components.entries)
             if cl.accessories is not None: entry_num += len(cl.accessories.entries)
@@ -162,7 +164,7 @@ def importz(address, **kwargs):
                 if column_index_package is not None      and row[column_index_package].value      is not None: entry_package      = row[column_index_package].value.split(format_singlevalue_delimiter)
                 if column_index_manufacturer is not None and row[column_index_manufacturer].value is not None: entry_manufacturer = row[column_index_manufacturer].value.split(format_singlevalue_delimiter)
                 if column_index_note is not None         and row[column_index_note].value         is not None: entry_note         = row[column_index_note].value.split(format_singlevalue_delimiter)
-                entry_quantity, entry_flag = cellvalue_toint(row[column_index_quantity].value)
+                if column_index_quantity is not None     and row[column_index_quantity].value     is not None: entry_quantity, entry_flag = cellvalue_toint(row[column_index_quantity].value)
                
                 entry = CL_typeDef.ComponentEntry(entry_designator, entry_kind, entry_value, entry_description, entry_package, entry_manufacturer, entry_quantity, entry_note, entry_flag)
                 entry.check()

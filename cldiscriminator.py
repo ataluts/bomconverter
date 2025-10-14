@@ -11,7 +11,7 @@ from import_cl_xlsx import importz as import_cl_xlsx            #импорт с
 from export_cl_xlsx import export as export_cl_xlsx             #экспорт списка компонентов в Excel
 
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 7, 3)
+_module_date    = datetime.datetime(2025, 10, 14)
 _halt_on_exit   = True
 _debug          = False
 
@@ -45,10 +45,12 @@ def discriminate(reference, subject, **kwargs):
 
     cl_reference = copy.deepcopy(reference)        #исходный список компонентов (в нём останется то что удалилось)
     cl_reference.components.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_REMOVED.value[locale_index]
+    if cl_reference.accessories is None: cl_reference.accessories = CL_typeDef.Sublist()
     cl_reference.accessories.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_REMOVED.value[locale_index]
     cl_reference.substitutes = None
     cl_subject = copy.deepcopy(subject)            #сравниваемый список компонентов (в нём останется то что добавилось)
     cl_subject.components.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_ADDED.value[locale_index]
+    if cl_subject.accessories is None: cl_subject.accessories = CL_typeDef.Sublist()
     cl_subject.accessories.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_ADDED.value[locale_index]
     cl_subject.substitutes = None
     cl_changes = CL_typeDef()                      #список компонентов с изменениями (в нём появится то что изменилось по количеству)
@@ -93,8 +95,14 @@ def discriminate(reference, subject, **kwargs):
     cl_changes.components.entries.reverse()
     cl_changes.accessories.entries.reverse()
 
-    #возвращаем массив: [изменённые позиции, добавленные позиции, исключённые позиции]
-    return [cl_changes, cl_subject, cl_reference]
+    #удаляем пустые списки
+    result = [cl_changes, cl_subject, cl_reference]     #[изменённые позиции, добавленные позиции, исключённые позиции]
+    for cl in result:
+        if len(cl.components.entries) == 0: cl.components = None
+        if len(cl.accessories.entries) == 0: cl.accessories = None
+
+    #возвращаем массив: 
+    return result
 
 #сравнивает списки компонентов из Excel и сохраняет результат в Excel
 def discriminate_file(reference_path, subject_path, result_path, reference_settings = None, subject_settings = None, result_settings = None):
@@ -126,11 +134,22 @@ def discriminate_file(reference_path, subject_path, result_path, reference_setti
     print('')
     print("INFO >> Discriminating CLs", end ="... ")
     result = discriminate(cl_reference, cl_subject, **params_result_discriminate)
-    print(f"done. (entries: {len(result[0].components.entries)} modified, {len(result[1].components.entries)} added, {len(result[2].components.entries)} removed)")
+    counter = [0] * (len(result) + 1)
+    for i, cl in enumerate(result):
+        counter[i] += len(cl.components.entries) if cl.components is not None else 0
+        counter[i] += len(cl.accessories.entries) if cl.accessories is not None else 0
+        counter[-1] += counter[i]
+    print(f"done. (entries: {counter[0]} modified, {counter[1]} added, {counter[2]} removed)")
 
     print('')
-    print("INFO >> Exporting cl as xlsx:")
-    export_cl_xlsx(result, result_path, **params_result_output)
+    if counter[-1] > 0:
+        print("INFO >> Exporting cl as xlsx:")
+        export_cl_xlsx(result, result_path, **params_result_output)
+    else:
+        print("INFO >> Lists are identical, nothing to export.")
+        if os.path.exists(result_path):
+            print("INFO >> Removing existing result file.")
+            os.remove(result_path)
 
 #========================================================= END Specific functions =================================================
 
