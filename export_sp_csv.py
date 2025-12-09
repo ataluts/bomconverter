@@ -2,7 +2,7 @@ import os
 import csv
 import copy
 
-from typedef_sp import SP_typeDef                                 #класс спецификации
+import dict_locale as lcl
 
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
@@ -11,6 +11,9 @@ script_baseName = os.path.splitext(os.path.basename(__file__))[0]               
 def export(data, address, **kwargs):
     print('INFO >> sp-csv exporting module running with parameters:')
     print(' ' * 12 + 'output: ' + os.path.basename(address)) #Windows CMD crashes here, wtf???
+
+    #locale
+    locale = kwargs.get('locale', lcl.Locale.EN)
 
     file_encoding = kwargs.get('encoding',  'cp1251')
     dialect       = kwargs.get('dialect', {})
@@ -60,7 +63,7 @@ def export(data, address, **kwargs):
     #экспортируем данные в CSV
     #--- список элементов
     with open(address, 'w', encoding = file_encoding, newline = '') as csvFile:
-        writer = csv.DictWriter(csvFile, fieldnames=['Label', 'Quantity', 'Designator'], dialect=dialect_name)
+        writer = csv.DictWriter(csvFile, fieldnames=[locale.translate(lcl.export_sp_csv.HEADER_LABEL), locale.translate(lcl.export_sp_csv.HEADER_QUANTITY), locale.translate(lcl.export_sp_csv.HEADER_DESIGNATOR)], dialect=dialect_name)
         writer.writeheader()
         for entry in sp.entries:
             designator = ''
@@ -70,9 +73,9 @@ def export(data, address, **kwargs):
             if designator:
                 designator = designator[len(format_desig_delimiter):]
 
-            writer.writerow({'Label':      entry.label,
-                             'Quantity':   entry.quantity,
-                             'Designator': designator})
+            writer.writerow({locale.translate(lcl.export_sp_csv.HEADER_LABEL):      entry.label,
+                             locale.translate(lcl.export_sp_csv.HEADER_QUANTITY):   entry.quantity,
+                             locale.translate(lcl.export_sp_csv.HEADER_DESIGNATOR): designator})
         csvFile.close()
 
-    print('INFO >> sp-scv export completed.')   
+    print('INFO >> sp-csv export completed.')   

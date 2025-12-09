@@ -2,13 +2,13 @@ import os
 import csv
 import copy
 from datetime import datetime
-from dict_locale import LocaleIndex     #словарь с локализациями
+from dict_locale import Locale              #словарь с локализациями
 
 _module_dirname = os.path.dirname(__file__)                                     #адрес папки со словарём
 now = datetime.now()                                                            #текущее дата/время
 
 #================================================================================= Общие настройки =================================================================================
-_settings_generic_locale                            = LocaleIndex.RU.value      #локализация
+_settings_generic_locale                        = Locale.RU                     #локализация
 
 #--------------------------------------------------------------------------------------- csv ---------------------------------------------------------------------------------------
 #настройки импорта из csv (базовые)
@@ -27,7 +27,8 @@ _settings_generic_csv_import = {
 
 #настройки экспорта в csv (базовые)
 _settings_generic_csv_export = {
-    'encoding'                                      : 'cp1251',                     #кодировка
+    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'encoding'                                      : 'utf-8',                      #кодировка
     'dialect'                                       : {                             #диалект csv (вместо параметров ниже можно указать имя встроенного диалекта, например 'excel', 'excel-tab' или 'unix')
         'delimiter'                                     : ',',                          #разделитель значений
         'doublequote'                                   : True,                         #заменять " на "" в значениях
@@ -38,19 +39,13 @@ _settings_generic_csv_export = {
         'skipinitialspace'                              : False                         #пропускать пробел следующий сразу за разделителем
     },
     'replace'                                       : {                             #замена символов
-        '¹'                                             : '^1',                         #верхний индекс 1
-        '²'                                             : '^2',                         #верхний индекс 2
-        '³'                                             : '^3',                         #верхний индекс 3
-        '⁴'                                             : '^4',                         #верхний индекс 4
-        '℃'                                            : '°C',                         #градус Цельсия
-        '\n'                                            : '|'                           #перенос строки
     }
 }
 
 #------------------------------------------------------------------------------- Список компонентов --------------------------------------------------------------------------------
 #настройки экспорта СК в xlsx (базовые)
 _settings_generic_cl_xlsx_export = {
-    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'locale'                                        : _settings_generic_locale,     #локализация
     'content_accs_location'                         : 'sheet',                      #расположение аксессуаров {'sheet' - на отдельном листе | 'start' - в начале общего списка | 'end' - в конце общего списка}
     'content_accs_indent'                           : 1,                            #отступ (в строках) списка аксесуаров от списка компонентов при размещении на одном листе
     'format_groupvalue_delimiter'                   : ', ',                         #разделитель значений в полях с группировкой значений
@@ -77,20 +72,26 @@ _settings_generic_cl_xlsx_export = {
         'col'                                           : {                             #столбцы
             'desig'                                         : {'width': 50.0, 'valign': 'vcenter'},
             'kind'                                          : {'width': 25.0, 'valign': 'vcenter'},
-            'value'                                         : {'width': 25.0, 'valign': 'vcenter'},
+            'partnumber'                                    : {'width': 25.0, 'valign': 'vcenter'},
+            'parametric'                                    : {'width':  4.0, 'valign': 'vcenter', 'align': 'center'},
             'description'                                   : {'width': 60.0, 'valign': 'vcenter'},
             'package'                                       : {'width': 15.0, 'valign': 'vcenter'},
             'mfr'                                           : {'width': 25.0, 'valign': 'vcenter'},
             'quantity'                                      : {'width':  8.0, 'valign': 'vcenter'},
             'note'                                          : {'width': 36.0, 'valign': 'vcenter'},
-            'subst_orig_value'                              : {'width': 25.0, 'valign': 'vcenter'},
+            'subst_orig_partnumber'                         : {'width': 25.0, 'valign': 'vcenter'},
             'subst_orig_mfr'                                : {'width': 25.0, 'valign': 'vcenter'},
             'subst_orig_quantity'                           : {'width': 15.0, 'valign': 'vcenter'},
             'subst_desig'                                   : {'width': 70.0, 'valign': 'vcenter'},
             'subst_quantity'                                : {'width': 15.0, 'valign': 'vcenter'},
-            'subst_value'                                   : {'width': 25.0, 'valign': 'vcenter'},
+            'subst_partnumber'                              : {'width': 25.0, 'valign': 'vcenter'},
             'subst_mfr'                                     : {'width': 25.0, 'valign': 'vcenter'},
-            'subst_note'                                    : {'width': 44.0, 'valign': 'vcenter'}
+            'subst_note'                                    : {'width': 40.0, 'valign': 'vcenter'}
+        },
+        'comment'                                       : {                             #примечания
+            'header'                                        : {
+                'parametric'                                    : {'x_scale': 2.5, 'y_scale': 0.75}
+            }
         }
     }
 }
@@ -150,26 +151,26 @@ _settings_bomconverter_pe3_titleblock.update({
 #настройки сборки ПЭ3 (по-умолчанию)
 _settings_bomconverter_pe3_build = {
     'data_titleblock'                               : _settings_bomconverter_pe3_titleblock, #значения полей основной надписи (обновляют значения из полученных данных)
-    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'locale'                                        : _settings_generic_locale,     #локализация
     'content_table_group_header'                    : True,                         #добавлять заголовок для группы элементов
     'content_accs'                                  : True,                         #добавлять аксессуары
     'content_accs_parent'                           : True,                         #добавлять в примечание позиционное обозначение родительского элемента для аксессуара
-    'content_value'                                 : True,                         #добавлять номинал
-    'content_value_value'                           : True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
-    'content_value_explicit'                        : False,                        #принудительно сделать номиналы явными
+    'content_partnumber'                            : True,                         #добавлять артикул
+    'content_partnumber_value'                      : True,                         #добавлять значение артикула (по сути тоже самое что и выше, но используется в другой функции)
+    'content_partnumber_explicit'                   : False,                        #принудительно сделать артикулы явными
     'content_mfr'                                   : True,                         #добавлять производителя
     'content_mfr_value'                             : True,                         #добавлять значение производителя (такая же ситуация как с value)
     'content_param'                                 : True,                         #добавлять параметрическое описание
     'content_param_basic'                           : True,                         #добавлять базовые (распознанные) параметры в описание
     'content_param_misc'                            : True,                         #добавлять дополнительные (не распознанные) параметры в описание
     'content_subst'                                 : True,                         #добавлять допустимые замены
-    'content_subst_value'                           : True,                         #добавлять номинал допустимой замены
+    'content_subst_partnumber'                      : True,                         #добавлять артикул допустимой замены
     'content_subst_mfr'                             : True,                         #добавлять производителя допустимой замены
     'content_subst_note'                            : True,                         #добавлять примечание для допустимой замены
     'content_annot'                                 : True,                         #добавлять примечание компонента
     'content_annot_value'                           : True,                         #добавлять значение примечания
     'content_annot_fitted'                          : True,                         #добавлять значение установки в примечание
-    'assemble_desig'                                : False,                        #пересобирать позиционное обозначение
+    'assemble_designator'                           : False,                        #пересобирать позиционное обозначение
     'assemble_kind'                                 : True,                         #пересобирать тип элемента (для аксессуаров и не распознанных)
     'assemble_param'                                : True,                         #пересобирать параметрическое описание
     'format_table_group_indent'                     : 1,                            #количество пустых строк между группами элементов
@@ -177,47 +178,53 @@ _settings_bomconverter_pe3_build = {
     'format_table_entry_indent'                     : 0,                            #количество пустых строк между записями
     'format_table_entry_composite_indent'           : 1,                            #количество пустых строк вокруг составной записи
     'format_table_entry_deviation_indent'           : 0,                            #количество пустых строк между вариациями записи
-    'format_desig_delimiter'                        : [', ', '\u2013'],             #разделитель позиционных обозначений [<перечисление>, <диапазон>]
+    'format_designator_delimiter'                   : (', ', '\u2013'),             #разделитель позиционных обозначений (<перечисление>, <диапазон>)
     'format_kind_capitalize'                        : True,                         #типы элементов с заглавной буквы
-    'format_value_enclosure'                        : ['', ''],                     #обрамление номинала
-    'format_mfr_enclosure'                          : [' ф.\xa0', ''],              #обрамление производителя
-    'format_param_enclosure'                        : [' (', ')'],                  #обрамление параметров
-    'format_param_decimalPoint'                     : '.',                          #десятичный разделитель
-    'format_param_rangeSymbol'                      : '\u2026',                     #символ диапазона
+    'format_partnumber_enclosure'                   : ('', ''),                     #обрамление артикула
+    'format_mfr_enclosure'                          : (' ф.\xa0', ''),              #обрамление производителя
+    'format_param_enclosure'                        : (' (', ')'),                  #обрамление параметров
     'format_param_delimiter'                        : ', ',                         #разделитель параметров
-    'format_param_unit_enclosure'                   : ['', ''],                     #обрамление единиц измерения
-    'format_param_multivalue_delimiter'             : '/',                          #разделитель значений многозначного параметра
-    'format_param_tolerance_enclosure'              : ['\xa0', ''],                 #обрамление допуска
-    'format_param_tolerance_signDelimiter'          : '',                           #разделитель между значением допуска и его знаком
-    'format_param_conditions_enclosure'             : ['\xa0[', ']'],               #обрамление условий измерения параметра
-    'format_param_conditions_delimiter'             : '; ',                         #разделитель условий измерения параметра
+    'format_param_decimalPoint'                     : '.',                          #десятичный разделитель
     'format_param_temperature_positiveSign'         : True,                         #указывать знак для положительных значений температуры
-    'format_subst_enclosure'                        : ['', ''],                     #обрамление блока с допустимыми заменами
-    'format_subst_entry_enclosure'                  : ['\nдоп.\xa0замена ', ''],    #обрамление допустимой замены
-    'format_subst_value_enclosure'                  : ['', ''],                     #обрамление номинала допустимой замены
-    'format_subst_mfr_enclosure'                    : [' ф.\xa0', ''],              #обрамление производителя допустимой замены
-    'format_subst_note_enclosure'                   : [' (', ')'],                  #обрамление примечения допустимой замены
-    'format_annot_enclosure'                        : ['', ''],                     #обрамление примечания
+    'format_param_value_enclosure'                  : ('', ''),                     #обрамление значения параметра
+    'format_param_value_multi_delimiter'            : '/',                          #разделитель значений многозначного параметра
+    'format_param_value_range_delimiter'            : '\u2026',                     #разделитель значений диапазонного параметра
+    'format_param_unit_enclosure'                   : ('', ''),                     #обрамление единиц измерения
+    'format_param_tolerance_enclosure'              : ('\xa0', ''),                 #обрамление допуска
+    'format_param_tolerance_sym_sign'               : '±',                          #знак допуска с симметричным отклонением
+    'format_param_tolerance_sym_value_enclosure'    : ('', ''),                     #обрамление допуска с симметричным отклонением
+    'format_param_tolerance_asym_value_upperFirst'  : False,                        #вначале верхний предел в несимметричном допуске
+    'format_param_tolerance_asym_value_delimiter'   : '\u2026',                     #разделитель пределов в несимметричном допуске
+    'format_param_tolerance_asym_value_enclosure'   : ('', ''),                     #обрамление значения несимметричного допуска
+    'format_param_conditions_enclosure'             : ('\xa0(', ')'),               #обрамление условий измерения параметра
+    'format_param_conditions_delimiter'             : '; ',                         #разделитель условий измерения параметра
+    'format_param_package_delimiter'                : '\xa0',                       #разделитель между типом и названием корпуса
+    'format_subst_enclosure'                        : ('', ''),                     #обрамление блока с допустимыми заменами
+    'format_subst_entry_enclosure'                  : ('\nдоп.\xa0замена ', ''),    #обрамление допустимой замены
+    'format_subst_partnumber_enclosure'             : ('', ''),                     #обрамление артикула допустимой замены
+    'format_subst_mfr_enclosure'                    : (' ф.\xa0', ''),              #обрамление производителя допустимой замены
+    'format_subst_note_enclosure'                   : (' (', ')'),                  #обрамление примечения допустимой замены
+    'format_annot_enclosure'                        : ('', ''),                     #обрамление примечания
     'format_annot_delimiter'                        : ';\n',                        #разделитель значений в примечании
     'format_accs_parent_first'                      : True,                         #ставить в начало родительские элементы аксессуаров
     'format_accs_parent_delimiter'                  : '; ',                         #разделитель значения примечания и родительских элементов аксессуаров
-    'format_accs_parent_enclosure'                  : ['для ', ''],                 #обрамление для родительских элементов аксессуаров
-    'format_fitted_quantity'                        : [-1, 1],                      #количество указываемое для компонента (отрицательное значение - брать из свойств компонента) [<устанавливаемый>, <не устанавливаемый>] (чтобы не было 0 у неустанавливаемых компонентов)
-    #'format_fitted_label'                           : ['', 'не устанавливать']      #метка (не) установки компонента ['устанавливать', 'не устанавливать']
+    'format_accs_parent_enclosure'                  : ('для ', ''),                 #обрамление для родительских элементов аксессуаров
+    'format_fitted_quantity'                        : (-1, 1),                      #количество указываемое для компонента (отрицательное значение - брать из свойств компонента) (<устанавливаемый>, <не устанавливаемый>) (чтобы не было 0 у неустанавливаемых компонентов)
+    #'format_fitted_label'                           : ('', 'не устанавливать')      #метка (не) установки компонента ('устанавливать', 'не устанавливать')
     #'dict_groups'                                   : 'dict_pe3.py'                 #словарь с названиями групп элементов; либо адрес файла, либо сам словарь
 }
-
 #настройки сборки ПЭ3 и его экспорта в docx
 _settings_bomconverter_pe3_docx_build = copy.deepcopy(_settings_bomconverter_pe3_build)
 #--- изменения к настройкам сборки по-умолчанию
 _settings_bomconverter_pe3_docx_build.update({
-    'format_param_decimalPoint'                     : ',',                          #десятичный разделитель
-    'format_param_rangeSymbol'                      : '\xa0\u2026\xa0',             #символ диапазона
     'format_param_delimiter'                        : ' \u2013 ',                   #разделитель параметров
-    'format_param_unit_enclosure'                   : ['\xa0', ''],                 #обрамление единиц измерения
-    'format_param_multivalue_delimiter'             : '\xa0/\xa0',                  #разделитель значений многозначного параметра
-    'format_param_tolerance_signDelimiter'          : '\xa0',                       #разделитель между значением допуска и его знаком
-    'format_param_conditions_enclosure'             : ['\xa0(', ')'],               #обрамление условий измерения параметра
+    'format_param_decimalPoint'                     : ',',                          #десятичный разделитель
+    'format_param_value_multi_delimiter'            : '\xa0/\xa0',                  #разделитель значений многозначного параметра
+    'format_param_value_range_delimiter'            : '\xa0\u2026\xa0',             #разделитель значений диапазонного параметра
+    'format_param_unit_enclosure'                   : ('\xa0', ''),                 #обрамление единиц измерения
+    'format_param_tolerance_sym_sign'               : '±\xa0',                      #знак допуска с симметричным отклонением
+    'format_param_tolerance_asym_value_upperFirst'  : True,                         #вначале верхний предел в несимметричном допуске    
+    'format_param_tolerance_asym_value_delimiter'   : '\xa0\u2026\xa0',             #разделитель пределов в несимметричном допуске
 })  
 #--- настройки экспорта
 _settings_bomconverter_pe3_docx_export = {
@@ -264,6 +271,7 @@ _settings_bomconverter_pe3_csv_build.update({
 _settings_bomconverter_pe3_csv_export = copy.deepcopy(_settings_generic_csv_export)
 #--- изменения к настройкам экспорта по-умолчанию
 _settings_bomconverter_pe3_csv_export.update({
+    'locale'                                        : _settings_generic_locale,     #локализация
 })
 
 #---------------------------------------------------------------------------------- Спецификация -----------------------------------------------------------------------------------
@@ -277,49 +285,55 @@ _settings_bomconverter_sp_titleblock.update({
 #настройки сборки СП (по-умолчанию)
 _settings_bomconverter_sp_build = {
     'data_titleblock'                               : _settings_bomconverter_sp_titleblock, #значения полей основной надписи (обновляют значения из полученных данных)
-    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'locale'                                        : _settings_generic_locale,     #локализация
     'content_accs'                                  : True,                         #добавлять аксессуары
     'content_accs_parent'                           : False,                        #указывать в качестве позиционного обозначения родительский элемент для аксессуара
-    'content_value'                                 : True,                         #добавлять номинал
-    'content_value_value'                           : True,                         #добавлять значение номинала (по сути тоже самое что и выше, но используется в другой функции)
-    'content_value_explicit'                        : False,                        #принудительно сделать номиналы явными
+    'content_partnumber'                            : True,                         #добавлять артикул
+    'content_partnumber_value'                      : True,                         #добавлять значение артикула (по сути тоже самое что и выше, но используется в другой функции)
+    'content_partnumber_explicit'                   : False,                        #принудительно сделать артикулы явными
     'content_mfr'                                   : True,                         #добавлять производителя
     'content_mfr_value'                             : True,                         #добавлять значение производителя (такая же ситуация как с value)
     'content_param'                                 : True,                         #добавлять параметрическое описание
     'content_param_basic'                           : True,                         #добавлять базовые (распознанные) параметры в описание
     'content_param_misc'                            : True,                         #добавлять дополнительные (не распознанные) параметры в описание
     'content_subst'                                 : True,                         #добавлять допустимые замены
-    'content_subst_value'                           : True,                         #добавлять номинал допустимой замены
+    'content_subst_partnumber'                      : True,                         #добавлять артикул допустимой замены
     'content_subst_mfr'                             : True,                         #добавлять производителя допустимой замены
     'content_subst_note'                            : True,                         #добавлять примечание для допустимой замены
     'content_annot'                                 : True,                         #добавлять примечание компонента (в наименование)
     'content_annot_value'                           : True,                         #добавлять значение примечания
     'content_annot_fitted'                          : False,                        #добавлять значение установки в примечание
-    'assemble_desig'                                : False,                        #пересобирать позиционное обозначение
+    'assemble_designator'                           : False,                        #пересобирать позиционное обозначение
     'assemble_kind'                                 : True,                         #пересобирать тип элемента (для аксессуаров и не распознанных)
     'assemble_param'                                : True,                         #пересобирать параметрическое описание
-    'format_value_enclosure'                        : ['', ''],                     #обрамление номинала
-    'format_mfr_enclosure'                          : [' ф.\xa0', ''],              #обрамление производителя
-    'format_param_enclosure'                        : [' (', ')'],                  #обрамление параметров
-    'format_param_decimalPoint'                     : ',',                          #десятичный разделитель
-    'format_param_rangeSymbol'                      : '\xa0\u2026\xa0',             #символ диапазона
+    'format_partnumber_enclosure'                   : ('', ''),                     #обрамление артикула
+    'format_mfr_enclosure'                          : (' ф.\xa0', ''),              #обрамление производителя
+    'format_param_enclosure'                        : (' (', ')'),                  #обрамление параметров
     'format_param_delimiter'                        : ' \u2013 ',                   #разделитель параметров
-    'format_param_unit_enclosure'                   : ['\xa0', ''],                 #обрамление единиц измерения
-    'format_param_multivalue_delimiter'             : '\xa0/\xa0',                  #разделитель значений многозначного параметра
-    'format_param_tolerance_enclosure'              : ['\xa0', ''],                 #обрамление допуска
-    'format_param_tolerance_signDelimiter'          : '\xa0',                       #разделитель между значением допуска и его знаком
-    'format_param_conditions_enclosure'             : ['\xa0(', ')'],               #обрамление условий измерения параметра
-    'format_param_conditions_delimiter'             : '; ',                         #разделитель условий измерения параметра
+    'format_param_decimalPoint'                     : ',',                          #десятичный разделитель
     'format_param_temperature_positiveSign'         : True,                         #указывать знак для положительных значений температуры
-    'format_subst_enclosure'                        : ['', ''],                     #обрамление блока с допустимыми заменами
-    'format_subst_entry_enclosure'                  : ['|доп.\xa0замена ', ''],     #обрамление допустимой замены
-    'format_subst_value_enclosure'                  : ['', ''],                     #обрамление номинала допустимой замены
-    'format_subst_mfr_enclosure'                    : [' ф.\xa0', ''],              #обрамление производителя допустимой замены
-    'format_subst_note_enclosure'                   : [' (', ')'],                  #обрамление примечения допустимой замены
-    'format_annot_enclosure'                        : ['|прим. ', ''],              #обрамление примечания
+    'format_param_value_enclosure'                  : ('', ''),                     #обрамление значения параметра
+    'format_param_value_multi_delimiter'            : '\xa0/\xa0',                  #разделитель значений многозначного параметра
+    'format_param_value_range_delimiter'            : '\xa0\u2026\xa0',             #разделитель значений диапазонного параметра
+    'format_param_unit_enclosure'                   : ('\xa0', ''),                 #обрамление единиц измерения
+    'format_param_tolerance_enclosure'              : ('\xa0', ''),                 #обрамление допуска
+    'format_param_tolerance_sym_sign'               : '±\xa0',                      #знак допуска с симметричным отклонением
+    'format_param_tolerance_sym_value_enclosure'    : ('', ''),                     #обрамление допуска с симметричным отклонением
+    'format_param_tolerance_asym_value_upperFirst'  : True,                         #вначале верхний предел в несимметричном допуске
+    'format_param_tolerance_asym_value_delimiter'   : '\xa0\u2026\xa0',             #разделитель пределов в несимметричном допуске
+    'format_param_tolerance_asym_value_enclosure'   : ('', ''),                     #обрамление значения несимметричного допуска
+    'format_param_conditions_enclosure'             : ('\xa0(', ')'),               #обрамление условий измерения параметра
+    'format_param_conditions_delimiter'             : '; ',                         #разделитель условий измерения параметра   
+    'format_param_package_delimiter'                : '\xa0',                       #разделитель между типом и названием корпуса
+    'format_subst_enclosure'                        : ('', ''),                     #обрамление блока с допустимыми заменами
+    'format_subst_entry_enclosure'                  : ('|доп.\xa0замена ', ''),     #обрамление допустимой замены
+    'format_subst_partnumber_enclosure'             : ('', ''),                     #обрамление артикула допустимой замены
+    'format_subst_mfr_enclosure'                    : (' ф.\xa0', ''),              #обрамление производителя допустимой замены
+    'format_subst_note_enclosure'                   : (' (', ')'),                  #обрамление примечения допустимой замены
+    'format_annot_enclosure'                        : ('|прим. ', ''),              #обрамление примечания
     'format_annot_delimiter'                        : ', ',                         #разделитель значений в примечании
-    'format_fitted_quantity'                        : [-1, 0],                      #количество указываемое для компонента (отрицательное значение - брать из свойств компонента) [<устанавливаемый>, <не устанавливаемый>]
-    'format_fitted_label'                           : ['', '']                      #метка (не) установки компонента ['устанавливать', 'не устанавливать']
+    'format_fitted_quantity'                        : (-1, 0),                      #количество указываемое для компонента (отрицательное значение - брать из свойств компонента) (<устанавливаемый>, <не устанавливаемый>)
+    'format_fitted_label'                           : ('', '')                      #метка (не) установки компонента ('устанавливать', 'не устанавливать')
 }
 
 #настройки сборки СП и её экспорта в csv
@@ -331,35 +345,52 @@ _settings_bomconverter_sp_csv_build.update({
 _settings_bomconverter_sp_csv_export = copy.deepcopy(_settings_generic_csv_export)
 #--- изменения к настройкам экспорта по-умолчанию
 _settings_bomconverter_sp_csv_export.update({
+    'encoding'                                      : 'cp1251',                     #кодировка
+    'locale'                                        : Locale.EN,                    #локализация
     'format_desig_delimiter'                        : ', '                          #разделитель позиционных обозначений
+})
+_settings_bomconverter_sp_csv_export['replace'].update({
+        '¹'                                             : '^1',                         #верхний индекс 1
+        '²'                                             : '^2',                         #верхний индекс 2
+        '³'                                             : '^3',                         #верхний индекс 3
+        '⁴'                                             : '^4',                         #верхний индекс 4
+        '℃'                                            : '°C',                         #градус Цельсия
+        '×'                                             : 'x',                          #умножение
+        '\n'                                            : '|',                          #перенос строки
 })
 
 #------------------------------------------------------------------------------- Список компонентов --------------------------------------------------------------------------------
 #настройки сборки СК (по-умолчанию)
 _settings_bomconverter_cl_build = {
-    'locale_index'                                  : _settings_generic_locale,     #локализация
-    'sorting_method'                                : 'params',                     #метод сортировки компонентов [designator|value|kind|params]
+    'locale'                                        : _settings_generic_locale,     #локализация
+    'sorting_method'                                : 'params',                     #метод сортировки компонентов [designator|partnumber|kind|params]
     'sorting_reverse'                               : False,                        #сортировать компоненты в обратном порядке
     'content_accs'                                  : True,                         #добавлять аксессуары
     'content_accs_segregate'                        : True,                         #выделить аксессуары в отдельную группу
     'content_subst'                                 : True,                         #добавлять список допустимых замен
-    'assemble_desig'                                : False,                        #пересобирать позиционное обозначение
+    'assemble_designator'                           : False,                        #пересобирать позиционное обозначение
     'assemble_kind'                                 : False,                        #пересобирать тип элемента (аргументы ниже относятся к этому сборщику)
-        'format_kind_capitalize'                    : True,                             #типы элементов с заглавной буквы
+      'format_kind_capitalize'                      : True,                           #типы элементов с заглавной буквы
     'assemble_param'                                : False,                        #пересобирать параметрическое описание (аргументы ниже относятся к этому сборщику)
-        'content_param_basic'                       : True,                             #добавлять базовые (распознанные) параметры в описание
-        'content_param_misc'                        : True,                             #добавлять дополнительные (не распознанные) параметры в описание
-        'format_param_enclosure'                    : ['', ''],                         #обрамление параметров
-        'format_param_decimalPoint'                 : '.',                              #десятичный разделитель
-        'format_param_rangeSymbol'                  : '\u2026',                         #символ диапазона
-        'format_param_delimiter'                    : ', ',                             #разделитель параметров
-        'format_param_unit_enclosure'               : ['', ''],                         #обрамление единиц измерения
-        'format_param_multivalue_delimiter'         : '/',                              #разделитель значений многозначного параметра
-        'format_param_tolerance_enclosure'          : ['\xa0', ''],                     #обрамление допуска
-        'format_param_tolerance_signDelimiter'      : '',                               #разделитель между значением допуска и его знаком
-        'format_param_conditions_enclosure'         : ['\xa0[', ']'],                   #обрамление условий измерения параметра
-        'format_param_conditions_delimiter'         : '; ',                             #разделитель условий измерения параметра
-        'format_param_temperature_positiveSign'     : True                              #указывать знак для положительных значений температуры
+      'content_param_basic'                         : True,                           #добавлять базовые (распознанные) параметры в описание
+      'content_param_misc'                          : True,                           #добавлять дополнительные (не распознанные) параметры в описание
+      'format_param_enclosure'                      : ('', ''),                       #обрамление параметров
+      'format_param_delimiter'                      : ', ',                           #разделитель параметров
+      'format_param_decimalPoint'                   : '.',                            #десятичный разделитель
+      'format_param_temperature_positiveSign'       : True,                           #указывать знак для положительных значений температуры
+      'format_param_value_enclosure'                : ('', ''),                       #обрамление значения параметра
+      'format_param_value_multi_delimiter'          : '/',                            #разделитель значений многозначного параметра
+      'format_param_value_range_delimiter'          : '\u2026',                       #разделитель значений диапазонного параметра
+      'format_param_unit_enclosure'                 : ('', ''),                       #обрамление единиц измерения
+      'format_param_tolerance_enclosure'            : ('\xa0', ''),                   #обрамление допуска
+      'format_param_tolerance_sym_sign'             : '±',                            #знак допуска с симметричным отклонением
+      'format_param_tolerance_sym_value_enclosure'  : ('', ''),                       #обрамление допуска с симметричным отклонением
+      'format_param_tolerance_asym_value_upperFirst': False,                          #вначале верхний предел в несимметричном допуске
+      'format_param_tolerance_asym_value_delimiter' : '\u2026',                       #разделитель пределов в несимметричном допуске
+      'format_param_tolerance_asym_value_enclosure' : ('', ''),                       #обрамление значения несимметричного допуска
+      'format_param_conditions_enclosure'           : ('\xa0[', ']'),                 #обрамление условий измерения параметра
+      'format_param_conditions_delimiter'           : '; ',                           #разделитель условий измерения параметра
+      'format_param_package_delimiter'              : '\xa0'                          #разделитель между типом и названием корпуса
 }
 
 #настройки сборки СК и его экспорта в xlsx
@@ -371,6 +402,151 @@ _settings_bomconverter_cl_xlsx_build.update({
 _settings_bomconverter_cl_xlsx_export = copy.deepcopy(_settings_generic_cl_xlsx_export)
 #--- изменения к настройкам экспорта по-умолчанию
 _settings_bomconverter_cl_xlsx_export.update({
+})
+
+#-------------------------------------------------------------------------------- Файл установщика ---------------------------------------------------------------------------------
+#настройки импорта PnP из csv
+_settings_bomconverter_pnp_csv_import = copy.deepcopy(_settings_generic_csv_import)
+#--- изменения к настройкам импорта по-умолчанию
+_settings_bomconverter_pnp_csv_import.update({
+})
+
+#настройки сборки PnP (по-умолчанию)
+_settings_bomconverter_pnp_build = {
+    'locale'                                        : Locale.EN,                    #локализация
+    'sorting_method'                                : 'designator',                 #метод сортировки компонентов [None|'designator'|'layer'|'location'|'rotation'|'footprint'|'mount'|'partnumber'|'description'|'state']
+    'sorting_reverse'                               : False,                        #сортировать записи в обратном порядке
+    'disable_notbom'                                : False,                        #отключить компоненты не найденные в BoM (например отключит реперные метки)
+    'disable_notfitted'                             : True,                         #отключить неустанавливаемые компоненты
+    'disable_mount_smd'                             : False,                        #отключить компоненты поверхностного монтажа
+    'disable_mount_semismd'                         : False,                        #отключить компоненты полу-поверхностного монтажа
+    'disable_mount_throughhole'                     : True,                         #отключить компоненты выводного монтажа
+    'disable_mount_edge'                            : True,                         #отключить компоненты с монтажом в торец платы
+    'disable_mount_chassis'                         : True,                         #отключить компоненты с монтажом на корпус
+    'disable_mount_unknown'                         : False,                        #отключить компоненты с неизвестным типом монтажа
+    'format_partnumber'                             : {                             #формат сборки артикула
+        'locale'                                        : Locale.EN,                    #локализация
+        'assemble_partnumber_parametric'                : True,                         #собирать параметрический артикул для параметрических компонентов
+        'assemble_partnumber_explicit'                  : True,                         #добавлять параметрический артикул к артикулу явно заданных компонентов
+        'format_partnumber_parametric_enclosure'        : (' [', ']'),                  #заключение параметрического артикула при добавлении к явному артикулу
+        'format_param_error'                            : '!',                          #флаг ошибки значения
+        'format_param_unknown'                          : '?',                          #флаг неизвестного значения параметра
+        'format_param_enclosure'                        : ('$', ''),                    #обрамление параметров
+        'format_param_delimiter'                        : '-',                          #разделитель параметров
+        'format_param_decimalPoint'                     : '.',                          #десятичный разделитель
+        'format_param_temperature_positiveSign'         : True,                         #указывать знак для положительных значений температуры
+        'format_param_value_enclosure'                  : ('', ''),                     #обрамление значения параметра
+        'format_param_value_multi_delimiter'            : '/',                          #разделитель значений многозначного параметра
+        'format_param_value_range_delimiter'            : '_',                          #разделитель значений диапазонного параметра
+        'format_param_unit_enclosure'                   : ('', ''),                     #обрамление единиц измерения
+        'format_param_tolerance_enclosure'              : ('', ''),                     #обрамление допуска
+        'format_param_tolerance_sym_sign'               : '±',                          #знак допуска с симметричным отклонением
+        'format_param_tolerance_sym_value_enclosure'    : ('', ''),                     #обрамление допуска с симметричным отклонением
+        'format_param_tolerance_asym_value_upperFirst'  : False,                        #вначале верхний предел в несимметричном допуске
+        'format_param_tolerance_asym_value_delimiter'   : '/',                          #разделитель пределов в несимметричном допуске
+        'format_param_tolerance_asym_value_enclosure'   : ('(', ')')                    #обрамление значения несимметричного допуска
+    },
+    'format_description'                            : {                             #формат сборки описания
+        'locale'                                        : Locale.RU,                    #локализация
+        'content_description_kind'                      : True,                         #добавлять тип элемента к описанию
+        'assemble_kind'                                 : True,                         #пересобирать тип элемента
+        'format_kind_capitalize'                        : True,                         #типы элементов с заглавной буквы
+        'assemble_param'                                : True,                         #пересобирать параметрическое описание
+        'content_param_basic'                           : True,                         #добавлять базовые (распознанные) параметры в описание
+        'content_param_misc'                            : True,                         #добавлять дополнительные (не распознанные) параметры в описание
+        'format_param_enclosure'                        : (': ', ''),                   #обрамление параметров
+        'format_param_delimiter'                        : ', ',                         #разделитель параметров
+        'format_param_decimalPoint'                     : '.',                          #десятичный разделитель
+        'format_param_temperature_positiveSign'         : True,                         #указывать знак для положительных значений температуры
+        'format_param_value_enclosure'                  : ('', ''),                     #обрамление значения параметра
+        'format_param_value_multi_delimiter'            : '/',                          #разделитель значений многозначного параметра
+        'format_param_value_range_delimiter'            : '\u2026',                     #разделитель значений диапазонного параметра
+        'format_param_unit_enclosure'                   : ('', ''),                     #обрамление единиц измерения
+        'format_param_tolerance_enclosure'              : ('\xa0', ''),                 #обрамление допуска
+        'format_param_tolerance_sym_sign'               : '±',                          #знак допуска с симметричным отклонением
+        'format_param_tolerance_sym_value_enclosure'    : ('', ''),                     #обрамление допуска с симметричным отклонением
+        'format_param_tolerance_asym_value_upperFirst'  : False,                        #вначале верхний предел в несимметричном допуске
+        'format_param_tolerance_asym_value_delimiter'   : '\u2026',                     #разделитель пределов в несимметричном допуске
+        'format_param_tolerance_asym_value_enclosure'   : ('', ''),                     #обрамление значения несимметричного допуска
+        'format_param_conditions_enclosure'             : ('\xa0[', ']'),               #обрамление условий измерения параметра
+        'format_param_conditions_delimiter'             : '; ',                         #разделитель условий измерения параметра
+        'format_param_package_delimiter'                : '\xa0'                        #разделитель между типом и названием корпуса
+    },
+    'format_comment'                                : {                             #формат сборки комментария
+        'locale'                                        : Locale.RU                     #локализация
+    }
+}
+#настройки экспорта PnP (по-умолчанию)
+_settings_bomconverter_pnp_export = {
+    'locale'                                        : Locale.EN,                    #локализация
+    'content_mount'                                 : True,                         #добавлять тип монтажа
+    'content_state'                                 : True,                         #добавлять состояние
+    'content_partnumber'                            : True,                         #добавлять артикул
+    'content_description'                           : False,                        #добавлять описание
+    'content_comment'                               : False,                        #добавлять примечание
+    'content_disabled'                              : True,                         #добавлять отключеные записи
+    'content_disabled_segregate'                    : True,                         #выделить отключённые записи в отдельную группу
+    'content_disabled_reason'                       : True,                         #добавлять причину отключения
+      'format_reason_enclosure'                     : (':', '')                       #обрамление причины
+}
+
+#настройки сборки PnP и его экспорта в csv
+_settings_bomconverter_pnp_csv_build  = copy.deepcopy(_settings_bomconverter_pnp_build)
+_settings_bomconverter_pnp_csv_export = copy.deepcopy(_settings_generic_csv_export)
+_settings_bomconverter_pnp_csv_export.update(_settings_bomconverter_pnp_export)
+#--- изменения к настройкам сборки по-умолчанию
+_settings_bomconverter_pnp_csv_build.update({
+})
+#--- изменения к настройкам экспорта по-умолчанию
+_settings_bomconverter_pnp_csv_export.update({
+})
+
+#настройки сборки PnP и его экспорта в txt
+_settings_bomconverter_pnp_txt_build = copy.deepcopy(_settings_bomconverter_pnp_build)
+_settings_bomconverter_pnp_txt_export = copy.deepcopy(_settings_bomconverter_pnp_export)
+#--- изменения к настройкам сборки по-умолчанию
+_settings_bomconverter_pnp_txt_build.update({
+})
+#--- настройки экспорта
+_settings_bomconverter_pnp_txt_export.update({
+    'encoding'                                      : 'utf-8',                      #кодировка
+    'format_table'                                  : 'plain',                      #формат самой таблицы (значения Table format из модуля tabulate)
+    'format_numparse'                               : True,                         #воспринимать текст с числами как числа (также влияет на определение числового типа int/float)
+    'format_column_designator'                      : {                             #формат столбца с позиционным обозначением
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_layer'                           : {                             #формат столбца со слоем
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_location'                        : {                             #формат столбцов с координатами
+        'align'                                         : 'decimal',                    #выравнивание   
+        'number'                                        : 'g'                           #формат числа
+    },
+    'format_column_rotation'                        : {                             #формат столбца с углом поворота
+        'align'                                         : 'decimal',                    #выравнивание  
+        'number'                                        : 'g'                           #формат числа
+    },
+    'format_column_footprint'                       : {                             #формат столбца с посадочным местом
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_mount'                           : {                             #формат столбца с типом монтажа
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_state'                           : {                             #формат столбца с состоянием
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_partnumber'                      : {                             #формат столбца с артикулом
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_description'                     : {                             #формат столбца с описанием
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'format_column_comment'                         : {                             #формат столбца с комментарием
+        'align'                                         : 'left'                        #выравнивание
+    },
+    'replace'                                       : {                             #замена символов
+        ' '                                             : '\xa0'                        #обычный пробел на неразрывный пробел
+    }
 })
 
 #================================================================================ BoM discriminator ================================================================================
@@ -387,7 +563,7 @@ _settings_bomdiscriminator_input_csv.update({
 #------------------------------------------------------------------------------------- process -------------------------------------------------------------------------------------
 #настройки сравнения
 _settings_bomdiscriminator_discriminate = {
-    'locale_index'                                  : _settings_generic_locale      #локализация
+    'locale'                                        : _settings_generic_locale      #локализация
     #'comparison_fields_key'                         : ['Designator'],               #названия полей по которым определять соответствие элементов, список
     #'comparison_fields_ignore'                      : [],                           #названия полей игнорируемых при сравнении, список ('~' - игнорировать непарные поля)
 }
@@ -395,7 +571,7 @@ _settings_bomdiscriminator_discriminate = {
 #------------------------------------------------------------------------------------- output --------------------------------------------------------------------------------------
 #настройки экспорта в xlsx
 _settings_bomdiscriminator_output_xlsx = {
-    'locale_index'                                  : _settings_generic_locale,     #локализация
+    'locale'                                        : _settings_generic_locale,     #локализация
     'changes_mode'                                  : 'comment',                    #метод отображения изменений {none|highlight|comment|duplex}
     #'book_title'                                    : '',                           #название              <- свойства книги
     #'book_subject'                                  : '',                           #тема
@@ -473,16 +649,19 @@ data = {
         #вход
         'input': {
             'adproject': {                                                          #настройки импорта проекта Altium Designer
-                #нет настроек
+                'maxDataOffset'         : 8                                         #максимальное смещение (в символах) в файле перед началом данных проекта
             },
-            'bom-csv'                   : _settings_bomconverter_bom_csv_import     #настройки импорта BoM из CSV
+            'bom-csv'                   : _settings_bomconverter_bom_csv_import,    #настройки импорта BoM из CSV
+            'pnp-csv'                   : _settings_bomconverter_pnp_csv_import     #настройки импорта PnP из CSV
+
         },
         
         #анализ данных
         'parse': {
             #'parser'                    : "parse_taluts.py"                    #адрес парсера
             'project': {                                                            #настройки анализа проекта
-                #нет настроек
+                'encoding'              : 'cp1251',                                     #кодировка
+                'casefold_keys'         : True                                          #сравнивать ключи параметров без учёта регистра
             },
             'bom': {                                                                #настройки анализа BoM
                 #нет настроек
@@ -500,6 +679,13 @@ data = {
             },
             'res-tol': {                                                            #точность резиторов
                 'enabled'               : False                                         #включено
+            },
+            'pnp-fp': {                                                             #посадочные места установщика
+                'enabled'               : False,                                        #включено
+                #'dictionary'            : dict_pnp_fp.py",                              #адрес словаря
+                'locale'                : _settings_bomconverter_pnp_build['locale'],   #локализация
+                'caseSensitive'         : False,                                        #учитывать регистр символов при сравнении
+                'NoneGroupDisable'      : True                                          #отключать записи из группы None в словаре вместо замены посадочного места на значение None
             }
         },
 
@@ -534,6 +720,18 @@ data = {
                 'filename'              : "$basename СП $postfix.csv",                  #имя выходного файла
                 'build'                 : _settings_bomconverter_sp_csv_build,          #настройки сборки
                 'export'                : _settings_bomconverter_sp_csv_export          #настройки экспорта
+            },
+            'pnp-csv' : {                                                           #файл установщика в CSV
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename PnP $postfix.csv",                 #имя выходного файла
+                'build'                 : _settings_bomconverter_pnp_csv_build,         #настройки сборки
+                'export'                : _settings_bomconverter_pnp_csv_export         #настройки экспорта
+            },
+            'pnp-txt' : {                                                           #файл установщика в TXT
+                'enabled'               : True,                                         #включено
+                'filename'              : "$basename PnP $postfix.txt",                 #имя выходного файла
+                'build'                 : _settings_bomconverter_pnp_txt_build,         #настройки сборки
+                'export'                : _settings_bomconverter_pnp_txt_export         #настройки экспорта
             }
         }
     },

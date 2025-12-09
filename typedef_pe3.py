@@ -2,7 +2,7 @@ from enum import IntEnum
 import copy
 
 #Класс перечня элементов
-class PE3_typeDef():
+class PE3():
     def __init__(self):
         self.titleblock = {}
         self.elements   = []

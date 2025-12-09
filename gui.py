@@ -14,7 +14,7 @@ from bomdiscriminator import OutputID as Bomdiscriminator_OutputID
 from bomdiscriminator import XlsxChangesModeID as Bomdiscriminator_XlsxChangesModeID
 
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 10, 14)
+_module_date    = datetime.datetime(2025, 11, 7)
 _debug = False                                                  #режим отладки
 
 class FileBrowseWildcards(Enum):
@@ -53,7 +53,7 @@ class App(wx.App):
 class MainFrame(wx.Frame):
     def __init__(self, *args, **kwargs):
         super(MainFrame, self).__init__(None, title="BoM converter - GUI")                          #инициализация
-        self.SetSizeHints(self.FromDIP(664), self.FromDIP(728))                                     #минимальные размеры окна
+        self.SetSizeHints(self.FromDIP(664), self.FromDIP(775))                                     #минимальные размеры окна
 
         self.cli_log = []                                                                           #журнал командной строки
 
@@ -150,7 +150,7 @@ class MainFrame(wx.Frame):
         self.bomconverter_input_sbox = wx.StaticBox(self.bomconverter_panel, label="Ввод")                             #контейнер (именная группа) для ввода
         self.bomconverter_input_sbox_sizer = wx.StaticBoxSizer(self.bomconverter_input_sbox, wx.VERTICAL)                     #компоновщик группы
         #--- --- Выбор файлов/папок
-        self.bomconverter_input_filebrowser_sizer = wx.FlexGridSizer(3, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1]) #табличный компоновщик элементов управления
+        self.bomconverter_input_filebrowser_sizer = wx.FlexGridSizer(4, 3, fgs_filebrowser_gap[0], fgs_filebrowser_gap[1]) #табличный компоновщик элементов управления
         self.bomconverter_input_filebrowser_sizer.AddGrowableCol(1)                                              #задаём расширяемость для столбца с текстовыми полями
         #--- --- --- Флаг проекта Altium Designer
         self.bomconverter_input_adproject_chkbox = wx.CheckBox(self.bomconverter_input_sbox, label="Проект Altium Designer")
@@ -169,6 +169,17 @@ class MainFrame(wx.Frame):
         self.bomconverter_input_data_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_input_data_text, True, wildcard = "|".join([FileBrowseWildcards.ALTIUM_PROJECT.value, FileBrowseWildcards.CSV.value, FileBrowseWildcards.TEXT.value, FileBrowseWildcards.ALL.value])))
         self.bomconverter_input_data_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_input_data_text.Clear())
         self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_data_browse, flag = wx.EXPAND)
+        #--- --- --- Файл установщика компонентов
+        self.bomconverter_input_pnp_label = wx.StaticText(self.bomconverter_input_sbox, label="Pick && Place:", style = wx.ALIGN_RIGHT, size = label_browse_size)
+        self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_pnp_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
+        self.bomconverter_input_pnp_text = wx.TextCtrl(self.bomconverter_input_sbox)
+        self.bomconverter_input_pnp_text.Bind(wx.EVT_TEXT, self.OnBomconverterPanelValueChange)
+        self.bomconverter_input_pnp_text.SetDropTarget(FileDropTarget(self.bomconverter_input_pnp_text))
+        self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_pnp_text, flag = wx.EXPAND)
+        self.bomconverter_input_pnp_browse = wx.Button(self.bomconverter_input_sbox, wx.ID_ANY, label = button_browse_label, size = button_browse_size)
+        self.bomconverter_input_pnp_browse.Bind(wx.EVT_BUTTON, lambda event: self.OnFileBrowse(event, self.bomconverter_input_pnp_text, False, wildcard = "|".join([FileBrowseWildcards.CSV.value, FileBrowseWildcards.ALL.value])))
+        self.bomconverter_input_pnp_browse.Bind(wx.EVT_MIDDLE_DOWN, lambda event: self.bomconverter_input_pnp_text.Clear())
+        self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_pnp_browse)
         #--- --- --- Файл основной надписи
         self.bomconverter_input_titleblock_label = wx.StaticText(self.bomconverter_input_sbox, label="Осн. надпись:", style = wx.ALIGN_RIGHT, size = label_browse_size)
         self.bomconverter_input_filebrowser_sizer.Add(self.bomconverter_input_titleblock_label, flag = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL)
@@ -227,13 +238,16 @@ class MainFrame(wx.Frame):
         self.bomconverter_config_optimize_none_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
         self.bomconverter_config_optimize_grid_sizer.Add(self.bomconverter_config_optimize_none_chkbox, pos = (0, 1), flag=wx.ALIGN_LEFT)
         self.bomconverter_config_optimize_sline = wx.StaticLine(self.bomconverter_config_optimize_sbox, style = wx.LI_HORIZONTAL)
-        self.bomconverter_config_optimize_grid_sizer.Add(self.bomconverter_config_optimize_sline, pos = (1, 0), span = (1, 2), flag=wx.EXPAND | wx.HORIZONTAL)
+        self.bomconverter_config_optimize_grid_sizer.Add(self.bomconverter_config_optimize_sline, pos = (1, 0), span = (1, 3), flag=wx.EXPAND | wx.HORIZONTAL)
         self.bomconverter_config_optimize_mfrname_chkbox = wx.CheckBox(self.bomconverter_config_optimize_sbox, size = checkbox_flag_size, label="Названия производителей")
         self.bomconverter_config_optimize_mfrname_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
         self.bomconverter_config_optimize_grid_sizer.Add(self.bomconverter_config_optimize_mfrname_chkbox, pos = (2, 0), flag=wx.ALIGN_LEFT)
         self.bomconverter_config_optimize_restol_chkbox = wx.CheckBox(self.bomconverter_config_optimize_sbox, size = checkbox_flag_size, label="Допуски резисторов")
         self.bomconverter_config_optimize_restol_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
         self.bomconverter_config_optimize_grid_sizer.Add(self.bomconverter_config_optimize_restol_chkbox, pos = (2, 1), flag=wx.ALIGN_LEFT)
+        self.bomconverter_config_optimize_pnpfp_chkbox = wx.CheckBox(self.bomconverter_config_optimize_sbox, size = checkbox_flag_size, label="Посадочные PnP")
+        self.bomconverter_config_optimize_pnpfp_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
+        self.bomconverter_config_optimize_grid_sizer.Add(self.bomconverter_config_optimize_pnpfp_chkbox, pos = (2, 2), flag=wx.ALIGN_LEFT)
         #--- --- --- компоновка: Варианты -> Оптимизации
         self.bomconverter_config_optimize_sbox_sizer.Add(self.bomconverter_config_optimize_grid_sizer, flag = wx.EXPAND | wx.ALL, border = gbs_variants_border)
         #--- --- компоновка: Оптимизации -> Конфигурация
@@ -288,6 +302,12 @@ class MainFrame(wx.Frame):
         self.bomconverter_output_format_spcsv_chkbox = wx.CheckBox(self.bomconverter_output_format_sbox, id=wx.ID_ANY, label="Спецификация (CSV)", size = checkbox_flag_size)
         self.bomconverter_output_format_spcsv_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
         self.bomconverter_output_format_grid_sizer.Add(self.bomconverter_output_format_spcsv_chkbox, pos = (4, 0), flag=wx.ALIGN_LEFT)
+        self.bomconverter_output_format_pnpcsv_chkbox = wx.CheckBox(self.bomconverter_output_format_sbox, id=wx.ID_ANY, label="Pick && Place (CSV)", size = checkbox_flag_size)
+        self.bomconverter_output_format_pnpcsv_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
+        self.bomconverter_output_format_grid_sizer.Add(self.bomconverter_output_format_pnpcsv_chkbox, pos = (5, 0), flag=wx.ALIGN_LEFT)
+        self.bomconverter_output_format_pnptxt_chkbox = wx.CheckBox(self.bomconverter_output_format_sbox, id=wx.ID_ANY, label="Pick && Place (TXT)", size = checkbox_flag_size)
+        self.bomconverter_output_format_pnptxt_chkbox.Bind(wx.EVT_CHECKBOX, self.OnBomconverterPanelValueChange)
+        self.bomconverter_output_format_grid_sizer.Add(self.bomconverter_output_format_pnptxt_chkbox, pos = (5, 1), flag=wx.ALIGN_LEFT)
         #--- --- --- компоновка: Варианты -> Выходные форматы
         self.bomconverter_output_format_sbox_sizer.Add(self.bomconverter_output_format_grid_sizer, flag = wx.EXPAND | wx.ALL, border = gbs_variants_border)
         #--- --- компоновка: Выходные форматы -> Вывод
@@ -989,6 +1009,7 @@ class MainFrame(wx.Frame):
         config_optimize_global = config_optimize_all | config_optimize_none
         self.bomconverter_config_optimize_mfrname_chkbox.Enable(not config_optimize_global)
         self.bomconverter_config_optimize_restol_chkbox.Enable(not config_optimize_global)
+        self.bomconverter_config_optimize_pnpfp_chkbox.Enable(not config_optimize_global)
         self.bomconverter_config_optimize_all_chkbox.Enable(not config_optimize_none)
         self.bomconverter_config_optimize_none_chkbox.Enable(not config_optimize_all)
         #--- флаги выходных форматов
@@ -1000,6 +1021,8 @@ class MainFrame(wx.Frame):
         self.bomconverter_output_format_pe3csv_chkbox.Enable(not output_format_global)
         self.bomconverter_output_format_clxlsx_chkbox.Enable(not output_format_global)
         self.bomconverter_output_format_spcsv_chkbox.Enable(not output_format_global)
+        self.bomconverter_output_format_pnpcsv_chkbox.Enable(not output_format_global)
+        self.bomconverter_output_format_pnptxt_chkbox.Enable(not output_format_global)
         self.bomconverter_output_format_all_chkbox.Enable(not output_format_none)
         self.bomconverter_output_format_none_chkbox.Enable(not output_format_all)
 
@@ -1236,8 +1259,9 @@ class MainFrame(wx.Frame):
         config_optimize = []
         if self.bomconverter_config_optimize_none_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.NONE.value)
         if self.bomconverter_config_optimize_all_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.ALL.value)
-        if self.bomconverter_config_optimize_mfrname_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.MFR_NAME.value)
+        if self.bomconverter_config_optimize_mfrname_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.MFR_NAMES.value)
         if self.bomconverter_config_optimize_restol_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.RES_TOL.value)
+        if self.bomconverter_config_optimize_pnpfp_chkbox.GetValue(): config_optimize.append(Bomconverter_OptimizationID.PNP_FP.value)
         config_optimize = ",".join(config_optimize)
 
         output_format = []
@@ -1248,12 +1272,15 @@ class MainFrame(wx.Frame):
         if self.bomconverter_output_format_pe3csv_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.PE3_CSV.value)
         if self.bomconverter_output_format_clxlsx_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.CL_XLSX.value)
         if self.bomconverter_output_format_spcsv_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.SP_CSV.value)
+        if self.bomconverter_output_format_pnpcsv_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.PNP_CSV.value)
+        if self.bomconverter_output_format_pnptxt_chkbox.GetValue(): output_format.append(Bomconverter_OutputID.PNP_TXT.value)
         output_format = ",".join(output_format)
 
         params = {
             'input': {
                 'adproject'     : self.bomconverter_input_adproject_chkbox.GetValue(),
                 'datafiles'     : self.bomconverter_input_data_text.GetValue(),
+                'pickplace'     : self.bomconverter_input_pnp_text.GetValue(),
                 'titleblock'    : self.bomconverter_input_titleblock_text.GetValue()
             },
             'config': {
@@ -1355,8 +1382,9 @@ class MainFrame(wx.Frame):
     def params_apply_bomconverter(self, params):
         if 'input' in params:
             block = params['input']
-            if 'adproject' in block: self.bomconverter_input_adproject_chkbox.SetValue(block['adproject'])
-            if 'datafiles' in block: self.bomconverter_input_data_text.SetValue(str(block['datafiles']))
+            if 'adproject'  in block: self.bomconverter_input_adproject_chkbox.SetValue(block['adproject'])
+            if 'datafiles'  in block: self.bomconverter_input_data_text.SetValue(str(block['datafiles']))
+            if 'pickplace'  in block: self.bomconverter_input_pnp_text.SetValue(str(block['pickplace']))
             if 'titleblock' in block: self.bomconverter_input_titleblock_text.SetValue(str(block['titleblock']))
         if 'config' in params:
             block = params['config']
@@ -1367,6 +1395,7 @@ class MainFrame(wx.Frame):
                 self.bomconverter_config_optimize_all_chkbox.SetValue(Bomconverter_OptimizationID.ALL.value in block['optimize'])
                 self.bomconverter_config_optimize_mfrname_chkbox.SetValue(Bomconverter_OptimizationID.MFR_NAMES.value in block['optimize'])
                 self.bomconverter_config_optimize_restol_chkbox.SetValue(Bomconverter_OptimizationID.RES_TOL.value in block['optimize'])
+                self.bomconverter_config_optimize_pnpfp_chkbox.SetValue(Bomconverter_OptimizationID.PNP_FP.value in block['optimize'])
         if 'output' in params:
             block = params['output']
             if 'output' in block: self.bomconverter_output_directory_text.SetValue(str(block['directory']))
@@ -1378,6 +1407,8 @@ class MainFrame(wx.Frame):
                 self.bomconverter_output_format_pe3csv_chkbox.SetValue(Bomconverter_OutputID.PE3_CSV.value in block['format'])
                 self.bomconverter_output_format_clxlsx_chkbox.SetValue(Bomconverter_OutputID.CL_XLSX.value in block['format'])
                 self.bomconverter_output_format_spcsv_chkbox.SetValue(Bomconverter_OutputID.SP_CSV.value in block['format'])
+                self.bomconverter_output_format_pnpcsv_chkbox.SetValue(Bomconverter_OutputID.PNP_CSV.value in block['format'])
+                self.bomconverter_output_format_pnptxt_chkbox.SetValue(Bomconverter_OutputID.PNP_TXT.value in block['format'])
         if 'process' in params:
             block = params['process']
             if 'executable' in block: self.bomconverter_process_exe_text.SetValue(str(block['executable']))
@@ -1513,6 +1544,7 @@ class MainFrame(wx.Frame):
             'input': {
                 'adproject'     : False,
                 'datafiles'     : "",
+                'pickplace'     : "",
                 'titleblock'    : ""
             },
             'config': {
@@ -1613,6 +1645,11 @@ class MainFrame(wx.Frame):
         #проект Altium Designer
         adproject = params.get('input', {}).get('adproject', False)
         if adproject: argv.append('--adproject')
+
+        #файл установщика компонентов
+        pickplace = params.get('input', {}).get('pickplace', '')
+        if len(pickplace) > 0:
+            argv.extend(['--pnp', pickplace])
 
         #словарь с данными основной надписи
         titleblock = params.get('input', {}).get('titleblock', '')

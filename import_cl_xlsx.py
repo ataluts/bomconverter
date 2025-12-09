@@ -1,7 +1,7 @@
 import os
 import openpyxl
 import dict_locale as lcl
-from typedef_cl import CL_typeDef                               #класс списка компонентов
+from typedef_cl import ComponentList
 
 log_indent = " " * 4
 
@@ -11,11 +11,11 @@ def importz(address, **kwargs):
     print(f"{log_indent * 3} input: {os.path.basename(address)}")
 
     #locale
-    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+    locale = kwargs.get('locale', lcl.Locale.RU)
 
-    title_list_components = kwargs.get('title_list_components', lcl.build_cl.TITLE_COMPONENTS_LIST.value[locale_index])
-    title_list_accessories = kwargs.get('title_list_accessories', lcl.build_cl.TITLE_ACCESSORIES_LIST.value[locale_index])
-    title_list_substitutes = kwargs.get('title_list_substitutes', lcl.build_cl.TITLE_SUBSTITUTES_LIST.value[locale_index])
+    title_list_components = kwargs.get('title_list_components', locale.translate(lcl.build_cl.TITLE_COMPONENTS_LIST))
+    title_list_accessories = kwargs.get('title_list_accessories', locale.translate(lcl.build_cl.TITLE_ACCESSORIES_LIST))
+    title_list_substitutes = kwargs.get('title_list_substitutes', locale.translate(lcl.build_cl.TITLE_SUBSTITUTES_LIST))
     format_groupvalue_delimiter = kwargs.get('format_groupvalue_delimiter', ', ')
     format_singlevalue_delimiter = kwargs.get('format_singlevalue_delimiter', '|')
 
@@ -23,7 +23,7 @@ def importz(address, **kwargs):
     if os.path.isfile(address):
         print("INFO >> Analyzing data in Excel file:")
         workbook = openpyxl.load_workbook(address)
-        cl = CL_typeDef(workbook.properties.title)
+        cl = ComponentList(workbook.properties.title)
 
         #определяем листы
         worksheet_components = None
@@ -49,28 +49,30 @@ def importz(address, **kwargs):
         #лист с компонентами
         if worksheet_components is not None:
             print("INFO >> Processing components worksheet:")
-            cl.components = CL_typeDef.Sublist(title_list_components)
+            cl.components = ComponentList.Sublist(title_list_components)
 
             #определяем индексы по заголовку таблицы
             column_index_designator   = None    #Поз. обозначение
             column_index_kind         = None    #Тип элемента
-            column_index_value        = None    #Номинал
+            column_index_partnumber   = None    #Артикул
+            column_index_parametric   = None    #Явно заданный артикул
             column_index_description  = None    #Описание
             column_index_package      = None    #Корпус
             column_index_manufacturer = None    #Производитель
             column_index_quantity     = None    #Кол-во
             column_index_note         = None    #Примечание
             for i, cell in enumerate(worksheet_components[1]):
-                if   cell.value == lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index]:     column_index_designator = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_COMPONENT_TYPE.value[locale_index]: column_index_kind = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_VALUE.value[locale_index]:          column_index_value = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_DESCRIPTION.value[locale_index]:    column_index_description = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_PACKAGE.value[locale_index]:        column_index_package = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_MANUFACTURER.value[locale_index]:   column_index_manufacturer = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index]:       column_index_quantity = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_NOTE.value[locale_index]:           column_index_note = i
+                if   cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_DESIGNATOR):     column_index_designator = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_COMPONENT_TYPE): column_index_kind = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_PARTNUMBER):     column_index_partnumber = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_PARAMETRIC):     column_index_parametric = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_DESCRIPTION):    column_index_description = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_PACKAGE):        column_index_package = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_MANUFACTURER):   column_index_manufacturer = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_QUANTITY):       column_index_quantity = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_NOTE):           column_index_note = i
 
-            message = f"{log_indent * 3} columns indexes: Designator={column_index_designator}, Kind={column_index_kind}, Value={column_index_value}, Description={column_index_description}, Package={column_index_package}, Manufacturer={column_index_manufacturer}, Quantity={column_index_quantity}, Note={column_index_note}"
+            message = f"{log_indent * 3} columns indexes: Designator={column_index_designator}, Kind={column_index_kind}, Partnumber={column_index_partnumber}, Parametric={column_index_parametric}, Description={column_index_description}, Package={column_index_package}, Manufacturer={column_index_manufacturer}, Quantity={column_index_quantity}, Note={column_index_note}"
             print(message)
 
             #читаем данные из таблицы перебирая строки
@@ -78,26 +80,37 @@ def importz(address, **kwargs):
             for row in worksheet_components.iter_rows(2, worksheet_components.max_row):
                 entry_designator   = None
                 entry_kind         = None
-                entry_value        = None
+                entry_partnumber   = None
+                entry_parametric   = None
                 entry_description  = None
                 entry_package      = None
                 entry_manufacturer = None
                 entry_quantity     = None
                 entry_note         = None
                 entry_flag         = None
+                entry_flag_parametric = None
+                entry_flag_quantity   = None
 
                 #заполняем данные
                 if column_index_designator is not None   and row[column_index_designator].value   is not None: entry_designator   = row[column_index_designator].value.split(format_groupvalue_delimiter)
                 if column_index_kind is not None         and row[column_index_kind].value         is not None: entry_kind         = row[column_index_kind].value.split(format_singlevalue_delimiter)
-                if column_index_value is not None        and row[column_index_value].value        is not None: entry_value        = row[column_index_value].value.split(format_singlevalue_delimiter)
+                if column_index_partnumber is not None   and row[column_index_partnumber].value   is not None: entry_partnumber   = row[column_index_partnumber].value.split(format_singlevalue_delimiter)
+                if column_index_parametric is not None   and row[column_index_parametric].value   is not None: entry_parametric, entry_flag_parametric = _parse_parametric(row[column_index_parametric].value, locale)
                 if column_index_description is not None  and row[column_index_description].value  is not None: entry_description  = row[column_index_description].value.split(format_singlevalue_delimiter)
                 if column_index_package is not None      and row[column_index_package].value      is not None: entry_package      = row[column_index_package].value.split(format_singlevalue_delimiter)
                 if column_index_manufacturer is not None and row[column_index_manufacturer].value is not None: entry_manufacturer = row[column_index_manufacturer].value.split(format_singlevalue_delimiter)
                 if column_index_note is not None         and row[column_index_note].value         is not None: entry_note         = row[column_index_note].value.split(format_singlevalue_delimiter)
-                if column_index_quantity is not None     and row[column_index_quantity].value     is not None: entry_quantity, entry_flag = cellvalue_toint(row[column_index_quantity].value)
+                if column_index_quantity is not None     and row[column_index_quantity].value     is not None: entry_quantity, entry_flag_quantity = cellvalue_toint(row[column_index_quantity].value)
                 
-                #if entry_designator  None
-                entry = CL_typeDef.ComponentEntry(entry_designator, entry_kind, entry_value, entry_description, entry_package, entry_manufacturer, entry_quantity, entry_note, entry_flag)
+                entry_flag = entry_flag_parametric
+                if entry_flag_quantity is not None:
+                    if entry_flag is None:
+                        entry_flag = entry_flag_quantity
+                    else:
+                        if entry_flag_quantity.value > entry_flag.value:
+                            entry_flag = entry_flag_quantity
+
+                entry = ComponentList.ComponentEntry(entry_designator, entry_kind, entry_partnumber, entry_parametric, entry_description, entry_package, entry_manufacturer, entry_quantity, entry_note, entry_flag)
                 if not entry.isempty():
                     entry.check()
 
@@ -109,7 +122,7 @@ def importz(address, **kwargs):
                         if len(entry.designator) > 0:
                             cl.components.entries.append(entry)
                         else:
-                            if cl.accessories is None: cl.accessories = CL_typeDef.Sublist(title_list_accessories)
+                            if cl.accessories is None: cl.accessories = ComponentList.Sublist(title_list_accessories)
                             cl.accessories.entries.append(entry)
             
             entry_num = len(cl.components.entries)
@@ -119,28 +132,30 @@ def importz(address, **kwargs):
         #лист с аксессуарами
         if worksheet_accessories is not None:
             print("INFO >> Processing accessories worksheet:")
-            cl.accessories = CL_typeDef.Sublist(title_list_accessories)
+            cl.accessories = ComponentList.Sublist(title_list_accessories)
 
             #определяем индексы по заголовку таблицы
             column_index_designator   = None    #Поз. обозначение
             column_index_kind         = None    #Тип элемента
-            column_index_value        = None    #Номинал
+            column_index_partnumber   = None    #Номинал
+            column_index_parametric   = None    #Явно заданный артикул
             column_index_description  = None    #Описание
             column_index_package      = None    #Корпус
             column_index_manufacturer = None    #Производитель
             column_index_quantity     = None    #Кол-во
             column_index_note         = None    #Примечание
             for i, cell in enumerate(worksheet_accessories[1]):
-                if   cell.value == lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index]:     column_index_designator = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_COMPONENT_TYPE.value[locale_index]: column_index_kind = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_VALUE.value[locale_index]:          column_index_value = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_DESCRIPTION.value[locale_index]:    column_index_description = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_PACKAGE.value[locale_index]:        column_index_package = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_MANUFACTURER.value[locale_index]:   column_index_manufacturer = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_QUANTITY.value[locale_index]:       column_index_quantity = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_NOTE.value[locale_index]:           column_index_note = i
+                if   cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_DESIGNATOR):     column_index_designator = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_COMPONENT_TYPE): column_index_kind = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_PARTNUMBER):     column_index_partnumber = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_PARAMETRIC):     column_index_parametric = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_DESCRIPTION):    column_index_description = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_PACKAGE):        column_index_package = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_MANUFACTURER):   column_index_manufacturer = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_QUANTITY):       column_index_quantity = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_NOTE):           column_index_note = i
 
-            message = f"{log_indent * 3} columns indexes: Designator={column_index_designator}, Kind={column_index_kind}, Value={column_index_value}, Description={column_index_description}, Package={column_index_package}, Manufacturer={column_index_manufacturer}, Quantity={column_index_quantity}, Note={column_index_note}"
+            message = f"{log_indent * 3} columns indexes: Designator={column_index_designator}, Kind={column_index_kind}, Partnumber={column_index_partnumber}, Parametric={column_index_parametric}, Description={column_index_description}, Package={column_index_package}, Manufacturer={column_index_manufacturer}, Quantity={column_index_quantity}, Note={column_index_note}"
             print(message)
 
             #читаем данные из таблицы перебирая строки
@@ -148,25 +163,37 @@ def importz(address, **kwargs):
             for row in worksheet_accessories.iter_rows(2, worksheet_accessories.max_row):
                 entry_designator   = None
                 entry_kind         = None
-                entry_value        = None
+                entry_partnumber   = None
+                entry_parametric   = None
                 entry_description  = None
                 entry_package      = None
                 entry_manufacturer = None
                 entry_quantity     = None
                 entry_note         = None
                 entry_flag         = None
+                entry_flag_parametric = None
+                entry_flag_quantity   = None
 
                 #заполняем данные
                 if column_index_designator is not None   and row[column_index_designator].value   is not None: entry_designator   = row[column_index_designator].value.split(format_groupvalue_delimiter)
                 if column_index_kind is not None         and row[column_index_kind].value         is not None: entry_kind         = row[column_index_kind].value.split(format_singlevalue_delimiter)
-                if column_index_value is not None        and row[column_index_value].value        is not None: entry_value        = row[column_index_value].value.split(format_singlevalue_delimiter)
+                if column_index_partnumber is not None   and row[column_index_partnumber].value   is not None: entry_partnumber   = row[column_index_partnumber].value.split(format_singlevalue_delimiter)
+                if column_index_parametric is not None   and row[column_index_parametric].value   is not None: entry_parametric, entry_flag_parametric = _parse_parametric(row[column_index_parametric].value, locale)
                 if column_index_description is not None  and row[column_index_description].value  is not None: entry_description  = row[column_index_description].value.split(format_singlevalue_delimiter)
                 if column_index_package is not None      and row[column_index_package].value      is not None: entry_package      = row[column_index_package].value.split(format_singlevalue_delimiter)
                 if column_index_manufacturer is not None and row[column_index_manufacturer].value is not None: entry_manufacturer = row[column_index_manufacturer].value.split(format_singlevalue_delimiter)
                 if column_index_note is not None         and row[column_index_note].value         is not None: entry_note         = row[column_index_note].value.split(format_singlevalue_delimiter)
-                if column_index_quantity is not None     and row[column_index_quantity].value     is not None: entry_quantity, entry_flag = cellvalue_toint(row[column_index_quantity].value)
+                if column_index_quantity is not None     and row[column_index_quantity].value     is not None: entry_quantity, entry_flag_quantity = cellvalue_toint(row[column_index_quantity].value)
                
-                entry = CL_typeDef.ComponentEntry(entry_designator, entry_kind, entry_value, entry_description, entry_package, entry_manufacturer, entry_quantity, entry_note, entry_flag)
+                entry_flag = entry_flag_parametric
+                if entry_flag_quantity is not None:
+                    if entry_flag is None:
+                        entry_flag = entry_flag_quantity
+                    else:
+                        if entry_flag_quantity.value > entry_flag.value:
+                            entry_flag = entry_flag_quantity
+
+                entry = ComponentList.ComponentEntry(entry_designator, entry_kind, entry_partnumber, entry_parametric, entry_description, entry_package, entry_manufacturer, entry_quantity, entry_note, entry_flag)
                 entry.check()
                 cl.accessories.entries.append(entry)
 
@@ -175,28 +202,28 @@ def importz(address, **kwargs):
         #лист со списком замен
         if worksheet_substitutes is not None:
             print("INFO >> Processing substitutes worksheet:")
-            cl.substitutes = CL_typeDef.Sublist(title_list_substitutes)
+            cl.substitutes = ComponentList.Sublist(title_list_substitutes)
 
             #определяем индексы по заголовку таблицы
-            column_index_entry_value        = None    #Изнач. номинал
+            column_index_entry_partnumber   = None    #Изнач. артикул
             column_index_entry_manufacturer = None    #Изнач. производитель
             column_index_entry_quantity     = None    #Изнач. кол-во
             column_index_group_designator   = None    #Поз. обозначение
             column_index_group_quantity     = None    #Зам. кол-во
-            column_index_subst_value        = None    #Зам. номинал
+            column_index_subst_partnumber   = None    #Зам. артикул
             column_index_subst_manufacturer = None    #Зам. производитель
             column_index_subst_note         = None    #Зам. примечание
             for i, cell in enumerate(worksheet_substitutes[1], 1):
-                if   cell.value == lcl.export_cl_xlsx.HEADER_ORIGINAL_VALUE.value[locale_index]:          column_index_entry_value = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_ORIGINAL_MANUFACTURER.value[locale_index]:   column_index_entry_manufacturer = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_ORIGINAL_QUANTITY.value[locale_index]:       column_index_entry_quantity = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_DESIGNATOR.value[locale_index]:              column_index_group_designator = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_SUBSTITUTE_QUANTITY.value[locale_index]:     column_index_group_quantity = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_SUBSTITUTE_VALUE.value[locale_index]:        column_index_subst_value = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_SUBSTITUTE_MANUFACTURER.value[locale_index]: column_index_subst_manufacturer = i
-                elif cell.value == lcl.export_cl_xlsx.HEADER_SUBSTITUTE_NOTE.value[locale_index]:         column_index_subst_note = i
+                if   cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_ORIGINAL_PARTNUMBER):     column_index_entry_partnumber = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_ORIGINAL_MANUFACTURER):   column_index_entry_manufacturer = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_ORIGINAL_QUANTITY):       column_index_entry_quantity = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_DESIGNATOR):              column_index_group_designator = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_SUBSTITUTE_QUANTITY):     column_index_group_quantity = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_SUBSTITUTE_PARTNUMBER):   column_index_subst_partnumber = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_SUBSTITUTE_MANUFACTURER): column_index_subst_manufacturer = i
+                elif cell.value == locale.translate(lcl.export_cl_xlsx.HEADER_SUBSTITUTE_NOTE):         column_index_subst_note = i
 
-            message = f"{log_indent * 3} columns indexes: Entry.Value={column_index_entry_value}, Entry.Manufacturer={column_index_entry_manufacturer}, Entry.Quantity={column_index_entry_quantity}, Group.Designator={column_index_group_designator}, Group.Quantity={column_index_group_quantity}, Substitute.Value={column_index_subst_value}, Substitute.Manufacturer={column_index_subst_manufacturer}, Substitute.Note={column_index_subst_note}"
+            message = f"{log_indent * 3} columns indexes: Entry.Value={column_index_entry_partnumber}, Entry.Manufacturer={column_index_entry_manufacturer}, Entry.Quantity={column_index_entry_quantity}, Group.Designator={column_index_group_designator}, Group.Quantity={column_index_group_quantity}, Substitute.Value={column_index_subst_partnumber}, Substitute.Manufacturer={column_index_subst_manufacturer}, Substitute.Note={column_index_subst_note}"
             print(message)
 
             print(f"{log_indent * 3} reading rows", end="... ")
@@ -206,13 +233,13 @@ def importz(address, **kwargs):
             row_index = 2
             while row_index <= worksheet_substitutes.max_row:
                 #элемент замены
-                entry_rows, entry_cols = cell_get_size(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_entry_value))
+                entry_rows, entry_cols = cell_get_size(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_entry_partnumber))
                 entry_maxrow = row_index + entry_rows - 1
-                entry_value = cell_get_merged_value(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_entry_value))
+                entry_partnumber = cell_get_merged_value(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_entry_partnumber))
                 entry_manufacturer = cell_get_merged_value(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_entry_manufacturer))
                 entry_quantity = cell_get_merged_value(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_entry_quantity))
                 entry_quantity, entry_flag = cellvalue_toint(entry_quantity)
-                entry = CL_typeDef.SubstituteEntry(entry_value, entry_manufacturer, entry_quantity, [], entry_flag)
+                entry = ComponentList.SubstituteEntry(entry_partnumber, entry_manufacturer, entry_quantity, [], entry_flag)
                 cl.substitutes.entries.append(entry)
                 counter_entries += 1
                 #заменные группы
@@ -223,15 +250,15 @@ def importz(address, **kwargs):
                     if group_designator is not None: group_designator = group_designator.split(format_groupvalue_delimiter)
                     group_quantity = cell_get_merged_value(worksheet_substitutes, worksheet_substitutes.cell(row = row_index, column = column_index_group_quantity))
                     group_quantity, group_flag = cellvalue_toint(entry_quantity)
-                    group = CL_typeDef.SubstituteEntry.SubstituteGroup(group_designator, group_quantity, [], group_flag)
+                    group = ComponentList.SubstituteEntry.SubstituteGroup(group_designator, group_quantity, [], group_flag)
                     entry.substitute_group.append(group)
                     counter_groups += 1
                     #замены в группе
                     while row_index <= group_maxrow:
-                        substitute_value = worksheet_substitutes.cell(row = row_index, column = column_index_subst_value).value
+                        substitute_partnumber = worksheet_substitutes.cell(row = row_index, column = column_index_subst_partnumber).value
                         substitute_manufacturer = worksheet_substitutes.cell(row = row_index, column = column_index_subst_manufacturer).value
                         substitute_note = worksheet_substitutes.cell(row = row_index, column = column_index_subst_note).value
-                        substitute = CL_typeDef.SubstituteEntry.SubstituteGroup.Substitute(substitute_value, substitute_manufacturer, substitute_note)
+                        substitute = ComponentList.SubstituteEntry.SubstituteGroup.Substitute(substitute_partnumber, substitute_manufacturer, substitute_note)
                         group.substitute.append(substitute)
                         counter_substitutes += 1
                         row_index += 1
@@ -257,8 +284,17 @@ def cellvalue_toint(cell_value):
         flag = None
     except (ValueError, TypeError):
         value = 0
-        flag = CL_typeDef.FlagType.ERROR
+        flag = ComponentList.FlagType.ERROR
     return value, flag
+
+#Конвертирует значение ячейки с параметрическим флагом
+def _parse_parametric(cell_value, locale:lcl.Locale):
+    if   cell_value == locale.translate(lcl.export_cl_xlsx.VALUE_PARAMETRIC_TRUE):
+        return True, None
+    elif cell_value == locale.translate(lcl.export_cl_xlsx.VALUE_PARAMETRIC_FALSE):
+        return False, None
+    else:
+        return False, ComponentList.FlagType.ERROR
 
 #Возвращает размер ячейки
 def cell_get_size(worksheet, cell):

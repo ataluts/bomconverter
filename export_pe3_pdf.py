@@ -3,8 +3,6 @@ import subprocess
 import threading
 import csv
 
-from typedef_pe3 import PE3_typeDef                                 #класс перечня элементов
-
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
 template_defaultAddress = os.path.join(script_dirName, script_baseName + os.extsep + 'tex')     #адрес шаблона по-умолчанию

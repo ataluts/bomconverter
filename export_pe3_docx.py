@@ -7,8 +7,6 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from PIL import ImageFont
 import re
 
-from typedef_pe3 import PE3_typeDef                                 #класс перечня элементов
-
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
 template_defaultAddress = os.path.join(script_dirName, script_baseName + os.extsep + 'docx')    #адрес шаблона по-умолчанию

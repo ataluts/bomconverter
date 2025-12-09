@@ -1,8 +1,8 @@
 import os
 from copy import deepcopy
 
-from typedef_components import Components_typeDef                   #класс базы данных компонентов
-from typedef_sp import SP_typeDef                                   #класс перечня элементов
+from typedef_components import Database                             #класс базы данных компонентов
+from typedef_sp import SP                                           #класс перечня элементов
 import assemble                                                     #сборка ЕСКД значений
 
 script_dirName  = os.path.dirname(__file__)                                                          #адрес папки со скриптом
@@ -25,7 +25,7 @@ def build(data, **kwargs):
         #в данных компоненты и основная надпись
         components  = data[0]
         titleblock  = data[1]
-    elif isinstance(data, Components_typeDef):
+    elif isinstance(data, Database):
         #в данных только компоненты
         components = data
         titleblock = None
@@ -34,7 +34,7 @@ def build(data, **kwargs):
         raise ValueError("Invalid input data")
 
     #создаём объект спецификации
-    sp = SP_typeDef()
+    sp = SP()
 
     #добавляем данные основной надписи внутрь спецификации
     print('INFO >> Processing title block.')
@@ -57,14 +57,14 @@ def build(data, **kwargs):
         #создание записей спецификации
         #группируем одинаковые позиции в одну запись
         for component in components.entries:
-            if component.GENERIC_designator is None:
+            if component.GNRC_designator is None:
             #нет десигнатора (должно быть аксессуар) -> собираем компоненты с одинаковым значением в один элемент перечня
                 if not content_accs: continue                                   #пропускаем если выбран соответствующий параметр
                 if content_accs_parent:
                     #указываем десигнатор родителя в качестве десигнатора
                     component = deepcopy(component)
-                    component.GENERIC_designator = component.GENERIC_accessory_parent.GENERIC_designator
-            if component.GENERIC_fitted:                                            #записываем только устанавливаемые компоненты
+                    component.GNRC_designator = component.GNRC_accessory_parent.GNRC_designator
+            if component.GNRC_fitted:                                            #записываем только устанавливаемые компоненты
                 value = assemble.assemble_eskd(component, **kwargs)                 #собираем поля перечня из параметров компонента
                 if content_annot:
                     #добавляем примечание в наименование

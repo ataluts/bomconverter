@@ -1,13 +1,13 @@
-import collections.abc
 from enum import IntEnum
+from dataclasses import dataclass
 
 #CL class definition
-class CL_typeDef():
-    def __init__(self, book_title = ''):
-        self.book_title  = book_title
-        self.components  = None         #список основных компонентов
-        self.accessories = None         #список сопутствующих компонентов
-        self.substitutes = None         #список допустимых замен
+@dataclass
+class ComponentList():
+    book_title  : str   = ''        #имя книги
+    components  : list  = None      #список основных компонентов
+    accessories : list  = None      #список сопутствующих компонентов
+    substitutes : list  = None      #список допустимых замен
 
     class Sublist():
         def __init__(self, title = '', entries = None):
@@ -21,23 +21,25 @@ class CL_typeDef():
         ERROR   = 3
 
     class ComponentEntry():
-        def __init__(self, designator = None, kind = None, value = None, description = None, package = None, manufacturer = None, quantity = 0, note = None, flag = None):
+        def __init__(self, designator = None, kind = None, partnumber = None, parametric = None, description = None, package = None, manufacturer = None, quantity = 0, note = None, flag = None):
             self.designator   = []
             self.kind         = []
-            self.value        = []
+            self.partnumber   = []
+            if parametric is None: self.parametric = False
+            else:                  self.parametric = parametric
             self.description  = []
             self.package      = []
             self.manufacturer = []
             if quantity is None: self.quantity = 0
             else:                self.quantity = int(quantity)
             self.note         = []
-            self.flag         = CL_typeDef.FlagType.NONE
+            self.flag         = ComponentList.FlagType.NONE
             if isinstance(designator, (list, tuple)): self.designator.extend(designator)
             else: self.designator.append(designator)
             if isinstance(kind, (list, tuple)): self.kind.extend(kind)
             else: self.kind.append(kind)
-            if isinstance(value, (list, tuple)): self.value.extend(value)
-            else: self.value.append(value)
+            if isinstance(partnumber, (list, tuple)): self.partnumber.extend(partnumber)
+            else: self.partnumber.append(partnumber)
             if isinstance(description, (list, tuple)): self.description.extend(description)
             else: self.description.append(description)
             if isinstance(package, (list, tuple)): self.package.extend(package)
@@ -49,72 +51,76 @@ class CL_typeDef():
             if flag is not None: self.flag = flag
 
         #добавляет компонент к текущей записи
-        def add(self, designator, kind, value, description, package, manufacturer, quantity = 1, note = '', flag = None):
-            if flag == None: flag = CL_typeDef.FlagType.NONE
+        def add(self, designator, kind, partnumber, parametric, description, package, manufacturer, quantity = 1, note = '', flag = None):
+            if flag == None: flag = ComponentList.FlagType.NONE
             if flag > self.flag: self.flag = flag
 
             if len(designator) > 0:
                 if designator in self.designator:
                     #если десигнатор не пустой и такой уже есть то что-то пошло не так
-                    if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
+                    if self.flag < ComponentList.FlagType.ERROR: self.flag = ComponentList.FlagType.ERROR
                 self.designator.append(designator)
 
             if kind not in self.kind:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING     #если поля не совпадают то это подозрительно
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING     #если поля не совпадают то это подозрительно
                 self.kind.append(kind)
 
-            if value not in self.value:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
-                self.value.append(value)
+            if partnumber not in self.partnumber:
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
+                self.partnumber.append(partnumber)
+
+            if parametric != self.parametric:
+                #если флаг явного артикула не совпадает с уже существующим то что-то пошло не так
+                if self.flag < ComponentList.FlagType.ERROR: self.flag = ComponentList.FlagType.ERROR
 
             if description not in self.description:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
                 self.description.append(description)
 
             if package not in self.package:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
                 self.package.append(package)
 
             if manufacturer not in self.manufacturer:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
                 self.manufacturer.append(manufacturer)
 
             self.quantity += quantity
 
             if note not in self.note:
-                #if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                #if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
                 self.note.append(note)
 
         #проверяет текущую запись на ошибки
         def check(self):
             #десигнатор
             if len(self.designator) != len(set(self.designator)):   #проверяем есть ли дубликаты
-                if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
+                if self.flag < ComponentList.FlagType.ERROR: self.flag = ComponentList.FlagType.ERROR
             #тип
             if len(self.kind) > 1:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
             #номинал
-            if len(self.value) > 1:
-                if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
+            if len(self.partnumber) > 1:
+                if self.flag < ComponentList.FlagType.ERROR: self.flag = ComponentList.FlagType.ERROR
             #описание
             if len(self.description) > 1:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
             #корпус
             if len(self.package) > 1:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
             #производитель
             if len(self.manufacturer) > 1:
-                if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
             #количество
             if self.quantity < 0:
-                if self.flag < CL_typeDef.FlagType.ERROR: self.flag = CL_typeDef.FlagType.ERROR
+                if self.flag < ComponentList.FlagType.ERROR: self.flag = ComponentList.FlagType.ERROR
             #примечание
             if len(self.note) > 1:
-                pass #if self.flag < CL_typeDef.FlagType.WARNING: self.flag = CL_typeDef.FlagType.WARNING
+                pass #if self.flag < ComponentList.FlagType.WARNING: self.flag = ComponentList.FlagType.WARNING
 
         #проверяет является ли запись пустой
         def isempty(self):
-            attributes = [self.designator, self.kind, self.value, self.description, self.package, self.manufacturer, self.note]
+            attributes = [self.designator, self.kind, self.partnumber, self.description, self.package, self.manufacturer, self.note]
             for attribute in attributes:
                 if attribute is not None and len(attribute) > 0:
                     for item in attribute:
@@ -125,12 +131,12 @@ class CL_typeDef():
             return True
 
     class SubstituteEntry():
-        def __init__(self, primary_value = None, primary_manufacturer = None, primary_quantity = 0, substitute_group = None, flag = None):
-            self.primary_value        = primary_value
+        def __init__(self, primary_partnumber = None, primary_manufacturer = None, primary_quantity = 0, substitute_group = None, flag = None):
+            self.primary_partnumber   = primary_partnumber
             self.primary_manufacturer = primary_manufacturer
             self.primary_quantity     = int(primary_quantity)
             self.substitute_group     = substitute_group
-            self.flag                 = CL_typeDef.FlagType.NONE
+            self.flag                 = ComponentList.FlagType.NONE
             if flag is not None: self.flag = flag
 
         class SubstituteGroup():
@@ -138,12 +144,12 @@ class CL_typeDef():
                 self.designator = designator
                 self.quantity   = int(quantity)
                 self.substitute = substitute
-                self.flag       = CL_typeDef.FlagType.NONE
+                self.flag       = ComponentList.FlagType.NONE
                 if flag is not None: self.flag = flag
 
             class Substitute():
-                def __init__(self, value = None, manufacturer = None, note = None):
-                    self.value        = value           #номинал
+                def __init__(self, partnumber = None, manufacturer = None, note = None):
+                    self.partnumber   = partnumber      #номинал
                     self.manufacturer = manufacturer    #производитель
                     self.note         = note            #примечание
-                    self.flag         = CL_typeDef.FlagType.NONE
+                    self.flag         = ComponentList.FlagType.NONE

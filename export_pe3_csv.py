@@ -2,7 +2,8 @@ import os
 import csv
 import copy
 
-from typedef_pe3 import PE3_typeDef                                 #класс перечня элементов
+import dict_locale as lcl
+from typedef_pe3 import PE3                                 #класс перечня элементов
 
 script_dirName  = os.path.dirname(__file__)                                                     #адрес папки со скриптом
 script_baseName = os.path.splitext(os.path.basename(__file__))[0]                               #базовое имя модуля
@@ -11,6 +12,9 @@ script_baseName = os.path.splitext(os.path.basename(__file__))[0]               
 def export(data, address, **kwargs):
     print('INFO >> pe3-csv exporting module running with parameters:')
     print(' ' * 12 + 'output: ' + os.path.basename(address)) #Windows CMD crashes here, wtf???
+
+    #locale
+    locale = kwargs.get('locale', lcl.Locale.RU)
 
     file_encoding = kwargs.get('encoding',  'cp1251')
     dialect       = kwargs.get('dialect', {})
@@ -59,13 +63,13 @@ def export(data, address, **kwargs):
     #экспортируем данные в CSV
     #--- список элементов
     with open(address, 'w', encoding = file_encoding, newline = '') as csvFile:
-        writer = csv.DictWriter(csvFile, fieldnames=['Поз. Обозначение', 'Наименование', 'Кол.', 'Примечание'], dialect=dialect_name)
+        writer = csv.DictWriter(csvFile, fieldnames=[locale.translate(lcl.export_pe3_csv.HEADER_DESIGNATOR), locale.translate(lcl.export_pe3_csv.HEADER_LABEL), locale.translate(lcl.export_pe3_csv.HEADER_QUANTITY), locale.translate(lcl.export_pe3_csv.HEADER_NOTE)], dialect=dialect_name)
         writer.writeheader()
         for row in pe3.rows:
-            writer.writerow({'Поз. Обозначение': row.designator,
-                             'Наименование'    : row.label,
-                             'Кол.'            : row.quantity,
-                             'Примечание'      : row.annotation})
+            writer.writerow({locale.translate(lcl.export_pe3_csv.HEADER_DESIGNATOR): row.designator,
+                             locale.translate(lcl.export_pe3_csv.HEADER_LABEL): row.label,
+                             locale.translate(lcl.export_pe3_csv.HEADER_QUANTITY): row.quantity,
+                             locale.translate(lcl.export_pe3_csv.HEADER_NOTE): row.annotation})
         csvFile.close()
 
-    print('INFO >> pe3-scv export completed.')   
+    print('INFO >> pe3-csv export completed.')   

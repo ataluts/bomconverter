@@ -12,8 +12,8 @@ from typedef_bom import BoM                                     #класс BoM
 import import_bom_csv                                           #импорт BoM из csv
 import export_bom_csv                                           #экспорт BoM в csv
 
-_module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 7, 3)
+_module_dirname = Path(__file__).parent                         #адрес папки со скриптом
+_module_date    = datetime.datetime(2025, 12, 9)
 _halt_on_exit   = True
 _debug          = False
 
@@ -98,7 +98,7 @@ class OutputID(Enum):
 #Сравнивает BoM, возвращает массив из 4 BoM
 def discriminate(reference, subject, **kwargs):
     #parameters
-    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+    locale = kwargs.get('locale', lcl.Locale.RU)
     comparison_fields_key = kwargs.get('comparison_fields_key', ['Designator'])
     comparison_fields_ignore = kwargs.get('comparison_fields_ignore', [])
     comparison_fields_ignore_unpaired = False
@@ -108,12 +108,12 @@ def discriminate(reference, subject, **kwargs):
 
     #задаём BoM
     bom_reference = copy.deepcopy(reference)                                                    #исходный BoM (в нём останется то что удалилось)
-    bom_reference.title = lcl.bomdiscriminator.XLSX_SHEET_TITLE_REMOVED.value[locale_index]
+    bom_reference.title = locale.translate(lcl.bomdiscriminator.XLSX_SHEET_TITLE_REMOVED)
     bom_subject = copy.deepcopy(subject)                                                        #сравниваемый BoM (в нём останется то что добавилось)
-    bom_subject.title = lcl.bomdiscriminator.XLSX_SHEET_TITLE_ADDED.value[locale_index]
-    bom_modified = BoM(lcl.bomdiscriminator.XLSX_SHEET_TITLE_MODIFIED.value[locale_index])      #BoM с изменениями (в нём появится то что изменилось)
+    bom_subject.title = locale.translate(lcl.bomdiscriminator.XLSX_SHEET_TITLE_ADDED)
+    bom_modified = BoM(locale.translate(lcl.bomdiscriminator.XLSX_SHEET_TITLE_MODIFIED))        #BoM с изменениями (в нём появится то что изменилось)
     bom_modified.fields = copy.deepcopy(bom_subject.fields)
-    bom_changes = BoM(lcl.bomdiscriminator.XLSX_SHEET_TITLE_CHANGES.value[locale_index])        #BoM с изменениями (что именно изменилось)
+    bom_changes = BoM(locale.translate(lcl.bomdiscriminator.XLSX_SHEET_TITLE_CHANGES))          #BoM с изменениями (что именно изменилось)
 
     #определяем поля
     fields_all = copy.deepcopy(bom_subject.fields)
@@ -218,7 +218,7 @@ def export_changes_xlsx(data, address, **kwargs):
     print(' ' * 12 + 'output: ' +  os.path.basename(address))
 
     #locale
-    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+    locale = kwargs.get('locale', lcl.Locale.RU)
 
     #параметры
     changes_mode = kwargs.get('changes_mode', XlsxChangesModeID.COMMENT.value)
@@ -441,7 +441,7 @@ def export_changes_xlsx(data, address, **kwargs):
                             if not field.key and not field.ignored and (field.state == DifferentialValue.State.MODIFIED or field.state == DifferentialValue.State.REMOVED):
                                 if changes_mode == XlsxChangesModeID.COMMENT:
                                     #оторбражаем как примечание к ячейке
-                                    comment = lcl.bomdiscriminator.XLSX_FIELD_MODIFIED_COMMENT_PREFIX.value[locale_index] + str(field.reference)
+                                    comment = locale.translate(lcl.bomdiscriminator.XLSX_FIELD_MODIFIED_COMMENT_PREFIX) + str(field.reference)
                                     worksheet.write_comment(row_index, col_index, comment, book_style.get('comment'))
                                 elif changes_mode == XlsxChangesModeID.DUPLEX:
                                     #оторбражаем как расщеплённую ячейку

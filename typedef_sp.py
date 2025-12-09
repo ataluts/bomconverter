@@ -1,5 +1,5 @@
 #Класс спецификации
-class SP_typeDef():
+class SP():
     def __init__(self):
         self.titleblock = None
         self.entries    = []

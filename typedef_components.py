@@ -1,807 +1,1075 @@
-from enum import Enum, IntEnum
-from copy import copy
+from dataclasses import dataclass, field
+from copy import deepcopy
+from enum import Enum, IntEnum, auto
+import dict_locale as lcl
+from typedef_designator import Designator
+
+#Физическая величина
+@dataclass
+class Quantity():
+    _magnitude  : list[float|int]                           #численное значение
+    unit        : lcl.Unit.Name                             #единица змерения
+    prefix      : lcl.Unit.Prefix   = lcl.Unit.Prefix.NONE  #приставка единицы измерения
+
+    def __post_init__(self):
+        self._shape_magnitude()
+
+    #числовое значение
+    @property
+    def magnitude(self) -> float|int|list[float|int]:
+        if self.ismulti():
+            return self._magnitude
+        else:
+            return self._magnitude[0]
+
+    @magnitude.setter
+    def magnitude(self, new:list[float|int]):
+        self._magnitude = new
+        self._shape_magnitude()
+
+    #нормализованное числовое значение
+    @property
+    def magnitude_norm(self):
+        mult = self.prefix.multiplier
+        if self.ismulti():
+            return [v * mult for v in self._magnitude] 
+        else:
+            return self._magnitude[0] * mult
+
+    def _shape_magnitude(self):
+        if isinstance(self._magnitude, (list, tuple)):
+            if all(isinstance(v, (int, float)) for v in self._magnitude):
+                if isinstance(self._magnitude, tuple):
+                    self._magnitude = list(self._magnitude)
+            else:
+                raise TypeError(f"magnitude have unsupported data type")
+        elif isinstance(self._magnitude, (float, int)):
+            self._magnitude = [self._magnitude]
+        else:
+            raise TypeError(f"magnitude have unsupported data type")
+
+    def __eq__(self, other):
+        return self.isequal(other, True)
+
+    #сравнение объектов:
+    #   strict=True  сравниваются значения атрибутов
+    #   strict=False сравниваются абсолютные значения
+    def isequal(self, other, strict:bool = False):
+        if other is None: return False
+        if not isinstance(other, type(self)): return NotImplemented
+        if self.unit != other.unit: return False
+        if len(self._magnitude) != len(other._magnitude): return False
+        if strict:
+            if self.prefix != other.prefix: return False
+            for s, o in zip(self._magnitude, other._magnitude):
+                if s != o: return False
+        else:
+            mult_s = self.prefix.multiplier
+            mult_o = other.prefix.multiplier
+            for s, o in zip(self._magnitude, other._magnitude):
+                if s * mult_s != o * mult_o: return False
+        return True
+    
+    #является ли значение множественным
+    def ismulti(self):
+        return len(self._magnitude) > 1
+
+    #меняет префикс с пересчётом числовых значений
+    def toprefix(self, prefix:lcl.Unit.Prefix, inplace:bool = False):
+        mult_old = self.prefix.multiplier
+        mult_new = prefix.multiplier
+        if inplace: obj = self
+        else:       obj = deepcopy(self)
+        obj.prefix = prefix
+        for i in range(len(obj._magnitude)):
+            obj._magnitude[i] = obj._magnitude[i] * mult_old / mult_new
+        return obj
+
+    #нормализует значения (убирает префикс)
+    def normilize(self, inplace:bool = False):
+        return self.toprefix(lcl.Unit.Prefix.NONE, inplace)
+
+#Диапазон значений величины
+@dataclass
+class QuantityRange(Quantity):
+    def __post_init__(self):
+        super().__post_init__()
+        if len(self._magnitude) != 2:
+            raise ValueError("Must contain exactly two magnitudes")
+
+    @property
+    def lower(self) -> float|int:
+        return self._magnitude[0]
+
+    @lower.setter
+    def lower(self, new:float|int):
+        self._magnitude[0] = new
+
+    @property
+    def lower_norm(self) -> float|int:
+        return self.magnitude_norm[0]
+
+    @property
+    def upper(self) -> float|int:
+        return self._magnitude[1]
+
+    @upper.setter
+    def upper(self, new:float|int):
+        self._magnitude[1] = new
+
+    @property
+    def upper_norm(self) -> float|int:
+        return self.magnitude_norm[1]
+
+#Допуск величины
+@dataclass
+class Tolerance(QuantityRange):
+    @property
+    def lower_norm(self) -> float|int:
+        mult = self.prefix.multiplier
+        if self.isrelative():
+            mult *= self.unit.multiplier
+        return self._magnitude[0] * mult
+
+    @property
+    def upper_norm(self) -> float|int:
+        mult = self.prefix.multiplier
+        if self.isrelative():
+            mult *= self.unit.multiplier
+        return self._magnitude[1] * mult
+
+    #допуск симметричный в обе стороны
+    def issymmetric(self):
+        return abs(self._magnitude[0]) == abs(self._magnitude[1])
+
+    #относительный
+    RELATIVE_UNITS = {lcl.Unit.Name.NONE, lcl.Unit.Name.PERCENT, lcl.Unit.Name.PERMILLE, lcl.Unit.Name.PPM, lcl.Unit.Name.PPB}
+    def isrelative(self):
+        return self.unit in Tolerance.RELATIVE_UNITS
+    
+    #абсолютный
+    def isabsolute(self):
+        return not self.isrelative()
+
+    #нормализует значения (убирает префикс и парциальные единицы измерения)
+    def normilize(self, inplace:bool = False):
+        if inplace: obj = self
+        else:       obj = deepcopy(self)
+        obj.lower = obj.lower_norm
+        obj.upper = obj.upper_norm
+        obj.prefix = lcl.Unit.Prefix.NONE
+        if self.isrelative():
+            obj.unit = lcl.Unit.Name.NONE
+        return obj
+
+#Параметр компонента
+@dataclass
+class ParameterSpec():
+    #типы условий
+    class ConditionType(IntEnum):
+        UNPARSED                    = -1
+        VOLTAGE                     = auto()
+        CURRENT                     = auto()
+        RESISTANCE                  = auto()
+        FREQUENCY                   = auto()
+        TEMPERATURE                 = auto()
+        TEMPERATURE_RISE            = auto()
+        SURGE_WAVEFORM              = auto()
+        SURGE_DURATION              = auto()
+        PRIMARY_VALUE_DEVIATION     = auto()
+
+    value       : Quantity                                      #номинальное значение
+    tolerance   : Tolerance     = None                          #допуск
+    conditions  : dict          = field(default_factory=dict)   #условия
+
+    #сравнение объектов:
+    #   strict=True  сравниваются значения атрибутов
+    #   strict=False сравниваются абсолютные значения
+    def isequal(self, other, strict:bool = False):
+        if other is None: return False
+        if not isinstance(other, type(self)): return NotImplemented
+        
+        if self.value is not None:
+            if not self.value.isequal(other.value, strict): return False
+        else:
+            if other.value is not None: return False
+        
+        if self.tolerance is not None:
+            if not self.tolerance.isequal(other.tolerance, strict): return False
+        else:
+            if other.tolerance is not None: return False
+
+        if self.conditions is not None:
+            if other.conditions is None: return False
+            if isinstance(self.conditions, dict) and isinstance(other.conditions, dict):
+                if len(self.conditions) != len(other.conditions): return False
+                for k, v in self.conditions.items():
+                    if k not in other.conditions: return False
+                    if isinstance(v, Quantity):
+                        if not v.isequal(other.conditions[k], strict): return False
+                    else:
+                        if v != other.conditions[k]: return False
+            else:
+                return self.conditions == other.conditions
+        else:
+            if other.conditions is not None: return False
+
+        return True
+
+    #нормализует значения (убирает префикс и парциальные единицы измерения)
+    def normilize(self, inplace:bool = False):
+        if inplace: obj = self
+        else:       obj = deepcopy(self)
+        obj.value.normilize(True)
+        obj.tolerance.normilize(True)
+        for v in self.conditions.values():
+            if isinstance(v, Quantity):
+                v.normilize(True)
+        return obj
+
+#Типы монтажа
+class MountType(IntEnum):
+    UNDEFINED    = -1       #не задан
+    UNKNOWN      = 0        #неизвестно
+    SURFACE      = auto()   #поверхностный
+    SEMI_SURFACE = auto()   #поверхностный, но с выводами для механики
+    THROUGHHOLE  = auto()   #выводной
+    EDGE         = auto()   #в край (торец) платы
+    CHASSIS      = auto()   #на корпус
+    HOLDER       = auto()   #в держатель
+
+#Варианты цвета
+class ColorType(IntEnum):
+    UNDEFINED   = -1        #не задан
+    UNKNOWN     = 0         #неизвестный
+    #длина волны применима
+    INFRARED    = auto()    #инфракрасный
+    ULTRAVIOLET = auto()    #ультрафиолетовый
+    RED         = auto()    #красный
+    ORANGE      = auto()    #оранжевый
+    AMBER       = auto()    #янтарный
+    YELLOW      = auto()    #жёлтый
+    LIME        = auto()    #салатовый
+    GREEN       = auto()    #зелёный
+    TURQUOISE   = auto()    #бирюзовый
+    CYAN        = auto()    #голубой
+    BLUE        = auto()    #синий
+    VIOLET      = auto()    #фиолетовый
+    #длина волны не применима
+    PURPLE      = auto()    #пурпурный
+    PINK        = auto()    #розовый
+    WHITE       = auto()    #белый
+    MULTI       = auto()    #многоцветный
+
+#Корпус
+@dataclass
+class Package():
+    class Type():
+        class Surface(IntEnum):         #тип корпуса поверхностного монтажа
+            UNDEFINED   = -1                #не задан
+            UNKNOWN     = 0                 #неизвестный
+            NONSTANDARD = auto()            #нестандартный (дроссели, ...)
+            CHIP        = auto()            #стандартный чип (0402, 0603, ...)
+            MOLDED      = auto()            #формованный чип (A, B, C, ... у танталовых конденсаторов, SMA, SMB, SMC корпуса диодов и т.п.)
+            VCHIP       = auto()            #цилиндрический чип (чип-электролитические конденсаторы)
+            IC_LEAD     = auto()            #микросхема с выводами
+            IC_NOLEAD   = auto()            #микросхема без выводов
+            IC_BGA      = auto()            #микросхема с массивом шаров
+            MODULE      = auto()            #модуль
+            def __eq__(self, other):
+                if type(self) is not type(other): return False
+                return IntEnum.__eq__(self, other)
+            __hash__ = IntEnum.__hash__   #restore hashing
+
+        class ThroughHole(IntEnum):     #тип выводного корпуса
+            UNDEFINED   = -1                #не задан
+            UNKNOWN     = 0                 #неизвестный
+            AXIAL       = auto()            #аксиальный (выводы по бокам)
+            RADIAL      = auto()            #радиальный (выводы с одной стороны)
+            IC          = auto()            #микросхема
+            def __eq__(self, other):
+                if type(self) is not type(other): return False
+                return IntEnum.__eq__(self, other)
+            __hash__ = IntEnum.__hash__   #restore hashing
+            
+        class Holder(IntEnum):          #тип корпуса в держатель
+            UNDEFINED   = -1                #не задан
+            UNKNOWN     = 0                 #неизвестный
+            CYLINDRICAL = auto()            #цилиндрический
+            BLADE       = auto()            #ножевой
+            def __eq__(self, other):
+                if type(self) is not type(other): return False
+                return IntEnum.__eq__(self, other)
+            __hash__ = IntEnum.__hash__   #restore hashing
+            
+    name:str = None
+    type:Type = None
+
+    def __str__(self):
+        return self.name or ''
+
+    def __eq__(self, other):
+        if not isinstance(other, type(self)): return NotImplemented
+        if self.name != other.name: return False
+        if type(self.type) is not type(other.type): return False
+        if self.type != other.type: return False
+        return True
+
+#Сборка
+@dataclass
+class Array():
+    class Type(IntEnum):
+        UNDEFINED       = -1        #не задан
+        UNKNOWN         = 0         #неизвестный
+        INDEPENDENT     = auto()    #независимо
+        COMMON_ANODE    = auto()    #общий анод
+        COMMON_CATHODE  = auto()    #общий катод
+        SERIES          = auto()    #последовательно
+        PARALLEL        = auto()    #параллельно
+        MATRIX          = auto()    #матрица
+
+    block_count         : int   = 0                 #количество блоков в сборке
+    elements_per_block  : int   = 0                 #количество элементов в блоке
+    type                : Type  = Type.UNDEFINED    #тип сборки
+
+#Замена номинала
+@dataclass
+class Substitute():
+    partnumber          : str   = None     #номинал
+    manufacturer        : str   = None     #производитель
+    note                : str   = None     #примечание
+
+#Уникальный идентификатор
+@dataclass
+class UID():
+    name:str = None
+    path:str = None
+
+
+class Component():
+    #Типы флага
+    class FlagType(IntEnum):
+        NONE    = 0     #не задан
+        OK      = 1     #всё в порядке
+        WARNING = 2     #предупреждение
+        ERROR   = 3     #ошибка
+
+    #Общий тип компонента (с базовыми полями для всех типов)
+    @dataclass
+    class Generic():
+        flag                    : "Component.FlagType"  = None                          #флаг (ошибки, предупреждения и т.п.)
+        GNRC_designator         : Designator            = None                          #десигнатор
+        GNRC_accessory_child    : list                  = None                          #ссылка/ссылки на дочерние компоненты (список)
+        GNRC_accessory_parent   : object                = None                          #ссылка на родительский компонент
+        GNRC_kind               : str                   = None                          #тип элемента
+        GNRC_partnumber         : str                   = None                          #артикул
+        GNRC_parametric         : bool                  = False                         #параметрически заданный компонент
+        GNRC_description        : str                   = None                          #описание
+        GNRC_manufacturer       : str                   = None                          #производитель
+        GNRC_quantity           : int                   = 0                             #количество
+        GNRC_fitted             : bool                  = True                          #установка в изделие
+        GNRC_package            : Package               = None                          #корпус
+        GNRC_mount              : MountType             = None                          #тип монтажа
+        GNRC_size               : str                   = None                          #типоразмер
+        GNRC_temperatureRange   : QuantityRange         = None                          #диапазон рабочих температур
+        GNRC_array              : Array                 = None                          #сборка
+        GNRC_substitute         : Substitute            = None                          #допустимые замены (список)
+        GNRC_note               : str                   = None                          #примечание
+        GNRC_uid                : UID                   = None                          #уникальный идентификатор
+        GNRC_misc               : list                  = field(default_factory=list)   #оставшиеся нераспознанные параметры
+
+        def __post_init__(self):
+            self.flag = Component.FlagType.NONE
+        
+        #копирует базовые атрибуты из одного подкласса в другой 
+        def _GNRC_copy(self, other):
+            if isinstance(other, Component.Generic):
+                for key, value in self.__dict__.items():
+                    if key.startswith("GNRC_"):
+                        setattr(other, key, value)
+            else:
+                raise ValueError("Invalid object class.")
+
+        #ключ сортировки по десигнатору
+        def _cmpkey_designator(self):
+            key_desPrefix = self.GNRC_designator.prefix if self.GNRC_designator is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
+            key_desIndex = int(self.GNRC_designator.index) if self.GNRC_designator is not None else 0
+            key_desChannel = str(self.GNRC_designator.channel).upper() if self.GNRC_designator is not None else  '' #'' или '\ufffd' для сортировки в начало/конец если не указан
+            return (key_desPrefix, key_desIndex, key_desChannel)
+
+        #ключ сортировки по номиналу
+        def _cmpkey_partnumber(self):
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return key_partnumber
+
+        #ключ сортировки по типу элемента (из парсера)
+        def _cmpkey_kind(self):
+            key_kind = str(self.GNRC_kind).upper() if self.GNRC_kind is not None else ''
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+        #ключ сортировки по параметрам (заглушка для базового класса)
+        def _cmpkey_params(self):
+            key_kind = str(self.GNRC_designator.prefix).upper() if self.GNRC_designator.prefix is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber) #потенциально опасно так как есть вероятность сравнения второго ключа с несовместимым типом (из-за определения первого ключа по desPrefix, а типа компонента в парсере по kind)
+
+    #Сборка (Устройство)
+    @dataclass
+    class Assembly(Generic):
+        def _cmpkey_params(self):
+            key_kind = 'A'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Фотоэлемент
+    @dataclass
+    class Photocell(Generic):
+        class Type(IntEnum):
+            UNDEFINED  = -1         #не задан
+            UNKNOWN    = 0          #неизвестный
+            DIODE      = auto()     #диод   
+            TRANSISTOR = auto()     #транзистор
+            RESISTOR   = auto()     #резистор
+
+        PHOTO_type  : Type  = None                    #тип
+
+        def _cmpkey_params(self):
+            key_kind = 'BL'
+            key_type = self.PHOTO_type.value if self.PHOTO_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Конденсатор
+    @dataclass
+    class Capacitor(Generic):
+        class Type(IntEnum):
+            UNDEFINED         = -1          #не задан
+            UNKNOWN           = 0           #неизвестный
+            CERAMIC           = auto()      #керамический
+            TANTALUM          = auto()      #танталовый
+            FILM              = auto()      #плёночный
+            ALUM_ELECTROLYTIC = auto()      #алюминиевый электролитический
+            ALUM_POLYMER      = auto()      #алюминиевый полимерный
+            ALUM_HYBRID       = auto()      #алюминиевый гибридный
+            SUPERCAPACITOR    = auto()      #ионистор
+            NIOBIUM           = auto()      #ниобиевый
+            MICA              = auto()      #слюдяной
+
+        CAP_type            : Type          = None              #тип
+        CAP_capacitance     : ParameterSpec = None              #ёмкость
+        CAP_voltage         : Quantity      = None              #максимальное напряжение
+        CAP_dielectric      : str           = None              #диэлектрик
+        CAP_lowESR          : bool          = False             #низкое эквивалентное сопротивление
+        CAP_safetyRating    : str           = None              #класс безопасности
+
+        def _cmpkey_params(self):
+            key_kind = 'C'
+            key_capacitance = 0
+            key_tolerance   = (0, 0)
+            if self.CAP_capacitance is not None:
+                if self.CAP_capacitance.value is not None:
+                    key_capacitance = self.CAP_capacitance.value.magnitude_norm
+                if self.CAP_capacitance.tolerance is not None:
+                    if self.CAP_capacitance.tolerance.isrelative(): key_tolerance_relative = 0
+                    else: key_tolerance_relative = 1
+                    key_tolerance = (key_tolerance_relative, self.CAP_capacitance.tolerance.upper_norm - self.CAP_capacitance.tolerance.lower_norm)
+            key_voltage = self.CAP_voltage.magnitude_norm if self.CAP_voltage is not None else 0
+            key_type = self.CAP_type.value if self.CAP_type is not None else 0
+            key_dielectric = self.CAP_dielectric if self.CAP_dielectric is not None else '\ufffd'                       #'' или '\ufffd' для сортировки в начало/конец если не указан
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_capacitance, key_voltage, key_tolerance, key_dielectric, key_partnumber)
+
+    #Микросхема
+    @dataclass
+    class IntegratedCircuit(Generic):
+        def _cmpkey_params(self):
+            key_kind = 'D'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Крепёж
+    @dataclass
+    class Fastener(Generic):
+        def _cmpkey_params(self):
+            key_kind = 'EF'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Радиатор
+    @dataclass
+    class Heatsink(Generic):
+        def _cmpkey_params(self):
+            key_kind = 'ER'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Автоматический выключатель (Предохранитель)
+    @dataclass
+    class CircuitBreaker(Generic):
+        class Type(IntEnum):
+            UNDEFINED           = -1        #не задан
+            UNKNOWN             = 0         #неизвестный
+            FUSE                = auto()    #плавкий
+            FUSE_PTC_RESETTABLE = auto()    #самовосстанавливающийся с положительным температурным коэффициентом
+            FUSE_THERMAL        = auto()    #термо
+            BREAKER             = auto()    #расцепитель (автоматический выключатель)
+            HOLDER              = auto()    #держатель
+
+        class SpeedGrade(IntEnum):
+            UNDEFINED           = -1        #не задан
+            UNKNOWN             = 0         #неизвестный
+            FAST                = auto()    #быстрый
+            MEDIUM              = auto()    #средний
+            SLOW                = auto()    #медленный
+
+        CBRK_type                  : Type           = None              #тип
+        CBRK_speed_grade           : SpeedGrade     = None              #классификация скорости срабатывания
+        CBRK_speed                 : Quantity       = None              #значение скорости срабатывания
+        CBRK_voltage               : Quantity       = None              #максимальное напряжение
+        CBRK_voltage_ac            : bool           = None              #флаг переменного напряжения
+        CBRK_current_rating        : Quantity       = None              #номинальный ток
+        CBRK_current_maximum       : Quantity       = None              #максимальный допустимый ток (для самовосстанавливающихся)
+        CBRK_current_interrupting  : Quantity       = None              #максимальный прерываемый ток
+        CBRK_resistance            : Quantity       = None              #сопротивление
+        CBRK_power                 : Quantity       = None              #максимальная мощность
+        CBRK_meltingPoint          : Quantity       = None              #точка плавления (для плавких)
+
+        def _cmpkey_params(self):
+            key_kind = 'FP'
+            key_type = self.CBRK_type.value if self.CBRK_type is not None else 0
+            key_currentRating = self.CBRK_current_rating.magnitude_norm if self.CBRK_current_rating is not None else 0
+            key_currentMaximum = self.CBRK_current_maximum.magnitude_norm if self.CBRK_current_maximum is not None else 0
+            key_currentInterrupting = self.CBRK_current_interrupting.magnitude_norm if self.CBRK_current_interrupting is not None else 0
+            key_voltage = self.CBRK_voltage.magnitude_norm if self.CBRK_voltage is not None else 0
+            key_power = self.CBRK_power.magnitude_norm if self.CBRK_power is not None else 0
+            key_meltingPoint = self.CBRK_meltingPoint.magnitude_norm if self.CBRK_meltingPoint is not None else 0
+            key_resistance = self.CBRK_resistance.magnitude_norm if self.CBRK_resistance is not None else 0
+            key_speedGrade = self.CBRK_speed_grade.value if self.CBRK_speed_grade is not None else 0
+            key_speed = self.CBRK_speed.magnitude_norm if self.CBRK_speed is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_currentRating, key_currentMaximum, key_currentInterrupting, key_voltage, key_power, key_meltingPoint, key_resistance, key_speedGrade, key_speed, key_partnumber)
+
+    #Ограничитель перенапряжения
+    @dataclass
+    class SurgeProtector(Generic):
+        class Type(IntEnum):
+            UNDEFINED           = -1        #не задан
+            UNKNOWN             = 0         #неизвестный
+            DIODE               = auto()    #диод
+            THYRISTOR           = auto()    #тиристор
+            VARISTOR            = auto()    #варистор
+            GAS_DISCHARGE_TUBE  = auto()    #газоразрядник
+            IC                  = auto()    #микросхема
+
+        SPD_type                    : Type              = None              #тип
+        SPD_voltage_standoff        : ParameterSpec     = None              #максимальное рабочее напряжение
+        SPD_voltage_breakdown       : ParameterSpec     = None              #напряжение пробоя
+        SPD_voltage_clamping        : ParameterSpec     = None              #напряжение гашения выброса
+        SPD_voltage_sparkover_dc    : ParameterSpec     = None              #напряжение образования искры (постоянное)
+        SPD_current_clamping        : ParameterSpec     = None              #ток гашения выброса
+        SPD_capacitance             : ParameterSpec     = None              #ёмкость
+        SPD_bidirectional           : bool              = None              #двунаправленный тип (для диодов)
+        SPD_energy                  : ParameterSpec     = None              #энергия
+        SPD_power                   : ParameterSpec     = None              #мощность
+
+        def _cmpkey_params(self):
+            key_kind = 'FV'
+            key_type = self.SPD_type.value if self.SPD_type is not None else 0
+            key_standoffVoltage = self.SPD_voltage_standoff.value.magnitude_norm if self.SPD_voltage_standoff is not None else 0
+            key_breakdownVoltage = self.SPD_voltage_breakdown.value.magnitude_norm if self.SPD_voltage_breakdown is not None else 0
+            key_sparkoverVoltageDC = self.SPD_voltage_sparkover_dc.value.magnitude_norm if self.SPD_voltage_sparkover_dc is not None else 0
+            key_power = self.SPD_power.value.magnitude_norm if self.SPD_power is not None else 0
+            key_energy = self.SPD_energy.value.magnitude_norm if self.SPD_energy is not None else 0
+            key_capacitance = self.SPD_capacitance.value.magnitude_norm if self.SPD_capacitance is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_standoffVoltage, key_breakdownVoltage, key_sparkoverVoltageDC, key_capacitance, key_power, key_energy, key_capacitance, key_partnumber)
+    
+    #Батарея
+    @dataclass
+    class Battery(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            CELL        = auto()    #ячейка (элемент гальванический)
+            BATTERY     = auto()    #батарея (несколько ячеек)
+            HOLDER      = auto()    #держатель
+
+        class Chemistry(Enum):
+            #Цинково-марганцевые (солевые/алкалиновые)
+            ZINC_MANGANESE_DIOXIDE = 'Zn-MnO2'          #обычные щелочные и солевые элементы
+            #Литиевые первичные
+            LITHIUM_MANGANESE_DIOXIDE = 'Li-MnO2'
+            LITHIUM_THIONYL_CHLORIDE = 'Li-SOCl2'
+            LITHIUM_IRON_DISULFIDE = 'Li-FeS2'          #распространённый для батарей AA/AAA
+            LITHIUM_CARBON_MONOFLOURIDE = 'Li-CFx'      #Li-CFx, редкая специализированная батарея
+            #Литиевые вторичные (аккумуляторы)
+            LITHIUM_ION = 'Li-ion'
+            LITHIUM_POLYMER = 'Li-Po'
+            LITHIUM_IRON_PHOSPHATE = 'LiFePO4'
+            #Никель-содержащие аккумуляторы
+            NICKEL_CADMIUM = 'Ni-Cd'
+            NICKEL_METAL_HYDRIDE = 'Ni-MH'
+            #Свинцово-кислотные
+            LEAD_ACID = 'Pb-acid'
+            GEL = 'Pb-acid (gel)'
+            AGM = 'Pb-acid (AGM)'
+            #Другие
+            ZINC_AIR = 'Zn-Air'
+            MERCURY = 'Hg'                              #устаревшие, редко используются
+            SILVER_OXIDE = 'Ag-O'                       #кнопочные элементы
+
+        BAT_type                        : Type          = None              #тип
+        BAT_capacity                    : ParameterSpec = None              #ёмкость
+        BAT_voltage                     : Quantity      = None              #номинальное напряжение
+        BAT_chemistry                   : Chemistry     = None              #химический тип
+        BAT_rechargable                 : bool          = None              #возможность заряда
+
+        def _cmpkey_params(self):
+            key_kind = 'GB'
+            key_type = self.BAT_type.value if self.BAT_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Дисплей
+    @dataclass
+    class Display(Generic):
+        class Type(IntEnum):
+            UNDEFINED           = -1        #не задан
+            UNKNOWN             = 0         #неизвестный
+            NUMERIC_7SEG        = auto()    #числовой 7-сегментный
+            ALPHANUMERIC_14SEG  = auto()    #буквенно-цифровой 14-сегментный
+            ALPHANUMERIC_16SEG  = auto()    #буквенно-цифровой 16-сегментный
+            BARGRAPH            = auto()    #шкальный
+            DOTMATRIX           = auto()    #точечная матрица
+            GRAPHIC             = auto()    #графический
+
+        class Structure(IntEnum):
+            UNKNOWN = 0         #неизвестный
+            LED     = auto()    #светодиодный
+            OLED    = auto()    #органически-светодиодный
+            LCD     = auto()    #жидкокристаллический
+            VFD     = auto()    #вакуумно-люминесцентный
+
+        DISP_type           : Type          = None              #тип
+        DISP_structure      : Structure     = None              #структура (конструктивные особенности)
+        DISP_color          : ColorType     = None              #цвет
+        DISP_viewingAngle   : Quantity      = None              #угол обзора, град.
+
+        def _cmpkey_params(self):
+            key_kind = 'HG'
+            key_type = self.DISP_type.value if self.DISP_type is not None else 0
+            key_structure = self.DISP_structure.value if self.DISP_structure is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_structure, key_partnumber)
+
+    #Светодиод
+    @dataclass
+    class LED(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            INDICATION  = auto()    #индикационный
+            LIGHTING    = auto()    #осветительный
+
+        LED_type                        : Type          = None          #тип
+        LED_color                       : ColorType     = None          #цвет
+        LED_color_temperature           : Quantity      = None          #цветовая температура
+        LED_color_renderingIndex        : Quantity      = None          #индекс цветопередачи
+        LED_wavelength                  : Quantity      = None          #длина волны [основная, пиковая]
+        LED_viewingAngle                : Quantity      = None          #угол обзора, град.
+        LED_current                     : Quantity      = None          #прямой ток [номинальный, максимальный]
+        LED_voltage_forward             : Quantity      = None          #прямое падение напряжения
+        LED_luminous_flux               : ParameterSpec = None          #световой поток
+        LED_luminous_intensity          : ParameterSpec = None          #сила света
+
+        def _cmpkey_params(self):
+            key_kind = 'HL'
+            key_type = self.LED_type.value if self.LED_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Перемычка
+    @dataclass
+    class Jumper(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            ELECTRICAL  = auto()    #электрический
+            THERMAL     = auto()    #термический
+
+        JMP_type                            : Type          = None              #тип
+        JMP_electrical_current              : Quantity      = None              #электрический ток [рабочий/максимальный]
+        JMP_electrical_capacitance          : Quantity      = None              #электрическая ёмкость
+        JMP_electrical_voltage_isolation    : Quantity      = None              #максимальное напряжение электрической изоляции
+        JMP_thermal_resistance              : Quantity      = None              #термическое сопротивление
+        JMP_thermal_conductance             : Quantity      = None              #термическая проводимость
+
+        def __init__(self, resistor:"Component.Resistor" = None):
+            super().__init__()
+            if resistor is not None:
+                resistor._GNRC_copy(self)
+                self.JMP_type = self.Type.ELECTRICAL
+
+        def _cmpkey_params(self):
+            key_kind = 'J'
+            key_type = self.JMP_type.value if self.JMP_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Реле
+    @dataclass
+    class Relay(Generic):
+        def _cmpkey_params(self):
+            key_kind = 'K'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Индуктивность
+    @dataclass
+    class Inductor(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            INDUCTOR    = auto()    #индуктивность
+            CHOKE       = auto()    #дроссель
+
+        IND_type                    : Type              = None              #тип
+        IND_inductance              : ParameterSpec     = None              #индуктивность
+        IND_current                 : ParameterSpec     = None              #максимальный ток [Irms, Isat]
+        IND_resistance              : Quantity          = None              #сопротивление (по постоянному току)
+        IND_qualityFactor           : ParameterSpec     = None              #добротность
+        IND_selfResonance_frequency : Quantity          = None              #частота собственного резонанса
+        IND_lowCap                  : bool              = False             #флаг низкой ёмкости
+
+        def _cmpkey_params(self):
+            key_kind = 'L'
+            key_inductance = 0
+            key_tolerance   = (0, 0)
+            if self.IND_inductance is not None:
+                if self.IND_inductance.value is not None:
+                    key_inductance = self.IND_inductance.value.magnitude_norm
+                if self.IND_inductance.tolerance is not None:
+                    if self.IND_inductance.tolerance.isrelative(): key_tolerance_relative = 0
+                    else: key_tolerance_relative = 1
+                    key_tolerance = (key_tolerance_relative, self.IND_inductance.tolerance.upper_norm - self.IND_inductance.tolerance.lower_norm)
+            key_type = self.IND_type.value if self.IND_type is not None else 0
+            key_current = self.IND_current if self.IND_current is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_inductance, key_current, key_tolerance, key_partnumber)
+
+    #Резистор
+    @dataclass
+    class Resistor(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            FIXED       = auto()    #постоянный
+            VARIABLE    = auto()    #переменный
+            THERMAL     = auto()    #термо
+
+        class Structure(IntEnum):
+            UNKNOWN     = 0         #неизвестный
+            THICK_FILM  = auto()    #толстоплёночный
+            THIN_FILM   = auto()    #тонкоплёночный
+            METAL_FILM  = auto()    #металлоплёночный
+            METAL_OXIDE = auto()    #металлооксидный
+            CARBON_FILM = auto()    #углеродоплёночный
+            WIREWOUND   = auto()    #проволочный
+            CERAMIC     = auto()    #керамический
+
+        RES_type            : Type          = None              #тип
+        RES_structure       : Structure     = None              #структура (конструктивные особенности)
+        RES_resistance      : ParameterSpec = None              #сопротивление
+        RES_power           : Quantity      = None              #максимальная мощность
+        RES_voltage         : Quantity      = None              #максимальное напряжение
+        RES_turns           : int           = None              #количество оборотов (для переменных)
+        RES_TCR             : Tolerance     = None              #температурный коэффициент сопротивления
+        RES_temp_charac     : list          = None              #температурная характеристика (для терморезисторов) [<t0, K>, <t1, K>, <B>] !!!TODO непонятно что с этим делать
+
+        def _cmpkey_params(self):
+            key_kind = 'R'
+            key_resistance = 0
+            key_tolerance  = (0, 0)
+            if self.RES_resistance is not None:
+                if self.RES_resistance.value is not None:
+                    key_resistance = self.RES_resistance.value.magnitude_norm
+                if self.RES_resistance.tolerance is not None:
+                    if self.RES_resistance.tolerance.isrelative(): key_tolerance_relative = 0
+                    else: key_tolerance_relative = 1
+                    key_tolerance = (key_tolerance_relative, self.RES_resistance.tolerance.upper_norm - self.RES_resistance.tolerance.lower_norm)
+            key_power = self.RES_power.magnitude_norm if self.RES_power is not None else 0
+            key_voltage = self.RES_voltage.magnitude_norm if self.RES_voltage is not None else 0
+            key_TCR = (0, 0)
+            if self.RES_TCR is not None:
+                if self.RES_TCR.isrelative(): key_TCR_relative = 0
+                else: key_TCR_relative = 1
+                key_tolerance = (key_TCR_relative, self.RES_TCR.upper_norm - self.RES_TCR.lower_norm)
+            key_type = self.RES_type.value if self.RES_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_resistance, key_power, key_voltage, key_tolerance, key_TCR, key_partnumber)
+
+    #Переключатель
+    @dataclass
+    class Switch(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестно
+            TOGGLE      = auto()    #тумблер
+            SLIDE       = auto()    #движковый
+            PUSHBUTTON  = auto()    #кнопочный
+            LIMIT       = auto()    #концевой ('микрик')
+            ROTARY      = auto()    #галетный
+            REED        = auto()    #геркон
+            ROCKER      = auto()    #клавишный
+            THUMBWHEEL  = auto()    #барабанный
+            JOYSTICK    = auto()    #джойстик
+            KEYLOCK     = auto()    #переключающийся ключом
+
+        SW_type : Type = None           #тип
+
+        def _cmpkey_params(self):
+            key_kind = 'S'
+            key_type = self.SW_type.value if self.SW_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Трансформатор
+    @dataclass
+    class Transformer(Generic):
+        def _cmpkey_params(self):
+            key_kind = 'T'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Диод
+    @dataclass
+    class Diode(Generic):
+        class Type(IntEnum):
+            UNDEFINED       = -1        #не задан
+            UNKNOWN         = 0         #неизвестный
+            GENERAL_PURPOSE = auto()    #общего применения
+            SCHOTTKY        = auto()    #Шоттки
+            ZENER           = auto()    #стабилитрон
+            TUNNEL          = auto()    #тунельный
+            VARICAP         = auto()    #варикап
+
+        DIODE_type                  : Type                      = None              #тип
+        DIODE_voltage_reverse       : ParameterSpec             = None              #обратное напряжение 
+        DIODE_current_reverse       : ParameterSpec             = None              #обратный ток
+        DIODE_current_forward       : ParameterSpec             = None              #прямой ток
+        DIODE_voltage_forward       : ParameterSpec             = None              #прямое напряжение 
+        DIODE_power                 : ParameterSpec             = None              #мощность
+        DIODE_capacitance           : ParameterSpec             = None              #ёмкость перехода
+        DIODE_recovery_time         : ParameterSpec             = None              #время восстановления
+
+        def _cmpkey_params(self):
+            key_kind = 'VD'
+            key_type = self.DIODE_type if self.DIODE_type is not None else 0
+            key_reverseVoltage = 0
+            key_reverseVoltageTolerance = (0, 0)
+            if self.DIODE_voltage_reverse is not None:
+                if self.DIODE_voltage_reverse.value is not None:
+                    key_reverseVoltage = self.DIODE_voltage_reverse.value.magnitude_norm
+                if self.DIODE_voltage_reverse.tolerance is not None:
+                    if self.DIODE_voltage_reverse.tolerance.isrelative(): key_reverseVoltageTolerance_relative = 0
+                    else: key_reverseVoltageTolerance_relative = 1
+                    key_reverseVoltageTolerance = (key_reverseVoltageTolerance_relative, self.DIODE_voltage_reverse.tolerance.upper_norm - self.DIODE_voltage_reverse.tolerance.lower_norm)
+            key_capacitance = 0
+            key_capacitanceTolerance = (0, 0)
+            if self.DIODE_capacitance is not None:
+                if self.DIODE_capacitance.value is not None:
+                    key_capacitance = self.DIODE_capacitance.value.magnitude_norm
+                if self.DIODE_capacitance.tolerance is not None:
+                    if self.DIODE_capacitance.tolerance.isrelative(): key_capacitanceTolerance_relative = 0
+                    else: key_capacitanceTolerance_relative = 1
+                    key_capacitanceTolerance = (key_capacitanceTolerance_relative, self.DIODE_capacitance.tolerance.upper_norm - self.DIODE_capacitance.tolerance.lower_norm)
+            key_forwardCurrent = self.DIODE_current_forward.value.magnitude_norm if self.DIODE_current_forward is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_forwardCurrent, key_reverseVoltage, key_reverseVoltageTolerance, key_capacitance, key_capacitanceTolerance, key_partnumber)
+
+    #Тиристор
+    @dataclass
+    class Thyristor(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            THYRISTOR   = auto()    #тиристор   
+            TRIAC       = auto()    #симистор
+            DYNISTOR    = auto()    #динистор
+
+        THYR_type   : Type  = None              #тип
+
+        def _cmpkey_params(self):
+            key_kind = 'VS'
+            key_type = self.THYR_type.value if self.THYR_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Транзистор
+    @dataclass
+    class Transistor(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            BJT         = auto()    #биполярный
+            JFET        = auto()    #полевой с p-n переходом
+            MOSFET      = auto()    #полевой транзистор с МОП-структурой
+            IGBT        = auto()    #биполярный транзистор с изолированным затвором
+
+        TRSTR_type          : Type      = None              #тип
+        TRSTR_CD_voltage    : Quantity  = None              #максимальное напряжение коллектор-эмиттер/сток-исток
+        TRSTR_CD_current    : Quantity  = None              #максимальный ток коллектора/стока
+        TRSTR_BG_voltage    : Quantity  = None              #максимальное напряжение база-эмиттер/затвор-исток
+
+        def _cmpkey_params(self):
+            key_kind = 'VT'
+            key_type = self.TRSTR_type.value if self.TRSTR_type is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_partnumber)
+
+    #Оптоизолятор
+    @dataclass
+    class Optoisolator(Generic):
+        class OutputType(IntEnum):
+            UNKNOWN     = 0         #неизвестный
+            TRANSISTOR  = auto()    #транзистор
+            DARLINGTON  = auto()    #составной транзистор
+            DIODE       = auto()    #диод
+            THYRISTOR   = auto()    #тиристор
+            TRIAC       = auto()    #симистор
+            LOGIC       = auto()    #логический
+            LINEAR      = auto()    #линейный
+
+        OPTOISO_outputType          : OutputType    = None   #тип выхода
+        OPTOISO_channels            : int           = None   #количество каналов
+        OPTOISO_isolation_voltage   : Quantity      = None   #напряжение изоляции
+        OPTOISO_acinput             : bool          = None   #двуполярный вход
+        OPTOISO_zeroCrossDetection  : bool          = None   #детектор перехода через ноль
+        OPTOISO_CTR                 : Quantity      = None   #коэффициент передачи по току
+
+        def _cmpkey_params(self):
+            key_kind = 'VU'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Соединитель
+    @dataclass
+    class Connector(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1    #не задан
+            UNKNOWN     = 0     #неизвестный
+
+        class Gender(IntEnum):
+            UNKNOWN    = 0          #неизвестный
+            PLUG       = auto()     #вилка
+            RECEPTACLE = auto()     #розетка
+
+        CON_type    : Type      = None              #тип
+        CON_gender  : Gender    = None              #пол
+
+        def _cmpkey_params(self):
+            key_kind = 'X'
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_partnumber)
+
+    #Фильтр ЭМП
+    @dataclass
+    class EMIFilter(Generic):
+        class Type(IntEnum):
+            UNDEFINED           = -1        #не задан
+            UNKNOWN             = 0         #неизвестный
+            FERRITE_BEAD        = auto()    #ферритовая бусина
+            COMMON_MODE_CHOKE   = auto()    #синфазная катушка индуктивности
+            ASSEMBLY            = auto()    #готовое устройство
+
+        EMIF_type               : Type              = None              #тип
+        EMIF_impedance          : ParameterSpec     = None              #импеданс
+        EMIF_inductance         : ParameterSpec     = None              #индуктивность
+        EMIF_capacitance        : ParameterSpec     = None              #ёмкость
+        EMIF_resistance         : ParameterSpec     = None              #активное сопротивление
+        EMIF_current            : Quantity          = None              #ток
+        EMIF_voltage            : Quantity          = None              #напряжение
+
+        def _cmpkey_params(self):
+            key_kind = 'ZF'
+            key_type = self.EMIF_type.value if self.EMIF_type is not None else 0
+            key_impedance = self.EMIF_impedance.value.magnitude_norm if self.EMIF_impedance is not None else 0
+            key_inductance = self.EMIF_inductance.value.magnitude_norm if self.EMIF_inductance is not None else 0
+            key_resistance = self.EMIF_resistance.value.magnitude_norm if self.EMIF_resistance is not None else 0
+            key_capacitance = self.EMIF_capacitance.value.magnitude_norm if self.EMIF_capacitance is not None else 0
+            key_current = self.EMIF_current.magnitude_norm if self.EMIF_current is not None else 0
+            key_voltage = self.EMIF_voltage.magnitude_norm if self.EMIF_voltage is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_impedance, key_inductance, key_resistance, key_capacitance, key_current, key_voltage, key_partnumber)
+
+    #Осциллятор (Резонатор)
+    @dataclass
+    class Oscillator(Generic):
+        class Type(IntEnum):
+            UNDEFINED   = -1        #не задан
+            UNKNOWN     = 0         #неизвестный
+            OSCILLATOR  = auto()    #осциллятор (тактовый сигнал на выходе)
+            RESONATOR   = auto()    #резонатор (фильтр частоты)
+        
+        class Structure(IntEnum):
+            UNKNOWN     = 0         #неизвестный
+            QUARTZ      = auto()    #кварцевый
+            CERAMIC     = auto()    #керамический
+
+        OSC_type            : Type              = None              #тип
+        OSC_structure       : Structure         = None              #структура (конструктивные особенности)
+        OSC_frequency       : ParameterSpec     = None              #частота
+        OSC_stability       : Tolerance         = None              #стабильность частоты
+        OSC_loadCapacitance : Quantity          = None              #ёмкость нагрузки
+        OSC_ESR             : Quantity          = None              #эквивалентное последовательное сопротивление
+        OSC_driveLevel      : Quantity          = None              #уровень возбуждения
+        OSC_overtone        : int               = None              #номер гармоники (фундаментальная = 1)
+
+        def _cmpkey_params(self):
+            key_kind = 'ZG'
+            key_type = self.OSC_type.value if self.OSC_type is not None else 0
+            key_structure = self.OSC_structure if self.OSC_structure is not None else 0
+            key_frequency = 0
+            key_tolerance  = (0, 0)
+            if self.OSC_frequency is not None:
+                if self.OSC_frequency.value is not None:
+                    key_frequency = self.OSC_frequency.value.magnitude_norm
+                if self.OSC_frequency.tolerance is not None:
+                    if self.OSC_frequency.tolerance.isrelative(): key_tolerance_relative = 0
+                    else: key_tolerance_relative = 1
+                    key_tolerance = (key_tolerance_relative, self.OSC_frequency.tolerance.upper_norm - self.OSC_frequency.tolerance.lower_norm)
+            key_stability = (0, 0)
+            if self.OSC_stability is not None:
+                if self.OSC_stability.isrelative(): key_stability_relative = 0
+                else: key_stability_relative = 1
+                key_stability = (key_stability_relative, self.OSC_stability.upper_norm - self.OSC_stability.lower_norm)
+            key_loadCapacitance = self.OSC_loadCapacitance.magnitude_norm if self.OSC_loadCapacitance is not None else 0
+            key_ESR = self.OSC_ESR.magnitude_norm if self.OSC_ESR is not None else 0
+            key_driveLevel = self.OSC_driveLevel.magnitude_norm if self.OSC_driveLevel is not None else 0
+            key_partnumber = str(self.GNRC_partnumber).upper() if self.GNRC_partnumber is not None else ''
+            return (key_kind, key_type, key_structure, key_frequency, key_tolerance, key_stability, key_loadCapacitance, key_ESR, key_driveLevel, key_partnumber)
 
 #База данных с компонентами
-class Components_typeDef():
-    class Designator():
-        def __init__(self, full = "", prefix = None, index = None, number = 0, channel = None):
-            self.full    = full     #полный
-            self.name    = ""       #базовый (префикс + индекс)
-            self.prefix  = prefix   #префикс
-            self.index   = index    #индекс (строковой)
-            self.number  = number   #номер (числовой)
-            self.channel = channel  #канал
-            if prefix is not None and index is not None:
-                self.name = str(prefix) + str(index)
-
-        class Channel():
-            def __init__(self, full = "", prefix = None, index = None, number = 0, enclosure = None):
-                self.full       = full      #полное название канала
-                self.name       = ""        #базовое название канала (префикс + индекс)
-                self.prefix     = prefix    #префикс
-                self.index      = index     #индекс (строковой)
-                self.number     = number    #номер (числовой)
-                self.enclosure  = ["", ""]  #обрамление канала
-                if enclosure is not None: self.enclosure = copy(enclosure)
-                if prefix is not None and index is not None: self.name = str(prefix) + str(index)
-
-            #проверяет канал на целостность
-            def check(self):
-                if self.full != str(self.enclosure[0]) + str(self.prefix) + str(self.index) + str(self.enclosure[1]) or \
-                    self.name != str(self.prefix) + str(self.index) or \
-                    self.number <= 0:
-                    return False
-                return True
-
-            #ключ сортировки
-            def _cmpkey(self):
-                return (self.prefix, self.number)
-
-        #проверяет десигнатор на целостность
-        def check(self):
-            if self.name != str(self.prefix) + str(self.index): return False
-            if self.index.isdigit():
-                if int(self.index) != self.number: return False
-            else:
-                return False
-            if self.channel is None:
-                if self.full != self.name: return False
-            else:
-                if not self.channel.check(): return False
-                if self.full != str(self.name) + str(self.channel.full): return False
-            return True
-
-        #ключ сортировки
-        def _cmpkey(self):
-            key = (self.prefix, self.number)
-            if self.channel is not None: key += self.channel._cmpkey()
-            return key
-
-    class ComponentTypes():
-        #Общий класс компонента (с базовыми полями для всех классов)
-        class Generic():
-            def __init__(self):
-                self.GENERIC_designator         = None          #десигнатор
-                self.GENERIC_accessory_child    = None          #ссылка/ссылки на дочерние компоненты (список)
-                self.GENERIC_accessory_parent   = None          #ссылка на родительский компонент
-                self.GENERIC_kind               = None          #тип элемента
-                self.GENERIC_value              = None          #номинал
-                self.GENERIC_description        = None          #описание
-                self.GENERIC_manufacturer       = None          #производитель
-                self.GENERIC_quantity           = 0             #количество
-                self.GENERIC_fitted             = True          #установка в изделие (да/нет)
-                self.GENERIC_package            = None          #корпус
-                self.GENERIC_explicit           = True          #явно заданный номинал (да/нет)
-                self.GENERIC_mount              = None          #тип монтажа
-                self.GENERIC_mount_th           = None          #тип монтажа в отверстия
-                self.GENERIC_mount_holder       = None          #тип монтажа в держатель
-                self.GENERIC_size               = None          #типоразмер
-                self.GENERIC_temperature_range  = None          #диапазон рабочих температур [<->, <+>], K
-                self.GENERIC_array              = None          #сборка [<кол-во_блоков>, <кол-во_элем_в_блоке>, <ArrayType>] (например [3, 2, SERIES] - 3 пары с последовательным включением)
-                self.GENERIC_substitute         = None          #допустимые замены (список)
-                self.GENERIC_misc               = []            #оставшиеся нераспознанные параметры
-                self.GENERIC_note               = None          #примечание
-                self.GENERIC_uid                = None          #уникальный идентификатор
-
-                self.flag = self.__class__.FlagType.NONE        #флаг (ошибки, предупреждения и т.п.)
-                self.types = Components_typeDef.ComponentTypes  #ссылка на класс с типами компонентов
-
-            class ArrayType(IntEnum):
-                UNKNOWN         = 0     #неизвестный
-                INDEPENDENT     = 1     #независимо
-                COMMON_ANODE    = 2     #общий анод
-                COMMON_CATHODE  = 3     #общий катод
-                SERIES          = 4     #последовательно
-                PARALLEL        = 5     #параллельно
-                MATRIX          = 6     #матрица
-
-            class FlagType(IntEnum):
-                NONE    = 0     #не задан
-                OK      = 1     #всё в порядке
-                WARNING = 2     #предупреждение
-                ERROR   = 3     #ошибка
-
-            class Mounting():
-                class Type(IntEnum):
-                    UNKNOWN     = 0     #неизвестно
-                    SURFACE     = 1     #поверхностный
-                    THROUGHHOLE = 2     #выводной
-                    CHASSIS     = 3     #на корпус
-                    HOLDER      = 4     #в держатель
-
-                class ThroughHole(IntEnum):
-                    UNKNOWN     = 0
-                    AXIAL       = 1
-                    RADIAL      = 2
-
-                class Holder(IntEnum):
-                    UNKNOWN     = 0
-                    CYLINDRICAL = 1
-                    BLADE       = 2
-
-
-            class Color(IntEnum):
-                UNKNOWN     = 0     #неизвестный
-                INFRARED    = 1     #инфракрасный
-                ULTRAVIOLET = 2     #ультрафиолетовый
-                RED         = 3     #красный
-                ORANGE      = 4     #оранжевый
-                AMBER       = 5     #янтарный
-                YELLOW      = 6     #жёлтый
-                LIME        = 7     #салатовый
-                GREEN       = 8     #зелёный
-                TURQUOISE   = 9     #бирюзовый
-                CYAN        = 10    #голубой
-                BLUE        = 11    #синий
-                VIOLET      = 12    #фиолетовый
-                PURPLE      = 13    #пурпурный
-                PINK        = 14    #розовый
-                WHITE       = 15    #белый
-                MULTI       = 16    #многоцветный
-
-            class Substitute():
-                def __init__(self, value = None, manufacturer = None, note = None):
-                    self.value        = value           #номинал
-                    self.manufacturer = manufacturer    #производитель
-                    self.note         = note            #примечание
-
-            class UID():
-                def __init__(self, name = None, path = None):
-                    self.name = name
-                    self.path = path
-
-            #ключ сортировки по десигнатору
-            def _cmpkey_designator(self):
-                key_desPrefix = self.GENERIC_designator.prefix if self.GENERIC_designator is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
-                key_desIndex = int(self.GENERIC_designator.index) if self.GENERIC_designator is not None else 0
-                key_desChannel = str(self.GENERIC_designator.channel).upper() if self.GENERIC_designator is not None else  '' #'' или '\ufffd' для сортировки в начало/конец если не указан
-                return (key_desPrefix, key_desIndex, key_desChannel)
-
-            #ключ сортировки по номиналу
-            def _cmpkey_value(self):
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return key_value
-
-            #ключ сортировки по типу элемента (из парсера)
-            def _cmpkey_kind(self):
-                key_kind = str(self.GENERIC_kind).upper() if self.GENERIC_kind is not None else ''
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-            #ключ сортировки по параметрам (заглушка для базового класса)
-            def _cmpkey_params(self):
-                key_kind = str(self.GENERIC_designator.prefix).upper() if self.GENERIC_designator.prefix is not None else '\ufffd' #'' или '\ufffd' для сортировки в начало/конец если не указан
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value) #потенциально опасно так как есть вероятность сравнения второго ключа с несовместимым типом (из-за определения первого ключа по desPrefix, а типа компонента в парсере по kind)
-
-        #Сборка (Устройство)
-        class Assembly(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-
-            def _cmpkey_params(self):
-                key_kind = 'A'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Фотоэлемент
-        class Photocell(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.PHOTO_type = None     #тип
-
-            class Type(IntEnum):
-                UNKNOWN    = 0   #неизвестный
-                DIODE      = 1   #диод   
-                TRANSISTOR = 2   #транзистор
-                RESISTOR   = 3   #резистор
-
-            def _cmpkey_params(self):
-                key_kind = 'BL'
-                key_type = self.PHOTO_type if self.PHOTO_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Конденсатор
-        class Capacitor(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.CAP_type         = None    #тип
-                self.CAP_capacitance  = None    #ёмкость, Ф
-                self.CAP_tolerance    = None    #допуск ёмкости [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.CAP_voltage      = None    #максимальное напряжение, В
-                self.CAP_dielectric   = None    #диэлектрик
-                self.CAP_lowImpedance = False   #низкий импеданс (да/нет)
-
-            class Type(IntEnum):
-                UNKNOWN           = 0   #неизвестный
-                CERAMIC           = 1   #керамический
-                TANTALUM          = 2   #танталовый
-                FILM              = 3   #плёночный
-                ALUM_ELECTROLYTIC = 4   #алюминиевый электролитический
-                ALUM_POLYMER      = 5   #алюминиевый полимерный
-                SUPERCAPACITOR    = 6   #ионистор
-
-            def _cmpkey_params(self):
-                key_kind = 'C'
-                key_capacitance = self.CAP_capacitance if self.CAP_capacitance is not None else 0
-                key_voltage = self.CAP_voltage if self.CAP_voltage is not None else 0
-                key_tolerance = (0, 0)
-                if self.CAP_tolerance is not None:
-                    if self.CAP_tolerance[2] is None: key_tolerance = (0, self.CAP_tolerance[1] - self.CAP_tolerance[0])    #в начале процентные
-                    else: key_tolerance = (1, self.CAP_tolerance[1] - self.CAP_tolerance[0])                                #в конце абсолютные
-                key_type = self.CAP_type if self.CAP_type is not None else 0
-                key_dielectric = self.CAP_dielectric if self.CAP_dielectric is not None else '\ufffd'                       #'' или '\ufffd' для сортировки в начало/конец если не указан
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_capacitance, key_voltage, key_tolerance, key_dielectric, key_value)
-
-        #Микросхема
-        class IntegratedCircuit(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-
-            def _cmpkey_params(self):
-                key_kind = 'D'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Крепёж
-        class Fastener(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-
-            def _cmpkey_params(self):
-                key_kind = 'EF'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Радиатор
-        class Heatsink(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-
-            def _cmpkey_params(self):
-                key_kind = 'ER'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Автоматический выключатель (Предохранитель)
-        class CircuitBreaker(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.CBRK_type                  = None   #тип
-                self.CBRK_speed_grade           = None   #классификация скорости срабатывания
-                self.CBRK_speed                 = None   #значение скорости срабатывания
-                self.CBRK_voltage               = None   #максимальное напряжение, В
-                self.CBRK_voltage_ac            = None   #флаг переменного напряжения (да/нет)
-                self.CBRK_current_rating        = None   #номинальный ток, А
-                self.CBRK_current_maximum       = None   #максимальный допустимый ток, А (для самовосстанавливающихся)
-                self.CBRK_current_interrupting  = None   #максимальный прерываемый ток, А
-                self.CBRK_resistance            = None   #сопротивление, Ом
-                self.CBRK_power                 = None   #максимальная мощность, Вт
-                self.CBRK_meltingPoint          = None   #точка плавления, А²с (для плавких)
-
-            class Type(IntEnum):
-                UNKNOWN             = 0     #неизвестный
-                FUSE                = 1     #плавкий
-                FUSE_PTC_RESETTABLE = 2     #самовосстанавливающийся с положительным температурным коэффициентом
-                FUSE_THERMAL        = 3     #термо
-                BREAKER             = 4     #расцепитель (автоматический выключатель)
-                HOLDER              = 5     #держатель
-
-            class SpeedGrade(IntEnum):
-                UNKNOWN         = 0     #неизвестный
-                FAST            = 1     #быстрый
-                MEDIUM          = 2     #средний
-                SLOW            = 3     #медленный
-
-            def _cmpkey_params(self):
-                key_kind = 'FP'
-                key_type = self.CBRK_type if self.CBRK_type is not None else 0
-                key_currentRating = self.CBRK_current_rating if self.CBRK_current_rating is not None else 0
-                key_currentMaximum = self.CBRK_current_maximum if self.CBRK_current_maximum is not None else 0
-                key_currentInterrupting = self.CBRK_current_interrupting if self.CBRK_current_interrupting is not None else 0
-                key_voltage = self.CBRK_voltage if self.CBRK_voltage is not None else 0
-                key_power = self.CBRK_power if self.CBRK_power is not None else 0
-                key_meltingPoint = self.CBRK_meltingPoint if self.CBRK_meltingPoint is not None else 0
-                key_resistance = self.CBRK_resistance if self.CBRK_resistance is not None else 0
-                key_speedGrade = self.CBRK_speed_grade if self.CBRK_speed_grade is not None else 0
-                key_speed = self.CBRK_speed if self.CBRK_speed is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_currentRating, key_currentMaximum, key_currentInterrupting, key_voltage, key_power, key_meltingPoint, key_resistance, key_speedGrade, key_speed, key_value)
-  
-        #Ограничитель перенапряжения
-        class SurgeProtector(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.SPD_type                        = None   #тип
-                self.SPD_standoff_voltage            = None   #максимальное рабочее напряжение, В
-                self.SPD_breakdown_voltage           = None   #напряжение пробоя, В
-                self.SPD_clamping_voltage            = None   #напряжение гашения выброса, В
-                self.SPD_clamping_current            = None   #ток гашения выброса, А
-                self.SPD_sparkover_voltage_dc        = None   #напряжение образования искры (постоянное), В
-                self.SPD_sparkover_voltage_tolerance = None   #допуск напряжения образования искры [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.SPD_capacitance                 = None   #ёмкость, Ф
-                self.SPD_bidirectional               = None   #двунаправленный тип (да/нет) - для диодов
-                self.SPD_energy                      = None   #энергия, Дж
-                self.SPD_power                       = None   #мощность, Вт
-                self.SPD_testPulse                   = None   #тип тестового импульса
-
-            class Type(IntEnum):
-                UNKNOWN             = 0     #неизвестный
-                DIODE               = 1     #диод
-                THYRISTOR           = 2     #тиристор
-                VARISTOR            = 3     #варистор
-                GAS_DISCHARGE_TUBE  = 4     #газоразрядник
-                IC                  = 5     #микросхема
-
-            class TestPulse(IntEnum):
-                UNKNOWN    = 0     #неизвестный
-                US_8_20    = 1     #8/20мкс
-                US_10_1000 = 2     #10/1000мкс
-
-            def _cmpkey_params(self):
-                key_kind = 'FV'
-                key_type = self.SPD_type if self.SPD_type is not None else 0
-                key_standoffVoltage = self.SPD_standoff_voltage if self.SPD_standoff_voltage is not None else 0
-                key_breakdownVoltage = self.SPD_breakdown_voltage if self.SPD_breakdown_voltage is not None else 0
-                key_sparkoverVoltageDC = self.SPD_sparkover_voltage_dc if self.SPD_sparkover_voltage_dc is not None else 0
-                key_power = self.SPD_power if self.SPD_power is not None else 0
-                key_energy = self.SPD_energy if self.SPD_energy is not None else 0
-                key_capacitance = self.SPD_capacitance if self.SPD_capacitance is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_standoffVoltage, key_breakdownVoltage, key_sparkoverVoltageDC, key_capacitance, key_power, key_energy, key_capacitance, key_value)
-         
-        #Батарея
-        class Battery(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.BAT_type                       = None   #тип
-                self.BAT_rechargable                = None   #возможность заряда <True/False>
-                self.BAT_capacity                   = None   #ёмкость, Ач
-                self.BAT_capacity_load_current      = None   #ток нагрузки при измерении ёмкости, А
-                self.BAT_capacity_load_resistance   = None   #сопротивление нагрузки при измерении ёмкости, Ом
-                self.BAT_capacity_voltage           = None   #напряжение отсечки при измерении ёмкости, В
-                self.BAT_capacity_temperature       = None   #температура при измерении ёмкости, К
-                self.BAT_voltage_rated              = None   #номинальное напряжение, В
-                self.BAT_chemistry                  = None   #химический тип
-
-            class Type(IntEnum):
-                UNKNOWN = 0     #неизвестный
-                CELL    = 1     #ячейка (элемент гальванический)
-                BATTERY = 2     #батарея (несколько ячеек)
-                HOLDER  = 5     #держатель
-
-            class Chemistry(Enum): #надо дополнять
-                ZINC_MANGANESE_DIOXIDE = 'Zn-MnO2'
-                LITHIUM_MANGANESE_DIOXIDE = 'Li-MnO2'
-                LITHIUM_THIONYL_CHLORIDE = 'Li-SOCl2'
-                NICKEL_CADMIUM = 'Ni-Cd'
-                NICKEL_METAL_HYDRIDE = 'Ni-MH'
-
-            def _cmpkey_params(self):
-                key_kind = 'GB'
-                key_type = self.BAT_type if self.BAT_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Дисплей
-        class Display(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.DISP_type                      = None    #тип
-                self.DISP_structure                 = None    #структура (конструктивные особенности)
-                self.DISP_color                     = None    #цвет
-                self.DISP_viewingAngle              = None    #угол обзора, град.
-
-            class Type(IntEnum):
-                UNKNOWN             = 0     #неизвестный
-                NUMERIC_7SEG        = 1     #числовой 7-сегментный
-                ALPHANUMERIC_14SEG  = 2     #буквенно-цифровой 14-сегментный
-                ALPHANUMERIC_16SEG  = 3     #буквенно-цифровой 16-сегментный
-                BARGRAPH            = 4     #шкальный
-                DOTMATRIX           = 5     #точечная матрица
-                GRAPHIC             = 6     #графический
-
-            class Structure(IntEnum):
-                UNKNOWN = 0   #неизвестный
-                LED     = 1   #светодиодный
-                OLED    = 2   #органически-светодиодный
-                LCD     = 3   #жидкокристаллический
-                VFD     = 4   #вакуумно-люминесцентный
-
-            def _cmpkey_params(self):
-                key_kind = 'HG'
-                key_type = self.DISP_type if self.DISP_type is not None else 0
-                key_structure = self.DISP_structure if self.DISP_structure is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_structure, key_value)
-
-        #Светодиод
-        class LED(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.LED_type                       = None    #тип
-                self.LED_color                      = None    #цвет
-                self.LED_color_temperature          = None    #цветовая температура, К
-                self.LED_color_renderingIndex       = None    #индекс цветопередачи
-                self.LED_wavelength_peak            = None    #пиковая длина волны, м
-                self.LED_wavelength_dominant        = None    #основная длина волны, м
-                self.LED_viewingAngle               = None    #угол обзора, град.
-                self.LED_current_nominal            = None    #номинальный прямой ток, А
-                self.LED_current_maximum            = None    #максимальный прямой ток, А
-                self.LED_voltage_forward            = None    #прямое падение напряжения, В
-                self.LED_luminous_flux              = None    #световой поток, лм
-                self.LED_luminous_flux_current      = None    #ток измерения световго потока, А
-                self.LED_luminous_intensity         = None    #сила света, кд
-                self.LED_luminous_intensity_current = None    #ток измерения силы света, А
-
-            class Type(IntEnum):
-                UNKNOWN     = 0     #неизвестный
-                INDICATION  = 1     #индикационный
-                LIGHTING    = 2     #осветительный
- 
-            def _cmpkey_params(self):
-                key_kind = 'HL'
-                key_type = self.LED_type if self.LED_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Перемычка
-        class Jumper(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.JMP_type = None   #тип
-
-            class Type(IntEnum):
-                UNKNOWN    = 0     #неизвестный
-                ELECTRICAL = 1     #электрический
-                THERMAL    = 2     #термический
-
-            def _cmpkey_params(self):
-                key_kind = 'J'
-                key_type = self.JMP_type if self.JMP_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Реле
-        class Relay(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-
-            def _cmpkey_params(self):
-                key_kind = 'K'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Индуктивность
-        class Inductor(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.IND_type        = None     #тип
-                self.IND_inductance  = None     #индуктивность, Гн
-                self.IND_tolerance   = None     #допуск индуктивности [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.IND_current     = None     #максимальный ток, А
-                self.IND_lowCapacitance = False #низкая ёмкость (да/нет)
-
-            class Type(IntEnum):
-                UNKNOWN           = 0   #неизвестный
-                INDUCTOR          = 1   #индуктивность
-                CHOKE             = 2   #дроссель
-
-            def _cmpkey_params(self):
-                key_kind = 'L'
-                key_type = self.IND_type if self.IND_type is not None else 0
-                key_inductance = self.IND_inductance if self.IND_inductance is not None else 0
-                key_current = self.IND_current if self.IND_current is not None else 0
-                key_tolerance = (0, 0)
-                if self.IND_tolerance is not None:
-                    if self.IND_tolerance[2] is None: key_tolerance = (0, self.IND_tolerance[1] - self.IND_tolerance[0])    #в начале процентные
-                    else: key_tolerance = (1, self.IND_tolerance[1] - self.IND_tolerance[0])                                #в конце абсолютные
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_inductance, key_current, key_tolerance, key_value)
-
-        #Резистор
-        class Resistor(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.RES_type        = None     #тип
-                self.RES_structure   = None     #структура (конструктивные особенности)
-                self.RES_resistance  = None     #сопротивление, Ом
-                self.RES_tolerance   = None     #допуск сопротивления [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.RES_power       = None     #максимальная мощность, Вт
-                self.RES_voltage     = None     #максимальное напряжение, В
-                self.RES_turns       = None     #количество оборотов (для переменных)
-                self.RES_temperature_coefficient    = None #ТКС [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.RES_temperature_characteristic = None #температурная характеристика (для терморезисторов) [<t0, K>, <t1, K>, <B>]
-
-            class Type(IntEnum):
-                UNKNOWN       = 0   #неизвестный
-                FIXED         = 1   #постоянный
-                VARIABLE      = 2   #переменный
-                THERMAL       = 3   #термо
-
-            class Structure(IntEnum):
-                UNKNOWN       = 0   #неизвестный
-                THIN_FILM     = 1   #тонкоплёночный
-                THICK_FILM    = 2   #толстоплёночный
-                METAL_FILM    = 3   #металлоплёночный
-                CARBON_FILM   = 4   #углеродоплёночный
-                WIREWOUND     = 5   #проволочный
-                CERAMIC       = 6   #керамический
-
-            def _cmpkey_params(self):
-                key_kind = 'R'
-                key_resistance = self.RES_resistance if self.RES_resistance is not None else 0
-                key_power = self.RES_power if self.RES_power is not None else 0
-                key_voltage = self.RES_voltage if self.RES_voltage is not None else 0
-                key_tolerance = (0, 0)
-                if self.RES_tolerance is not None:
-                    if self.RES_tolerance[2] is None: key_tolerance = (0, self.RES_tolerance[1] - self.RES_tolerance[0])    #в начале процентные
-                    else: key_tolerance = (1, self.RES_tolerance[1] - self.RES_tolerance[0])                                #в конце абсолютные
-                key_temperatureCoefficient = (0, 0)
-                if self.RES_temperature_coefficient is not None:
-                    if self.RES_temperature_coefficient[2] is None: key_temperatureCoefficient = (0, self.RES_temperature_coefficient[1] - self.RES_temperature_coefficient[0])  #в начале процентные
-                    else: key_temperatureCoefficient = (1, self.RES_temperature_coefficient[1] - self.RES_temperature_coefficient[0])                                            #в конце абсолютные
-                key_type = self.RES_type if self.RES_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_resistance, key_power, key_voltage, key_tolerance, key_temperatureCoefficient, key_value)
-
-        #Переключатель
-        class Switch(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.SW_type = None   #тип
-
-            class Type(IntEnum):
-                UNKNOWN     = 0     #неизвестно
-                TOGGLE      = 1     #тумблер
-                SLIDE       = 2     #движковый
-                PUSHBUTTON  = 3     #кнопочный
-                LIMIT       = 4     #концевой ('микрик')
-                ROTARY      = 5     #галетный
-                REED        = 6     #геркон
-                ROCKER      = 7     #клавишный
-                THUMBWHEEL  = 8     #барабанный
-                JOYSTICK    = 9     #джойстик
-                KEYLOCK     = 10    #переключающийся ключом
-
-            def _cmpkey_params(self):
-                key_kind = 'S'
-                key_type = self.SW_type if self.SW_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Трансформатор
-        class Transformer(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-
-            def _cmpkey_params(self):
-                key_kind = 'T'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Диод
-        class Diode(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.DIODE_type                      = None   #тип
-                self.DIODE_reverseVoltage            = None   #максимальное обратное напряжение, В
-                self.DIODE_reverseVoltage_tolerance  = None   #допуск обратного напряжения [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.DIODE_forwardCurrent            = None   #максимальный прямой ток, А
-                self.DIODE_power                     = None   #максимальная мощность, Вт
-                self.DIODE_capacitance               = None   #ёмкость перехода, Ф
-                self.DIODE_capacitance_tolerance     = None   #допуск ёмкости перехода [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.DIODE_capacitance_voltage       = None   #напряжение измерения ёмкости перехода, В
-                self.DIODE_capacitance_frequency     = None   #частота измерения ёмкости перехода, В
-
-            class Type(IntEnum):
-                UNKNOWN         = 0     #неизвестный
-                GENERAL_PURPOSE = 1     #общего применения
-                SCHOTTKY        = 2     #Шоттки
-                ZENER           = 3     #стабилитрон
-                TUNNEL          = 4     #тунельный
-                VARICAP         = 5     #варикап
-
-            def _cmpkey_params(self):
-                key_kind = 'VD'
-                key_type = self.DIODE_type if self.DIODE_type is not None else 0
-                key_forwardCurrent = self.DIODE_forwardCurrent if self.DIODE_forwardCurrent is not None else 0
-                key_reverseVoltage = self.DIODE_reverseVoltage if self.DIODE_reverseVoltage is not None else 0
-                key_reverseVoltageTolerance = (0, 0)
-                if self.DIODE_reverseVoltage_tolerance is not None:
-                    if self.DIODE_reverseVoltage_tolerance[2] is None: key_reverseVoltageTolerance = (0, self.DIODE_reverseVoltage_tolerance[1] - self.DIODE_reverseVoltage_tolerance[0])   #в начале процентные
-                    else: key_reverseVoltageTolerance = (1, self.DIODE_reverseVoltage_tolerance[1] - self.DIODE_reverseVoltage_tolerance[0])                                                #в конце абсолютные
-                key_capacitance = self.DIODE_capacitance if self.DIODE_capacitance is not None else 0
-                key_capacitanceTolerance = (0, 0)
-                if self.DIODE_capacitance_tolerance is not None:
-                    if self.DIODE_capacitance_tolerance[2] is None: key_capacitanceTolerance = (0, self.DIODE_capacitance_tolerance[1] - self.DIODE_capacitance_tolerance[0])   #в начале процентные
-                    else: key_capacitanceTolerance = (1, self.DIODE_capacitance_tolerance[1] - self.DIODE_capacitance_tolerance[0])                                             #в конце абсолютные
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_forwardCurrent, key_reverseVoltage, key_reverseVoltageTolerance, key_capacitance, key_capacitanceTolerance, key_value)
-
-        #Тиристор
-        class Thyristor(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.THYR_type = None   #тип
-
-            class Type(IntEnum):
-                UNKNOWN   = 0   #неизвестный
-                THYRISTOR = 1   #тиристор   
-                TRIAC     = 2   #симистор
-                DYNISTOR  = 3   #динистор
-
-            def _cmpkey_params(self):
-                key_kind = 'VS'
-                key_type = self.THYR_type if self.THYR_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Транзистор
-        class Transistor(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.TRSTR_type         = None   #тип
-                self.TRSTR_CD_voltage   = None   #максимальное напряжение коллектор-эмиттер/сток-исток, В
-                self.TRSTR_CD_current   = None   #максимальный ток коллектора/стока, А
-                self.TRSTR_BG_voltage   = None   #максимальное напряжение база-эмиттер/затвор-исток, В
-
-            class Type(IntEnum):
-                UNKNOWN = 0     #неизвестный
-                BJT     = 1     #биполярный
-                JFET    = 2     #полевой с p-n переходом
-                MOSFET  = 3     #полевой транзистор с МОП-структурой
-                IGBT    = 4     #биполярный транзистор с изолированным затвором
-
-            def _cmpkey_params(self):
-                key_kind = 'VT'
-                key_type = self.TRSTR_type if self.TRSTR_type is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_value)
-
-        #Оптоизолятор
-        class Optoisolator(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.OPTOISO_outputType             = None   #тип выхода
-                self.OPTOISO_channels               = None   #количество каналов
-                self.OPTOISO_isolation_voltage      = None   #напряжение изоляции
-                self.OPTOISO_acinput                = None   #двуполярный вход <True/False>
-                self.OPTOISO_zeroCrossDetection     = None   #детектор перехода через ноль <True/False>
-                self.OPTOISO_CTR                    = None   #коэффициент передачи по току [<min>, <max>, <typ>]
-
-            class OutputType(IntEnum):
-                UNKNOWN    = 0     #неизвестный
-                TRANSISTOR = 1     #транзистор
-                DARLINGTON = 2     #составной транзистор
-                DIODE      = 3     #диод
-                THYRISTOR  = 4     #тиристор
-                TRIAC      = 5     #симистор
-                LOGIC      = 6     #логический
-                LINEAR     = 7     #линейный
-
-            def _cmpkey_params(self):
-                key_kind = 'VU'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Соединитель
-        class Connector(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.CON_type   = None    #тип
-                self.CON_gender = None    #пол (папа/мама)
-
-            class Type(IntEnum):
-                UNKNOWN     = 0     #неизвестный
-
-            class Gender(IntEnum):
-                UNKNOWN    = 0     #неизвестный
-                PLUG       = 1     #вилка
-                RECEPTACLE = 2     #розетка
-
-            def _cmpkey_params(self):
-                key_kind = 'X'
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_value)
-
-        #Фильтр ЭМП
-        class EMIFilter(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.EMIF_type                  = None    #тип
-                self.EMIF_impedance             = None    #импеданс, Ом
-                self.EMIF_impedance_tolerance   = None    #допуск импеданса [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.EMIF_impedance_frequency   = None    #частота измерения значения импеданса, Гц
-                self.EMIF_inductance            = None    #индуктивность, Ом
-                self.EMIF_inductance_tolerance  = None    #допуск индуктивности [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.EMIF_capacitance           = None    #ёмкость, Ф
-                self.EMIF_capacitance_tolerance = None    #допуск ёмкости [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.EMIF_resistance            = None    #активное сопротивление, Ом
-                self.EMIF_resistance_tolerance  = None    #допуск активного сопротивления [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.EMIF_current               = None    #максимальный ток, А
-                self.EMIF_voltage               = None    #максимальное напряжение, В
-
-            class Type(IntEnum):
-                UNKNOWN             = 0     #неизвестный
-                FERRITE_BEAD        = 1     #ферритовая бусина
-                COMMON_MODE_CHOKE   = 2     #синфазная катушка индуктивности
-                ASSEMBLY            = 3     #готовое устройство
-
-            def _cmpkey_params(self):
-                key_kind = 'ZF'
-                key_type = self.EMIF_type if self.EMIF_type is not None else 0
-                key_impedance = self.EMIF_impedance if self.EMIF_impedance is not None else 0
-                key_inductance = self.EMIF_inductance if self.EMIF_inductance is not None else 0
-                key_resistance = self.EMIF_resistance if self.EMIF_resistance is not None else 0
-                key_capacitance = self.EMIF_capacitance if self.EMIF_capacitance is not None else 0
-                key_current = self.EMIF_current if self.EMIF_current is not None else 0
-                key_voltage = self.EMIF_voltage if self.EMIF_voltage is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_impedance, key_inductance, key_resistance, key_capacitance, key_current, key_voltage, key_value)
-
-        #Осциллятор (Резонатор)
-        class Oscillator(Generic):
-            def __init__(self):
-                self.__class__.__base__.__init__(self)
-                self.OSC_type               = None    #тип
-                self.OSC_structure          = None    #структура (конструктивные особенности)
-                self.OSC_frequency          = None    #частота, Гц
-                self.OSC_tolerance          = None    #допуск частоты [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.OSC_stability          = None    #стабильность частоты [<->, <+>, <unit>] (если unit==None то доли от значения)
-                self.OSC_loadCapacitance    = None    #ёмкость нагрузки, Ф
-                self.OSC_ESR                = None    #эквивалентное последовательное сопротивление, Ом
-                self.OSC_driveLevel         = None    #уровень возбуждения, Вт
-                self.OSC_overtone           = None    #гармоника (=1 если фундаментальная)
-
-            class Type(IntEnum):
-                UNKNOWN    = 0     #неизвестный
-                OSCILLATOR = 1     #осциллятор (тактовый сигнал на выходе)
-                RESONATOR  = 2     #резонатор (фильтр частоты)
-            
-            class Structure(IntEnum):
-                UNKNOWN  = 0     #неизвестный
-                QUARTZ   = 1     #кварцевый
-                CERAMIC  = 2     #керамический
-
-            def _cmpkey_params(self):
-                key_kind = 'ZG'
-                key_type = self.OSC_type if self.OSC_type is not None else 0
-                key_structure = self.OSC_structure if self.OSC_structure is not None else 0
-                key_frequency = self.OSC_frequency if self.OSC_frequency is not None else 0
-                key_tolerance = (0, 0)
-                if self.OSC_tolerance is not None:
-                    if self.OSC_tolerance[2] is None: key_tolerance = (0, self.OSC_tolerance[1] - self.OSC_tolerance[0])    #в начале процентные
-                    else: key_tolerance = (1, self.OSC_tolerance[1] - self.OSC_tolerance[0])                                #в конце абсолютные
-                key_stability = (0, 0)
-                if self.OSC_stability is not None:
-                    if self.OSC_stability[2] is None: key_stability = (0, self.OSC_stability[1] - self.OSC_stability[0])    #в начале процентные
-                    else: key_stability = (1, self.OSC_stability[1] - self.OSC_stability[0])                                #в конце абсолютные
-                key_loadCapacitance = self.OSC_loadCapacitance if self.OSC_loadCapacitance is not None else 0
-                key_ESR = self.OSC_ESR if self.OSC_ESR is not None else 0
-                key_driveLevel = self.OSC_driveLevel if self.OSC_driveLevel is not None else 0
-                key_value = str(self.GENERIC_value).upper() if self.GENERIC_value is not None else ''
-                return (key_kind, key_type, key_structure, key_frequency, key_tolerance, key_stability, key_loadCapacitance, key_ESR, key_driveLevel, key_value)
-
+@dataclass
+class Database():
     #нарекания (в результате проверки)
+    @dataclass
     class Complaints():
-        def __init__(self, critical = 0, error = 0, warning = 0):
-            self.critical = critical
-            self.error    = error
-            self.warning  = warning
+        warning     : int   = 0
+        error       : int   = 0
+        critical    : int   = 0
 
         def add(self, other):
             if not isinstance(other, self.__class__): raise ValueError("incompatiable types")
-            self.critical += other.critical
-            self.error    += other.error
             self.warning  += other.warning
+            self.error    += other.error
+            self.critical += other.critical
 
         def reset(self):
-            self.critical = 0
-            self.error    = 0
             self.warning  = 0
+            self.error    = 0
+            self.critical = 0
 
         def none(self):
             if self.critical + self.error + self.warning == 0: return True
@@ -811,16 +1079,23 @@ class Components_typeDef():
             if self.critical + self.error == 0: return True
             return False
 
-    def __init__(self):
-        self.entries = []
-        self.complaints = self.Complaints()
+    entries     : list[Component]   = field(default_factory=list)       #компоненты
+    complaints  : Complaints        = field(default_factory=Complaints) #нарекания
+
+    #вставляет запись
+    def insert_entry(self, entry:Component, index:int = -1):
+        if index > len(self.entries): index = len(self.entries)
+        elif index < -len(self.entries): index = 0
+        elif index < 0: index = len(self.entries) + index + 1
+        self.entries.insert(index, entry)
+        return entry
 
     #сортировка базы данных
-    def sort(self, method = 'designator', reverse = False):
+    def sort(self, method:str = 'designator', reverse:bool = False):
         if method == 'designator':
             self.entries.sort(key = lambda entry: entry._cmpkey_designator(), reverse = reverse)
-        elif method == 'value':
-            self.entries.sort(key = lambda entry: entry._cmpkey_value(), reverse = reverse)
+        elif method == 'partnumber':
+            self.entries.sort(key = lambda entry: entry._cmpkey_partnumber(), reverse = reverse)
         elif method == 'kind':
             self.entries.sort(key = lambda entry: entry._cmpkey_kind(), reverse = reverse)
         elif method == 'params':
@@ -835,28 +1110,28 @@ class Components_typeDef():
 
         #проверяем целостность десигнаторов
         for component in self.entries:
-            if component.GENERIC_designator is not None:
+            if component.GNRC_designator is not None:
                 #десигнатор есть, проверяем целостность
-                if not component.GENERIC_designator.check():
-                    component.flag = component.FlagType.ERROR
-                    print('\n' + ' ' * 12 + 'error! ' + str(component.GENERIC_designator.full) + ' - inconsistent designator', end = '', flush = True)
+                if not component.GNRC_designator.check():
+                    component.flag = Component.FlagType.ERROR
                     complaints.error += 1
+                    print(f"\n{' ' * 12}error! {component.GNRC_designator} - inconsistent designator", end = '', flush = True)
             else:
                 #десигнатора нет, проверяем что есть родительский компонент
-                if component.GENERIC_accessory_parent is None:
-                    component.flag = component.FlagType.ERROR
-                    print('\n' + ' ' * 12 + 'critical error! rogue component: ', end = '', flush = True)
+                if component.GNRC_accessory_parent is None:
+                    component.flag = Component.FlagType.ERROR
                     complaints.critical += 1
+                    print(f"\n{' ' * 12}critical error! rogue component: {component.GNRC_partnumber}", end = '', flush = True)
 
         #проверяем уникальность десигнаторов
         for i in range(len(self.entries)):
             for j in range(i + 1, len(self.entries)):
-                if self.entries[i].GENERIC_designator is not None and self.entries[j].GENERIC_designator is not None:
-                    if self.entries[i].GENERIC_designator.full == self.entries[j].GENERIC_designator.full:
-                        self.entries[i].flag = component.FlagType.ERROR
-                        self.entries[j].flag = component.FlagType.ERROR
-                        print('\n' + ' ' * 12 + 'critical error! ' + str(self.entries[i].GENERIC_designator.full) + ' - duplicate designators', end = '', flush = True)
+                if self.entries[i].GNRC_designator is not None and self.entries[j].GNRC_designator is not None:
+                    if self.entries[i].GNRC_designator.full == self.entries[j].GNRC_designator.full:
+                        self.entries[i].flag = Component.FlagType.ERROR
+                        self.entries[j].flag = Component.FlagType.ERROR
                         complaints.critical += 1
+                        print(f"\n{' ' * 12}critical error! {self.entries[i].GNRC_designator} - duplicate designators", end = '', flush = True)
 
         if complaints.none(): 
             print("ok.")  

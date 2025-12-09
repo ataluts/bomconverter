@@ -6,12 +6,12 @@ from pathlib import Path
 
 import lib_common                                               #библиотека с общими функциями
 import dict_locale as lcl
-from typedef_cl import CL_typeDef                               #класс списка компонентов
+from typedef_cl import ComponentList                            #класс списка компонентов
 from import_cl_xlsx import importz as import_cl_xlsx            #импорт списка компонентов из Excel
 from export_cl_xlsx import export as export_cl_xlsx             #экспорт списка компонентов в Excel
 
-_module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 10, 14)
+_module_dirname = Path(__file__).parent                         #адрес папки со скриптом
+_module_date    = datetime.datetime(2025, 12, 9)
 _halt_on_exit   = True
 _debug          = False
 
@@ -39,57 +39,61 @@ def lists_equal(list1, list2):
 # ----------------------------------------------------------- Specific functions --------------------------------------------------
 
 #Сравнивает списки компонентов, возвращает массив из 3 списков
-def discriminate(reference, subject, **kwargs):
+def discriminate(reference:ComponentList, subject:ComponentList, **kwargs):
     #locale
-    locale_index = kwargs.get('locale_index', lcl.LocaleIndex.RU.value)
+    locale = kwargs.get('locale', lcl.Locale.RU)
 
     cl_reference = copy.deepcopy(reference)        #исходный список компонентов (в нём останется то что удалилось)
-    cl_reference.components.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_REMOVED.value[locale_index]
-    if cl_reference.accessories is None: cl_reference.accessories = CL_typeDef.Sublist()
-    cl_reference.accessories.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_REMOVED.value[locale_index]
+    cl_reference.components.title = locale.translate(lcl.cldiscriminator.XLSX_SHEET_TITLE_REMOVED)
+    if cl_reference.accessories is None: cl_reference.accessories = ComponentList.Sublist()
+    cl_reference.accessories.title = locale.translate(lcl.cldiscriminator.XLSX_SHEET_TITLE_REMOVED)
     cl_reference.substitutes = None
     cl_subject = copy.deepcopy(subject)            #сравниваемый список компонентов (в нём останется то что добавилось)
-    cl_subject.components.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_ADDED.value[locale_index]
-    if cl_subject.accessories is None: cl_subject.accessories = CL_typeDef.Sublist()
-    cl_subject.accessories.title = lcl.cldiscriminator.XLSX_SHEET_TITLE_ADDED.value[locale_index]
+    cl_subject.components.title = locale.translate(lcl.cldiscriminator.XLSX_SHEET_TITLE_ADDED)
+    if cl_subject.accessories is None: cl_subject.accessories = ComponentList.Sublist()
+    cl_subject.accessories.title = locale.translate(lcl.cldiscriminator.XLSX_SHEET_TITLE_ADDED)
     cl_subject.substitutes = None
-    cl_changes = CL_typeDef()                      #список компонентов с изменениями (в нём появится то что изменилось по количеству)
-    cl_changes.components = CL_typeDef.Sublist(lcl.cldiscriminator.XLSX_SHEET_TITLE_MODIFIED.value[locale_index])
-    cl_changes.accessories = CL_typeDef.Sublist(lcl.cldiscriminator.XLSX_SHEET_TITLE_MODIFIED.value[locale_index])
+    cl_changes = ComponentList()                   #список компонентов с изменениями (в нём появится то что изменилось по количеству)
+    cl_changes.components = ComponentList.Sublist(locale.translate(lcl.cldiscriminator.XLSX_SHEET_TITLE_MODIFIED))
+    cl_changes.accessories = ComponentList.Sublist(locale.translate(lcl.cldiscriminator.XLSX_SHEET_TITLE_MODIFIED))
 
     #список основных компонентов
     #перебираем записи сравниваемого списка
     for i in range(len(cl_subject.components.entries) - 1, -1, -1):
         #перебираем записи исходного списка
         for j in range(len(cl_reference.components.entries) - 1, -1, -1):
-            #сравниваем номиналы
-            if lists_equal(cl_reference.components.entries[j].value, cl_subject.components.entries[i].value):
-                #сравниваем количество
-                if cl_reference.components.entries[j].quantity != cl_subject.components.entries[i].quantity:
-                    #количество не равно, находим разницу и записываем в новый список с изменениями
-                    cl_changes.components.entries.append(copy.deepcopy(cl_subject.components.entries[i]))
-                    cl_changes.components.entries[-1].quantity = cl_subject.components.entries[i].quantity - cl_reference.components.entries[j].quantity
-                #удаляем записи в списках
-                cl_reference.components.entries.pop(j)
-                cl_subject.components.entries.pop(i)
-                break
+            #сравниваем артикулы
+            if lists_equal(cl_reference.components.entries[j].partnumber, cl_subject.components.entries[i].partnumber):
+                #сравниваем параметрический флаг
+                if cl_reference.components.entries[j].parametric == cl_subject.components.entries[i].parametric:
+                    #сравниваем количество
+                    if cl_reference.components.entries[j].quantity != cl_subject.components.entries[i].quantity:
+                        #количество не равно, находим разницу и записываем в новый список с изменениями
+                        cl_changes.components.entries.append(copy.deepcopy(cl_subject.components.entries[i]))
+                        cl_changes.components.entries[-1].quantity = cl_subject.components.entries[i].quantity - cl_reference.components.entries[j].quantity
+                    #удаляем записи в списках
+                    cl_reference.components.entries.pop(j)
+                    cl_subject.components.entries.pop(i)
+                    break
 
     #список сопутствующих компонентов
     #перебираем записи сравниваемого списка
     for i in range(len(cl_subject.accessories.entries) - 1, -1, -1):
         #перебираем записи исходного списка
         for j in range(len(cl_reference.accessories.entries) - 1, -1, -1):
-            #сравниваем номиналы
-            if lists_equal(cl_reference.accessories.entries[j].value, cl_subject.accessories.entries[i].value):
-                #сравниваем количество
-                if cl_reference.accessories.entries[j].quantity != cl_subject.accessories.entries[i].quantity:
-                    #количество не равно, находим разницу и записываем в новый список с изменениями
-                    cl_changes.accessories.entries.append(copy.deepcopy(cl_subject.accessories.entries[i]))
-                    cl_changes.accessories.entries[-1].quantity = cl_subject.accessories.entries[i].quantity - cl_reference.accessories.entries[j].quantity
-                #удаляем записи в списках
-                cl_reference.accessories.entries.pop(j)
-                cl_subject.accessories.entries.pop(i)
-                break
+            #сравниваем артикулы
+            if lists_equal(cl_reference.accessories.entries[j].partnumber, cl_subject.accessories.entries[i].partnumber):
+                #сравниваем параметрический флаг
+                if cl_reference.accessories.entries[j].parametric == cl_subject.accessories.entries[i].parametric:
+                    #сравниваем количество
+                    if cl_reference.accessories.entries[j].quantity != cl_subject.accessories.entries[i].quantity:
+                        #количество не равно, находим разницу и записываем в новый список с изменениями
+                        cl_changes.accessories.entries.append(copy.deepcopy(cl_subject.accessories.entries[i]))
+                        cl_changes.accessories.entries[-1].quantity = cl_subject.accessories.entries[i].quantity - cl_reference.accessories.entries[j].quantity
+                    #удаляем записи в списках
+                    cl_reference.accessories.entries.pop(j)
+                    cl_subject.accessories.entries.pop(i)
+                    break
 
     #переворачиваем список изменённых позиций так как перебирали их в обратном порядке
     cl_changes.components.entries.reverse()
