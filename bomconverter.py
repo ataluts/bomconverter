@@ -31,7 +31,7 @@ import export_pnp_csv                   #экспорт файла устано�
 import export_pnp_txt                   #экспорт файла установщика в текстовой таблице
 
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 12, 9)
+_module_date    = datetime.datetime(2025, 12, 11)
 _halt_on_exit   = True
 _debug          = False
 
@@ -427,7 +427,7 @@ def main() -> None:
     print('')
     for file in args.inputfiles:
         file = Path(file)
-        if args.adproject is True or file.suffix.lstrip(os.extsep) == 'PrjPcb':
+        if args.adproject is True or file.suffix.lstrip(os.extsep).casefold() == 'PrjPcb'.casefold():
             process_adproject(file, args.pnp, args.titleblock, args.output_dir, args.parser, args.settings, **params)
         else:
             process_bom(file, args.pnp, args.titleblock, args.output_dir, None, None, args.parser, args.settings, **params)

@@ -1,4 +1,5 @@
 import olefile
+import locale
 import configparser
 from pathlib import Path
 
@@ -30,22 +31,22 @@ class ADProject():
     def read(self, **kwargs) -> None:
         #параметры
         max_data_offset = kwargs.get('maxDataOffset',  8)
+        file_encoding   = kwargs.get('encoding',  ('utf-8-sig', locale.getpreferredencoding(False)))
+        if not isinstance(file_encoding, (list, tuple)): file_encoding = (file_encoding)
 
         #читаем данные из файла
         if self.address.is_file():
-            #открываем файл и читаем весь текст из него
-            with open(self.address) as file:
-                contents = file.read()
-
-            #где-то после 17 версии Altium стали добавлять лишние символы перед основным содержимым файла проекта, поэтому просто так открыть его через configparser стало нельзя
-            #ищем начало данных
-            start_str = '[Design]'
-            for i in range(max_data_offset):
-                if contents.startswith(start_str): break
-                contents = contents[1:]
+            #открываем файл и читаем весь текст из него перебирая кодировки (в старых версиях AD системная кодировка, в новых UTF-8 с сигнатурой)
+            for encoding in file_encoding:
+                try:
+                    with open(self.address, 'r', encoding=encoding) as file:
+                        contents = file.read()
+                except UnicodeDecodeError:
+                    continue
+                break
             else:
-                raise Exception("Can't parse AD project file")
-
+                raise Exception("Can't read AD project file - unknown encoding")
+            
             #читаем конфиг
             self.config = configparser.ConfigParser()
             self.config.read_string(contents)

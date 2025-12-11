@@ -649,7 +649,7 @@ data = {
         #вход
         'input': {
             'adproject': {                                                          #настройки импорта проекта Altium Designer
-                'maxDataOffset'         : 8                                         #максимальное смещение (в символах) в файле перед началом данных проекта
+                'encoding'              : ('utf-8-sig', 'cp1251')                       #кодировка (в старых версиях AD системная кодировка, в новых UTF-8 с сигнатурой)
             },
             'bom-csv'                   : _settings_bomconverter_bom_csv_import,    #настройки импорта BoM из CSV
             'pnp-csv'                   : _settings_bomconverter_pnp_csv_import     #настройки импорта PnP из CSV
