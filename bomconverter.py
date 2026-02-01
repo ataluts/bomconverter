@@ -31,7 +31,7 @@ import export_pnp_csv                   #экспорт файла устано�
 import export_pnp_txt                   #экспорт файла установщика в текстовой таблице
 
 _module_dirname = os.path.dirname(__file__)                     #адрес папки со скриптом
-_module_date    = datetime.datetime(2025, 12, 11)
+_module_date    = datetime.datetime(2026, 1, 15)
 _halt_on_exit   = True
 _debug          = False
 
@@ -161,7 +161,11 @@ def process_adproject(adproject_path:Path, pnp_path:Path = None, titleblock:Path
 
     #обрабатываем все выбранные BoM из проекта
     for i in activeBomIndexes:
-        postfix = project.BoMDoc[i].variant_enclosure[0] + project.BoMDoc[i].variant + project.BoMDoc[i].variant_enclosure[1]
+        postfix = ""
+        if project.BoMDoc[i].variant_enclosure is not None:
+            postfix += project.BoMDoc[i].variant_enclosure[0]
+            if project.BoMDoc[i].variant is not None:
+                postfix += project.BoMDoc[i].variant + project.BoMDoc[i].variant_enclosure[1]
         process_bom(project.directory / project.BoMDoc[i].address, pnp_path, titleblock, output_directory, project.designator, postfix, parser, settings, **kwargs)
 
     print((' ' * 8).ljust(80, '='))
